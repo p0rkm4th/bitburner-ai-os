@@ -114,8 +114,8 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         tools = server.Tools()
         self.assertTrue(server.describe_keyboard_action(tools))
         action = tools.registry.registry.actions["send_keys"]
-        self.assertIn('keys="Enter"', action["description"])
-        self.assertIn("clicking the input does not submit", action["description"])
+        self.assertIn('keys="Enter"', action.description)
+        self.assertIn("clicking the input does not submit", action.description)
 
     async def test_bitnode_completion_requires_positive_report_and_visible_confirmation(self):
         self.assertTrue(server.bitnode1_completion_confirmed(

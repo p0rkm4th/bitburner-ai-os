@@ -152,11 +152,15 @@ def describe_keyboard_action(tools: Tools) -> bool:
     action = tools.registry.registry.actions.get("send_keys")
     if not action:
         return False
-    action["description"] = (
+    description = (
         "Send keyboard keys to the currently focused visible page element. "
         "Use keys=\"Enter\" to submit a focused Bitburner terminal command. "
         "This performs a real keypress; clicking the input does not submit it."
     )
+    if isinstance(action, dict):
+        action["description"] = description
+    else:
+        tools.registry.registry.actions["send_keys"] = action.model_copy(update={"description": description})
     return True
 
 
