@@ -19,6 +19,18 @@ docker compose --env-file ../config/.env up -d --build
 
 Use the dashboard controls to start, pause, resume, or emergency-stop bounded sessions. The emergency stop ends the active session; the persistent browser profile is retained. Session objective/result checkpoints and action/error entries live under `/opt/bitburner-agent/data/`.
 
+## Game-specific Browser Use actions
+
+The agent has five additional actions on the same Browser Use controller:
+
+- `game_observe` returns a compact rendered UI observation and reports visible dialogs.
+- `game_terminal(command)` enters one single-line command in the visible terminal and presses Enter.
+- `game_open_editor(filename)` confirms an existing `.js` filename in visible `ls` output, then opens it with the game's `nano` command.
+- `game_edit_script(filename, content)` enters model-authored text in the visible editor, checks the rendered contents, and saves using an accessible Save control.
+- `game_run_script(filename, args)` runs through the in-game terminal and returns its visible result.
+
+If a modal dialog covers the game, the action stops and identifies that it must be dismissed in the visible UI first. If a selector or UI transition cannot be confirmed, the action returns an error; inspect with `game_observe` instead of retrying blindly. The helpers automate repetitive input only. The model must inspect, choose the strategy, write and debug Netscript, and confirm game progress itself.
+
 ## Inference
 
 Set `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, and `INFERENCE_NODE` in the private `.env` file. Use “Check inference” to inspect `/api/tags`; it does not generate text. The actual inference request must be tested before selecting a model for unattended play.

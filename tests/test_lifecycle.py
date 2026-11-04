@@ -117,6 +117,20 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("clicking the input does not submit", action.description)
         for blocked in ("navigate", "go_back", "evaluate", "run_bash", "run_python", "write_file"):
             self.assertNotIn(blocked, tools.registry.registry.actions)
+        for game_action in ("game_observe", "game_terminal", "game_open_editor",
+                            "game_edit_script", "game_run_script"):
+            self.assertIn(game_action, tools.registry.registry.actions)
+        expected = {
+            "game_observe": set(),
+            "game_terminal": {"command"},
+            "game_open_editor": {"filename"},
+            "game_edit_script": {"filename", "content"},
+            "game_run_script": {"filename", "args"},
+        }
+        for name, fields in expected.items():
+            schema = tools.registry.registry.actions[name].param_model.model_json_schema()
+            self.assertEqual(set(schema["properties"]), fields)
+            self.assertNotIn("browser_session", schema["properties"])
 
     async def test_slow_local_inference_timeouts_remain_bounded(self):
         with patch.dict(os.environ, {"LLM_TIMEOUT": "170", "STEP_TIMEOUT": "190"}):

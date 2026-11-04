@@ -17,6 +17,7 @@ from browser_use import Agent, BrowserProfile, BrowserSession, ChatOllama, Tools
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
+from app.game_tools import register_game_tools
 
 STATE = Path(os.getenv("STATE_DIR", "/state"))
 for name in ("profile", "checkpoints", "logs", "screenshots", "saves", "backups"):
@@ -170,6 +171,7 @@ def create_game_tools() -> Tools:
                                   "search", "search_page", "save_as_pdf", "run_python", "run_bash",
                                   "navigate", "go_back"])
     describe_keyboard_action(tools)
+    register_game_tools(tools)
     return tools
 
 
