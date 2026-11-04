@@ -219,15 +219,18 @@ async def run_agent(objective: str) -> None:
     accomplishments = list(prior.get("accomplishments", []))[-8:]
     errors = list(prior.get("errors", []))[-8:]
     visible = prior.get("latest_visible_state", "")
+    subobjective = str(prior.get("subobjective", ""))
     last_output = {}
     last_actions = []
+    successful_actions = 0
 
     async def on_step_start(current: Agent) -> None:
-        nonlocal last_activity
-        last_activity = time.monotonic()
+        # The inactivity clock advances only after a completed step, never merely
+        # because a slow model call started.
+        return None
 
     async def on_step_end(current: Agent) -> None:
-        nonlocal last_activity, visible, last_output, last_actions
+        nonlocal last_activity, visible, last_output, last_actions, subobjective, successful_actions
         last_activity = time.monotonic()
         status["steps"] += 1
         actions = []
@@ -240,21 +243,27 @@ async def run_agent(objective: str) -> None:
             pass
         last_output = output
         last_actions = actions
+        successful_actions += len(actions)
+        subobjective = str(output.get("next_goal") or subobjective)[:700]
         visible = await visible_snapshot(shared_browser)
-        accomplishment = str(output.get("evaluation_previous_goal") or output.get("memory") or
-                             f"Completed visible browser action: {json.dumps(actions, ensure_ascii=False)[:500]}")
+        evaluation = str(output.get("evaluation_previous_goal") or "")
+        if evaluation and any(word in evaluation.casefold() for word in ("failed", "failure", "error", "unsuccessful")):
+            errors.append(evaluation[:700])
+            del errors[:-8]
+        accomplishment = evaluation or (f"Completed visible browser action: {json.dumps(actions, ensure_ascii=False)[:500]}"
+                                         if actions else "")
         if accomplishment and accomplishment not in accomplishments:
             accomplishments.append(accomplishment[:700])
             del accomplishments[:-8]
         record("action", f"Step {status['steps']}: {json.dumps(actions, ensure_ascii=False)[:700]}")
         save_checkpoint({"time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                         "objective": objective, "subobjective": str(output.get("next_goal", ""))[:700],
+                         "objective": objective, "subobjective": subobjective,
                          "accomplishments": accomplishments, "latest_visible_state": visible,
                          "scripts_and_observed_results": visible_script_evidence(visible), "errors": errors,
-                         "unresolved_problems": [], "next_intended_action": str(output.get("next_goal", ""))[:700],
+                         "unresolved_problems": errors[-4:], "next_intended_action": subobjective,
                          "session": status.get("session", 1), "steps": status["steps"],
                          "state": "active", "action": json.dumps(actions, ensure_ascii=False)[:1000],
-                         "action_count": status["steps"]})
+                         "action_count": successful_actions})
         if status["steps"] % 4 == 0:
             shot = STATE / "screenshots" / f"{int(time.time())}.png"
             try:
@@ -299,14 +308,14 @@ async def run_agent(objective: str) -> None:
         record("session", f"Completed {len(history.history)} steps")
         final_result = str(history.final_result() or "")[:1200]
         checkpoint = {"time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "objective": objective,
-                      "subobjective": str(last_output.get("next_goal", ""))[:700],
+                      "subobjective": subobjective,
                       "accomplishments": accomplishments, "latest_visible_state": await visible_snapshot(shared_browser),
                       "scripts_and_observed_results": visible_script_evidence(await visible_snapshot(shared_browser)), "errors": errors,
-                      "unresolved_problems": [], "next_intended_action": final_result or str(last_output.get("next_goal", ""))[:700],
+                      "unresolved_problems": errors[-4:], "next_intended_action": final_result or subobjective,
                       "session": status.get("session", 1), "steps": len(history.history),
                       "state": "active", "result": final_result,
                       "action": json.dumps(last_actions, ensure_ascii=False)[:1000],
-                      "action_count": len(history.history)}
+                      "action_count": successful_actions}
         save_checkpoint(checkpoint)
         record("checkpoint", final_result or (accomplishments[-1] if accomplishments else "Session ended at step limit"))
     except asyncio.CancelledError:
@@ -318,10 +327,10 @@ async def run_agent(objective: str) -> None:
         errors.append(status["error"][:700])
         try:
             save_checkpoint({"time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "objective": objective,
-                             "subobjective": str(last_output.get("next_goal", ""))[:700],
+                             "subobjective": subobjective,
                              "accomplishments": accomplishments, "latest_visible_state": await visible_snapshot(shared_browser),
                              "scripts_and_observed_results": visible_script_evidence(await visible_snapshot(shared_browser)), "errors": errors[-8:],
-                             "unresolved_problems": errors[-4:], "next_intended_action": str(last_output.get("next_goal", ""))[:700],
+                             "unresolved_problems": errors[-4:], "next_intended_action": subobjective,
                              "session": status.get("session", 1), "steps": status["steps"], "state": "active"})
         except Exception:
             log.exception("Could not persist failure checkpoint")
