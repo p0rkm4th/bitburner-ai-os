@@ -19,8 +19,10 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 try:  # Package import for tests, flat import for the deployment image.
     from .game_tools import register_game_tools
+    from .remote_api_tools import register_remote_api_tools, remote_api_from_env
 except ImportError:
     from game_tools import register_game_tools
+    from remote_api_tools import register_remote_api_tools, remote_api_from_env
 
 STATE = Path(os.getenv("STATE_DIR", "/state"))
 for name in ("profile", "checkpoints", "logs", "screenshots", "saves", "backups"):
@@ -175,6 +177,9 @@ def create_game_tools() -> Tools:
                                   "navigate", "go_back"])
     describe_keyboard_action(tools)
     register_game_tools(tools)
+    remote_api = remote_api_from_env()
+    if remote_api is not None:
+        register_remote_api_tools(tools, remote_api)
     return tools
 
 

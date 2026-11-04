@@ -12,4 +12,6 @@ The dashboard and noVNC are bound to guest loopback. The firewall permits inboun
 
 Model host, model name, and node label are supplied via the ignored private `.env` file. Endpoint failover is not configured until latency, reliability, and compatible models have been tested. Runtime logs and checkpoints are bounded; the browser profile is durable. Game-native export and restore still require end-to-end validation in the running game UI.
 
+The restricted Bitburner MCP Remote API bridge runs as a sidecar sharing the agent container's network namespace. Both its REST and WebSocket listeners bind to loopback, there are no published bridge ports, and its REST calls require a private bearer token. A server-side allowlist exposes only `getFile`, `pushFile`, `calculateRam`, and `getDefinitionFile`; file methods accept only simple `.js` filenames on `home`. Save reads, game/server enumeration, deletion, bulk file reads, and convenience file routes are blocked at the bridge. Request logs omit script contents. Browser Use remains the gameplay controller and is still required to run scripts and inspect results through the game UI.
+
 An explicit emergency stop deletes the saved auto-resume objective so a future service restart cannot undo that operator action. An unplanned interruption leaves the objective in place for startup recovery when `AUTO_RESUME=1` is enabled.

@@ -26,6 +26,7 @@ services:
       AUTO_RESUME: ${AUTO_RESUME:-0}
       INFERENCE_NODE: ${INFERENCE_NODE:-unconfigured}
       VNC_INTERACTIVE: ${VNC_INTERACTIVE:-0}
+      BITBURNER_REMOTE_API_URL: http://127.0.0.1:3001
       ALLOWED_DOMAINS: bitburner-official.github.io
     ports:
       - "127.0.0.1:8080:8080"
@@ -36,6 +37,35 @@ services:
     cpus: 2.0
     mem_limit: 3g
     shm_size: 1gb
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+  bitburner-mcp:
+    build:
+      context: ..
+      dockerfile: integrations/bitburner-mcp-server/Dockerfile
+    image: bitburner-mcp-server:hardened
+    container_name: bitburner-mcp
+    init: true
+    restart: unless-stopped
+    network_mode: "service:bitburner-agent"
+    depends_on:
+      bitburner-agent:
+        condition: service_started
+    environment:
+      BITBURNER_REMOTE_API_TOKEN: ${BITBURNER_REMOTE_API_TOKEN:?Set a random BITBURNER_REMOTE_API_TOKEN in config/.env}
+      BB_API_HOST: 127.0.0.1
+      BB_API_PORT: 3001
+      BB_WS_HOST: 127.0.0.1
+      BB_WS_PORT: 12525
+      BB_DASHBOARD_HOST: 127.0.0.1
+      BB_DASHBOARD_PORT: 3002
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    cpus: 0.5
+    mem_limit: 384m
     security_opt:
       - no-new-privileges:true
     cap_drop:

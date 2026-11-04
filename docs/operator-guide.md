@@ -31,6 +31,14 @@ The agent has five additional actions on the same Browser Use controller:
 
 If a modal dialog covers the game, the action stops and identifies that it must be dismissed in the visible UI first. If a selector or UI transition cannot be confirmed, the action returns an error; inspect with `game_observe` instead of retrying blindly. The helpers automate repetitive input only. The model must inspect, choose the strategy, write and debug Netscript, and confirm game progress itself.
 
+## Restricted Remote API bridge
+
+The optional bridge is a sidecar in the agent's private network namespace. It publishes no ports. Set `BITBURNER_REMOTE_API_TOKEN` in the ignored `config/.env` to a random value (`openssl rand -hex 32`), then start the Compose stack. In the game's visible Options > Remote API page, set hostname `localhost`, port `12525`, leave WSS unchecked, and connect. The HTTPS game blocks plain WebSockets to non-loopback hostnames; the shared network namespace makes loopback work without exposing the listener.
+
+The bridge enforces four Remote API operations: read one simple `.js` filename on `home`, write model-authored `.js` content on `home` and read it back, calculate the game's RAM cost for that script, and read the game's official type definitions. It rejects save reads, server enumeration, deletion, bulk file access, path traversal, other servers, and convenience file endpoints. Browser Use still runs scripts through the visible Terminal and observes the visible game.
+
+The optional agent actions are `game_read_script`, `game_deploy_script`, and `game_netscript_reference`. They appear only when both the bridge URL and token are configured. Never put the token in the repository or prompt.
+
 ## Inference
 
 Set `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, and `INFERENCE_NODE` in the private `.env` file. Use “Check inference” to inspect `/api/tags`; it does not generate text. The actual inference request must be tested before selecting a model for unattended play.
