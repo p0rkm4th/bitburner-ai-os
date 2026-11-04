@@ -132,6 +132,16 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(set(schema["properties"]), fields)
             self.assertNotIn("browser_session", schema["properties"])
 
+    async def test_remote_api_configuration_removes_browser_editor_tools(self):
+        with patch.object(server, "remote_api_from_env", return_value=object()):
+            tools = server.create_game_tools()
+        actions = tools.registry.registry.actions
+        self.assertNotIn("game_open_editor", actions)
+        self.assertNotIn("game_edit_script", actions)
+        for name in ("game_read_script", "game_deploy_script", "game_netscript_reference",
+                     "game_run_script", "game_terminal", "game_observe"):
+            self.assertIn(name, actions)
+
     async def test_slow_local_inference_timeouts_remain_bounded(self):
         with patch.dict(os.environ, {"LLM_TIMEOUT": "170", "STEP_TIMEOUT": "190"}):
             self.assertEqual(server.inference_timeout_settings(), {"llm_timeout": 170, "step_timeout": 190})

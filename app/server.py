@@ -176,8 +176,8 @@ def create_game_tools() -> Tools:
                                   "search", "search_page", "save_as_pdf", "run_python", "run_bash",
                                   "navigate", "go_back"])
     describe_keyboard_action(tools)
-    register_game_tools(tools)
     remote_api = remote_api_from_env()
+    register_game_tools(tools, include_editor=remote_api is None)
     if remote_api is not None:
         register_remote_api_tools(tools, remote_api)
     return tools

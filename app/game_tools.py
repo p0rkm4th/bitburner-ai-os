@@ -98,7 +98,7 @@ SAVE_BUTTONS = (
 )
 
 
-def register_game_tools(tools: Tools) -> dict[str, object]:
+def register_game_tools(tools: Tools, *, include_editor: bool = True) -> dict[str, object]:
     """Register a small deterministic tool set on the existing Browser Use controller."""
 
     @tools.action(description="Return a compact observation of the visible Bitburner UI, including dialogs and visible game state. Does not change the game.")
@@ -217,10 +217,17 @@ def register_game_tools(tools: Tools) -> dict[str, object]:
         except Exception as exc:
             return f"ERROR: Script execution was not confirmed: {type(exc).__name__}: {exc}"
 
-    return {
+    actions = {
         "game_observe": game_observe,
         "game_terminal": game_terminal,
         "game_open_editor": game_open_editor,
         "game_edit_script": game_edit_script,
         "game_run_script": game_run_script,
     }
+    if not include_editor:
+        # If the official Remote API is configured, script authoring goes through
+        # that validated path. Keep execution and observation in the visible UI.
+        for name in ("game_open_editor", "game_edit_script"):
+            tools.registry.registry.actions.pop(name, None)
+            actions.pop(name, None)
+    return actions
