@@ -312,8 +312,9 @@ async def run_agent(objective: str) -> None:
     tools = create_game_tools()
     checkpoint_path = STATE / "checkpoints" / "latest.json"
     previous = json.loads(checkpoint_path.read_text()) if checkpoint_path.exists() else None
+    checkpoint_limit = max(800, min(4000, int(os.getenv("CHECKPOINT_PROMPT_LIMIT", "1600"))))
     progress = (f"\nPrevious checkpoint (compact summary): "
-                f"{json.dumps(checkpoint_prompt_summary(previous), ensure_ascii=False)[:3000]}" if previous else "")
+                f"{json.dumps(checkpoint_prompt_summary(previous), ensure_ascii=False)[:checkpoint_limit]}" if previous else "")
     game_url = os.getenv("GAME_URL", "https://bitburner-official.github.io/")
     current_url = ""
     if shared_browser is not None:
@@ -385,10 +386,10 @@ async def run_agent(objective: str) -> None:
     agent = Agent(task=task, llm=get_model(), browser_profile=profile, browser_session=shared_browser, tools=tools,
                   use_vision=True, use_judge=False, max_failures=int(os.getenv("MAX_FAILURES", "2")),
                   max_actions_per_step=4, enable_signal_handler=False,
-                  max_history_items=12,
+                  max_history_items=max(4, min(12, int(os.getenv("MAX_HISTORY_ITEMS", "6")))),
                   save_conversation_path=STATE / "logs" / "conversation.json")
     try:
-        agent_run_task = asyncio.create_task(agent.run(max_steps=int(os.getenv("MAX_STEPS", "8")),
+        agent_run_task = asyncio.create_task(agent.run(max_steps=int(os.getenv("MAX_STEPS", "16")),
                                                         on_step_start=on_step_start, on_step_end=on_step_end))
         idle_limit = max(60, int(os.getenv("IDLE_TIMEOUT", "900")))
         time_limit = max(60, int(os.getenv("MAX_SESSION_SECONDS", "3600")))

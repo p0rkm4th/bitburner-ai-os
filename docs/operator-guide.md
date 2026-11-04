@@ -23,6 +23,8 @@ Use the dashboard controls to start, pause, resume, or emergency-stop bounded se
 
 Set `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, and `INFERENCE_NODE` in the private `.env` file. Use “Check inference” to inspect `/api/tags`; it does not generate text. The actual inference request must be tested before selecting a model for unattended play.
 
+`MAX_STEPS` bounds each agent session (default 16); `MAX_SESSIONS=0` allows the supervisor to continue until a configured stop condition. `MAX_HISTORY_ITEMS` and `CHECKPOINT_PROMPT_LIMIT` keep continuation prompts compact. Tune these values in the private `.env` when the model needs more room or inference latency requires shorter sessions.
+
 ## Backups
 
 The VM is included in the Proxmox scheduled backup job, and VM snapshots are kept as deployment rollback points. The active game save is in Chromium's persistent profile. Use the game's visible save UI to export a native `.json.gz` save. The service waits for a completed download, checks its gzip integrity, and archives it under `/opt/bitburner-agent/data/backups/`; it keeps the latest 30 verified exports. `/api/backups` and the dashboard list those exports. No export is considered validated until an actual file appears there.

@@ -11,7 +11,9 @@ services:
     environment:
       STATE_DIR: /state
       GAME_URL: https://bitburner-official.github.io/
-      MAX_STEPS: ${MAX_STEPS:-8}
+      MAX_STEPS: ${MAX_STEPS:-16}
+      MAX_HISTORY_ITEMS: ${MAX_HISTORY_ITEMS:-6}
+      CHECKPOINT_PROMPT_LIMIT: ${CHECKPOINT_PROMPT_LIMIT:-1600}
       MAX_FAILURES: ${MAX_FAILURES:-2}
       IDLE_TIMEOUT: ${IDLE_TIMEOUT:-900}
       MAX_SESSION_SECONDS: ${MAX_SESSION_SECONDS:-3600}
