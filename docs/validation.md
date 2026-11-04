@@ -5,10 +5,10 @@ This document records measured results only. A running container alone does not 
 | Acceptance item | Result | Evidence |
 |---|---|---|
 | VM boots and receives LAN networking | Passed | VM 100 on Alexandra is running Ubuntu Server 24.04.5 LTS at its DHCP lease; SSH and QEMU guest-agent queries succeed. |
-| Actual Ollama model generation | Pending | The configured Ollama endpoint responds to `/api/tags` from the VM and reports the configured model. No generation request has been issued while the independent inference verification is in progress. |
-| Agent browser action in Bitburner | Pending | |
+| Actual Ollama model generation | Passed (basic response) | From the VM, the configured Tartarus endpoint returned `READY` from `qwen3.6:35b` in 0.81 seconds with thinking disabled and a 48-token cap. A prior 8-token probe was too short to produce a visible answer. |
+| Agent browser action in Bitburner | Passed (initial interaction) | Browser Use with `qwen3.6:35b` visually identified the live game's offline-progress popup and clicked its visible close control. The action is recorded in the dashboard log. |
 | Official game opens in Chromium | Passed (manual browser check) | Browser Use's Chromium session loaded the official game, displayed the tutorial, and later showed the in-game offline-progress dialog. This does not yet prove model control. |
-| Model-controlled browser action | Pending | Requires an actual local inference generation. |
+| Model-controlled browser action | Passed (initial interaction) | The model reported the current visible game state (`$1.262k`, level 1, game v3.0.1) and chose the popup close action. Longer gameplay validation is ongoing. |
 | Netscript creation and execution | Pending | |
 | Remote live viewer | Passed (tunnel path) | noVNC page and internal VNC connection respond. A workstation SSH tunnel successfully reached both the health API and noVNC page; verify live game display during an agent session remains pending. |
 | Core statistics update | Pending | The dashboard observation endpoint now returns a live rendered game UI summary and container RAM usage/limit. The model has not yet created and run a Netscript statistics display. |
