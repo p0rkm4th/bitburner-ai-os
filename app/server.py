@@ -147,6 +147,19 @@ def checkpoint_prompt_summary(checkpoint: dict) -> dict:
     }
 
 
+def describe_keyboard_action(tools: Tools) -> bool:
+    """Make the installed Browser Use keyboard action unambiguous to the model."""
+    action = tools.registry.registry.actions.get("send_keys")
+    if not action:
+        return False
+    action["description"] = (
+        "Send keyboard keys to the currently focused visible page element. "
+        "Use keys=\"Enter\" to submit a focused Bitburner terminal command. "
+        "This performs a real keypress; clicking the input does not submit it."
+    )
+    return True
+
+
 def bitnode1_completion_confirmed(report: str, visible: str) -> bool:
     report_lines = [line.casefold() for line in report.splitlines()]
     positive_marker = any("bitnode_1_complete" in line and
@@ -285,6 +298,7 @@ async def run_agent(objective: str) -> None:
     # These stock actions provide arbitrary code/file access; gameplay must use the UI and Netscript.
     tools = Tools(exclude_actions=["evaluate", "write_file", "replace_file", "read_file", "upload_file",
                                   "search", "search_page", "save_as_pdf", "run_python", "run_bash"])
+    describe_keyboard_action(tools)
     checkpoint_path = STATE / "checkpoints" / "latest.json"
     previous = json.loads(checkpoint_path.read_text()) if checkpoint_path.exists() else None
     progress = (f"\nPrevious checkpoint (compact summary): "
