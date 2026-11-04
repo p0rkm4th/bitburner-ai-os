@@ -96,6 +96,19 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(server.runtime_session_number(None), 0)
         self.assertEqual(server.runtime_session_number("3"), 3)
 
+    async def test_continuation_stays_on_existing_game_and_summarizes_checkpoint(self):
+        task = server.browser_task("Continue playing", "", "https://bitburner-official.github.io/",
+                                   "https://bitburner-official.github.io/")
+        self.assertIn("already open", task)
+        self.assertIn("Do not navigate or reload", task)
+        self.assertNotIn("Open https://", task)
+        self.assertIn("Open https://", server.browser_task("Continue", "", "about:blank",
+                                                            "https://bitburner-official.github.io/"))
+        summary = server.checkpoint_prompt_summary({"result": "x" * 10000,
+            "latest_visible_state": "v" * 3000, "next_intended_action": "next"})
+        self.assertNotIn("result", summary)
+        self.assertLessEqual(len(summary["latest_visible_state"]), 1400)
+
     async def test_bitnode_completion_requires_positive_report_and_visible_confirmation(self):
         self.assertTrue(server.bitnode1_completion_confirmed(
             "BITNODE_1_COMPLETE", "Congratulations, BitNode 1 completed."))

@@ -122,6 +122,29 @@ def runtime_session_number(value) -> int:
         return 0
 
 
+def browser_task(objective: str, progress: str, current_url: str, game_url: str) -> str:
+    """Avoid reloading the persistent game tab when continuing an existing session."""
+    if current_url.rstrip("/") == game_url.rstrip("/"):
+        prefix = f"The official Bitburner game is already open in the persistent browser tab at {game_url}. Do not navigate or reload it."
+    else:
+        prefix = f"Open {game_url} using ordinary visible browser controls."
+    return f"{prefix} {objective}{progress}"
+
+
+def checkpoint_prompt_summary(checkpoint: dict) -> dict:
+    """Pass only compact, useful progress context to the next model session."""
+    return {
+        "session": checkpoint.get("session"), "steps": checkpoint.get("steps"),
+        "objective": str(checkpoint.get("objective", ""))[:500],
+        "subobjective": str(checkpoint.get("subobjective", ""))[:500],
+        "accomplishments": [str(x)[:350] for x in checkpoint.get("accomplishments", [])[-4:]],
+        "latest_visible_state": str(checkpoint.get("latest_visible_state", ""))[-1400:],
+        "scripts_and_observed_results": checkpoint.get("scripts_and_observed_results", [])[-6:],
+        "errors": [str(x)[:350] for x in checkpoint.get("errors", [])[-4:]],
+        "next_intended_action": str(checkpoint.get("next_intended_action", ""))[:500],
+    }
+
+
 def bitnode1_completion_confirmed(report: str, visible: str) -> bool:
     report_lines = [line.casefold() for line in report.splitlines()]
     positive_marker = any("bitnode_1_complete" in line and
@@ -262,8 +285,16 @@ async def run_agent(objective: str) -> None:
                                   "search", "search_page", "save_as_pdf", "run_python", "run_bash"])
     checkpoint_path = STATE / "checkpoints" / "latest.json"
     previous = json.loads(checkpoint_path.read_text()) if checkpoint_path.exists() else None
-    progress = f"\nPrevious checkpoint (summary only): {json.dumps(previous, ensure_ascii=False)[:3500]}" if previous else ""
-    task = f"Open {os.getenv('GAME_URL', 'https://bitburner-official.github.io/')} using ordinary visible browser controls. {objective}{progress}"
+    progress = (f"\nPrevious checkpoint (compact summary): "
+                f"{json.dumps(checkpoint_prompt_summary(previous), ensure_ascii=False)[:3000]}" if previous else "")
+    game_url = os.getenv("GAME_URL", "https://bitburner-official.github.io/")
+    current_url = ""
+    if shared_browser is not None:
+        try:
+            current_url = (await shared_browser.get_browser_state_summary(include_screenshot=False)).url
+        except Exception:
+            pass
+    task = browser_task(objective, progress, current_url, game_url)
     last_activity = time.monotonic()
     prior = json.loads(checkpoint_path.read_text()) if checkpoint_path.exists() else {}
     accomplishments = list(prior.get("accomplishments", []))[-8:]
