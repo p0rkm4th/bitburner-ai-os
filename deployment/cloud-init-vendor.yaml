@@ -1,0 +1,27 @@
+#cloud-config
+# Proxmox vendor-data for the Bitburner AI OS VM.
+# The SSH administrator is created separately by Proxmox cloud-init settings.
+# The game and agent run without host shell or Docker socket access.
+package_update: true
+packages:
+  - ca-certificates
+  - curl
+  - docker.io
+  - docker-compose-v2
+  - qemu-guest-agent
+  - ufw
+runcmd:
+  - [systemctl, enable, --now, docker.service]
+  - [systemctl, enable, --now, qemu-guest-agent.service]
+  - [useradd, --system, --uid, '10001', --create-home, --home-dir, /opt/bitburner-agent, --shell, /usr/sbin/nologin, bitburner]
+  - [install, -d, -o, bitburner, -g, bitburner, -m, '0750', /opt/bitburner-agent]
+  - [install, -d, -o, bitburner, -g, bitburner, -m, '0750', /opt/bitburner-agent/data]
+  - [install, -d, -o, bitburner, -g, bitburner, -m, '0750', /opt/bitburner-agent/data/profile]
+  - [install, -d, -o, bitburner, -g, bitburner, -m, '0750', /opt/bitburner-agent/data/saves]
+  - [install, -d, -o, bitburner, -g, bitburner, -m, '0750', /opt/bitburner-agent/data/checkpoints]
+  - [install, -d, -o, bitburner, -g, bitburner, -m, '0750', /opt/bitburner-agent/data/logs]
+  - [install, -d, -o, bitburner, -g, bitburner, -m, '0750', /opt/bitburner-agent/backups]
+  - [ufw, default, deny, incoming]
+  - [ufw, default, allow, outgoing]
+  - [ufw, allow, from, __LAN_MGMT_CIDR__, to, any, port, '22', proto, tcp]
+  - [ufw, --force, enable]

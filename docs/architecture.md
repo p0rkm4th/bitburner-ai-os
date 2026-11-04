@@ -1,0 +1,11 @@
+# Architecture and security boundaries
+
+The deployment runs one unprivileged container on a dedicated Ubuntu VM. Docker Compose restarts it after failures and the VM starts automatically. The container runs current Browser Use Python, a persistent visible Chromium profile, Xvfb, and a localhost-only noVNC viewer. FastAPI provides start, pause, resume, stop, status, and read-only Ollama discovery. It has no Docker socket, host shell, arbitrary file tools, or browser developer evaluation action. Save data, profile, checkpoints, screenshots, and action records live in host bind mounts.
+
+The Browser Use WebUI repository was evaluated and rejected for this deployment: its pinned application uses an older Browser Use dependency and its default Compose file exposes browser debugging/VNC ports broadly and requests `SYS_ADMIN`. The current Browser Use Python library supports local Ollama, persistent profiles, screenshots, bounded runs, pause/resume/stop, and excluding actions, so the deployment uses that library with a small local control surface.
+
+Browser navigation is restricted to the official game domain by both Browser Use's allowed-domain feature and the agent's reduced tool registry. The initial browser action is ordinary navigation. The model may use visible UI and documented in-game Netscript only. It receives no host shell, arbitrary file read/write, browser `evaluate`, browser debugging port, Docker socket, or unrestricted outbound browser navigation. The container has no added Linux capabilities and enables `no-new-privileges`.
+
+The dashboard and noVNC are bound to guest loopback. The firewall permits inbound SSH from the configured management CIDR only; outbound access is needed for the official game and local inference endpoint. Reach them by SSH forwarding. noVNC starts view-only; deliberate human interaction requires setting `VNC_INTERACTIVE=1` in the VM's private environment file and recreating the service.
+
+Model host, model name, and node label are supplied via the ignored private `.env` file. Endpoint failover is not configured until latency, reliability, and compatible models have been tested. Runtime logs and checkpoints are bounded; the browser profile is durable. Exported game-save backup and restore remain subject to validation in the running game UI, and must not be claimed until verified.

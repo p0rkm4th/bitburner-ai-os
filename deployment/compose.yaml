@@ -1,0 +1,36 @@
+services:
+  bitburner-agent:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    image: bitburner-agent:local
+    container_name: bitburner-agent
+    init: true
+    restart: unless-stopped
+    env_file: ../config/.env
+    environment:
+      STATE_DIR: /state
+      GAME_URL: https://bitburner-official.github.io/
+      MAX_STEPS: ${MAX_STEPS:-8}
+      MAX_FAILURES: ${MAX_FAILURES:-2}
+      IDLE_TIMEOUT: ${IDLE_TIMEOUT:-900}
+      MAX_SESSIONS: ${MAX_SESSIONS:-12}
+      MAX_RETRIES: ${MAX_RETRIES:-2}
+      SESSION_DELAY: ${SESSION_DELAY:-60}
+      AUTO_RESUME: ${AUTO_RESUME:-0}
+      INFERENCE_NODE: ${INFERENCE_NODE:-unconfigured}
+      VNC_INTERACTIVE: ${VNC_INTERACTIVE:-0}
+      ALLOWED_DOMAINS: bitburner-official.github.io
+    ports:
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:6080:6080"
+    volumes:
+      - /opt/bitburner-agent/data:/state
+      - /opt/bitburner-agent/config/objective.md:/config/objective.md:ro
+    cpus: 2.0
+    mem_limit: 3g
+    shm_size: 1gb
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL

@@ -1,0 +1,9 @@
+.git
+local
+config
+deployment.env
+data
+backups
+*.env
+*.log
+__pycache__

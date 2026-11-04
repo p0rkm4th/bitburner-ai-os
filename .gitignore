@@ -1,0 +1,14 @@
+.env
+*.secret
+*.key
+*.pubkey
+*.log
+local/
+config/
+data/
+backups/
+/local/
+*.private.md
+*.local.md
+__pycache__/
+*.py[cod]
