@@ -111,11 +111,12 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertLessEqual(len(summary["latest_visible_state"]), 1400)
 
     async def test_keyboard_action_explains_terminal_submission(self):
-        tools = server.Tools()
-        self.assertTrue(server.describe_keyboard_action(tools))
+        tools = server.create_game_tools()
         action = tools.registry.registry.actions["send_keys"]
         self.assertIn('keys="Enter"', action.description)
         self.assertIn("clicking the input does not submit", action.description)
+        for blocked in ("navigate", "go_back", "evaluate", "run_bash", "run_python", "write_file"):
+            self.assertNotIn(blocked, tools.registry.registry.actions)
 
     async def test_bitnode_completion_requires_positive_report_and_visible_confirmation(self):
         self.assertTrue(server.bitnode1_completion_confirmed(

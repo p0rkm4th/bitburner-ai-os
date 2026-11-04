@@ -164,6 +164,15 @@ def describe_keyboard_action(tools: Tools) -> bool:
     return True
 
 
+def create_game_tools() -> Tools:
+    """Limit the player to in-game interactions; app startup owns initial navigation."""
+    tools = Tools(exclude_actions=["evaluate", "write_file", "replace_file", "read_file", "upload_file",
+                                  "search", "search_page", "save_as_pdf", "run_python", "run_bash",
+                                  "navigate", "go_back"])
+    describe_keyboard_action(tools)
+    return tools
+
+
 def bitnode1_completion_confirmed(report: str, visible: str) -> bool:
     report_lines = [line.casefold() for line in report.splitlines()]
     positive_marker = any("bitnode_1_complete" in line and
@@ -300,9 +309,7 @@ async def run_agent(objective: str) -> None:
     if shared_browser is None:
         shared_browser = BrowserSession(browser_profile=profile)
     # These stock actions provide arbitrary code/file access; gameplay must use the UI and Netscript.
-    tools = Tools(exclude_actions=["evaluate", "write_file", "replace_file", "read_file", "upload_file",
-                                  "search", "search_page", "save_as_pdf", "run_python", "run_bash"])
-    describe_keyboard_action(tools)
+    tools = create_game_tools()
     checkpoint_path = STATE / "checkpoints" / "latest.json"
     previous = json.loads(checkpoint_path.read_text()) if checkpoint_path.exists() else None
     progress = (f"\nPrevious checkpoint (compact summary): "
