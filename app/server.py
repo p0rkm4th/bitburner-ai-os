@@ -63,13 +63,17 @@ def get_model() -> ChatOllama:
     return ChatOllama(model=os.environ["OLLAMA_MODEL"], host=base, timeout=float(os.getenv("OLLAMA_TIMEOUT", "120")))
 
 
+def get_browser_profile() -> BrowserProfile:
+    domains = [d.strip() for d in os.getenv("ALLOWED_DOMAINS", "bitburner-official.github.io").split(",") if d.strip()]
+    return BrowserProfile(user_data_dir=str(STATE / "profile"), headless=False, allowed_domains=domains,
+                          downloads_path=str(STATE / "saves"), enable_default_extensions=False, keep_alive=True)
+
+
 async def run_agent(objective: str) -> None:
     global agent, shared_browser
     status.update(state="running", objective=objective, error="", steps=0, node=os.getenv("INFERENCE_NODE", "unconfigured"))
     record("session", f"Started: {objective}")
-    domains = [d.strip() for d in os.getenv("ALLOWED_DOMAINS", "bitburner-official.github.io").split(",") if d.strip()]
-    profile = BrowserProfile(user_data_dir=str(STATE / "profile"), headless=False, allowed_domains=domains,
-                             downloads_path=str(STATE / "saves"), enable_default_extensions=False, keep_alive=True)
+    profile = get_browser_profile()
     if shared_browser is None:
         shared_browser = BrowserSession(browser_profile=profile)
     # These stock actions provide arbitrary code/file access; gameplay must use the UI and Netscript.
@@ -246,6 +250,8 @@ async def stop():
         agent.stop()
     if runner and not runner.done():
         runner.cancel()
+    # An explicit emergency stop must survive a later service/VM restart.
+    (STATE / "checkpoints" / "objective.json").unlink(missing_ok=True)
     status["state"] = "stopped"
     record("control", "Emergency stop")
     return {"stopped": True}
@@ -268,6 +274,17 @@ async def inference_check():
 @app.on_event("startup")
 async def auto_resume():
     global runner
+    # Keep the actual game visible and ready for observation even while inference is idle.
+    global shared_browser
+    try:
+        shared_browser = BrowserSession(browser_profile=get_browser_profile())
+        await shared_browser.start()
+        await shared_browser.navigate_to(os.getenv("GAME_URL", "https://bitburner-official.github.io/"))
+        record("browser", "Persistent game browser ready")
+    except Exception as exc:
+        shared_browser = None
+        record("error", f"Browser startup failed: {type(exc).__name__}: {exc}")
+        log.exception("Could not start persistent game browser")
     if os.getenv("AUTO_RESUME", "0") != "1":
         return
     objective_file = STATE / "checkpoints" / "objective.json"
