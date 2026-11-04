@@ -6,6 +6,7 @@ import html
 import json
 import logging
 import os
+import re
 import shutil
 import time
 from pathlib import Path
@@ -22,6 +23,8 @@ for name in ("profile", "checkpoints", "logs", "screenshots", "saves", "backups"
     (STATE / name).mkdir(parents=True, exist_ok=True)
 SAVE_DOWNLOADS = STATE / "saves"
 SAVE_BACKUPS = STATE / "backups"
+NATIVE_SAVE_NAME = re.compile(r"^bitburnerSave_\d+_BN\d+x\d+\.json\.gz$")
+ARCHIVE_NAME = re.compile(r"^native-save-\d{8}T\d{6}Z-[0-9a-f]{12}\.json\.gz$")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("bitburner-agent")
 app = FastAPI(title="Bitburner AI OS", docs_url=None, redoc_url=None)
@@ -81,14 +84,48 @@ def get_browser_profile() -> BrowserProfile:
                           downloads_path=str(STATE / "saves"), enable_default_extensions=False, keep_alive=True)
 
 
+def archive_native_save(source: Path) -> tuple[str, int]:
+    """Validate and archive a completed Bitburner-named save without reading its contents into memory."""
+    stat = source.stat()
+    if stat.st_size <= 0 or stat.st_size > 50_000_000:
+        raise ValueError("export size outside 1 byte to 50 MB")
+    digest = hashlib.sha256()
+    with source.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    timestamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    backup = SAVE_BACKUPS / f"native-save-{timestamp}-{digest.hexdigest()[:12]}.json.gz"
+    temporary = backup.with_name(backup.name + ".partial")
+    if backup.exists():
+        source.unlink(missing_ok=True)
+        return backup.name, stat.st_size
+    try:
+        shutil.copy2(source, temporary)
+        # Verify the gzip CRC while bounding expanded data to avoid accepting a compressed bomb.
+        expanded = 0
+        with gzip.open(temporary, "rb") as stream:
+            while chunk := stream.read(1024 * 1024):
+                expanded += len(chunk)
+                if expanded > 250_000_000:
+                    raise ValueError("expanded export exceeds 250 MB")
+        os.replace(temporary, backup)
+        source.unlink(missing_ok=True)
+        return backup.name, stat.st_size
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
 async def archive_game_saves() -> None:
-    """Move completed native game exports into a separate, bounded backup directory."""
+    """Archive only stable, Bitburner-named native exports with bounded retention."""
     retention = max(1, min(100, int(os.getenv("SAVE_BACKUP_RETENTION", "30"))))
     seen: dict[str, tuple[int, int]] = {}
+    failed: dict[str, tuple[int, int]] = {}
     while True:
         try:
-            for source in SAVE_DOWNLOADS.glob("*.json.gz"):
-                backup = None
+            for source in SAVE_DOWNLOADS.iterdir():
+                if not source.is_file() or not NATIVE_SAVE_NAME.fullmatch(source.name):
+                    continue
                 signature = (0, 0)
                 try:
                     stat = source.stat()
@@ -98,27 +135,17 @@ async def archive_game_saves() -> None:
                     if seen.get(source.name) != signature:
                         seen[source.name] = signature
                         continue
-                    digest = hashlib.sha256()
-                    with source.open("rb") as stream:
-                        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-                            digest.update(chunk)
-                    backup = SAVE_BACKUPS / f"{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{digest.hexdigest()[:12]}.json.gz"
-                    if backup.exists():
-                        source.unlink(missing_ok=True)
+                    if failed.get(source.name) == signature:
                         continue
-                    shutil.copy2(source, backup)
-                    # Read the full compressed stream to check its gzip CRC before deleting the download.
-                    with gzip.open(backup, "rb") as stream:
-                        while stream.read(1024 * 1024):
-                            pass
-                    source.unlink(missing_ok=True)
-                    record("backup", f"Archived native game save {backup.name} ({stat.st_size} bytes)")
-                except (OSError, EOFError, gzip.BadGzipFile) as exc:
-                    if backup is not None:
-                        backup.unlink(missing_ok=True)
-                    record("warning", f"Game-save archive skipped {source.name}: {type(exc).__name__}")
-                    seen[source.name] = signature
-            archives = sorted(SAVE_BACKUPS.glob("*.json.gz"), key=lambda p: p.stat().st_mtime, reverse=True)
+                    name, size = await asyncio.to_thread(archive_native_save, source)
+                    record("backup", f"Archived gzip-validated native game save {name} ({size} bytes)")
+                    seen.pop(source.name, None)
+                    failed.pop(source.name, None)
+                except Exception as exc:
+                    failed[source.name] = signature
+                    record("warning", f"Native game-save archive skipped {source.name}: {type(exc).__name__}")
+            archives = sorted((p for p in SAVE_BACKUPS.iterdir() if p.is_file() and ARCHIVE_NAME.fullmatch(p.name)),
+                              key=lambda p: p.stat().st_mtime, reverse=True)
             for old in archives[retention:]:
                 old.unlink(missing_ok=True)
         except Exception as exc:
@@ -279,7 +306,8 @@ async def health():
 
 @app.get("/api/backups")
 async def get_backups():
-    archives = sorted(SAVE_BACKUPS.glob("*.json.gz"), key=lambda p: p.stat().st_mtime, reverse=True)
+    archives = sorted((p for p in SAVE_BACKUPS.iterdir() if p.is_file() and ARCHIVE_NAME.fullmatch(p.name)),
+                      key=lambda p: p.stat().st_mtime, reverse=True)
     return {"count": len(archives), "retention": max(1, min(100, int(os.getenv("SAVE_BACKUP_RETENTION", "30")))),
             "backups": [{"name": p.name, "size_bytes": p.stat().st_size,
                          "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(p.stat().st_mtime))}
