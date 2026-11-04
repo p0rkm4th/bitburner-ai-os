@@ -17,7 +17,10 @@ from browser_use import Agent, BrowserProfile, BrowserSession, ChatOllama, Tools
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
-from app.game_tools import register_game_tools
+try:  # Package import for tests, flat import for the deployment image.
+    from .game_tools import register_game_tools
+except ImportError:
+    from game_tools import register_game_tools
 
 STATE = Path(os.getenv("STATE_DIR", "/state"))
 for name in ("profile", "checkpoints", "logs", "screenshots", "saves", "backups"):
