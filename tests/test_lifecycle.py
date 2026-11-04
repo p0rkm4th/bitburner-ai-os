@@ -142,6 +142,25 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
                      "game_run_script", "game_terminal", "game_observe"):
             self.assertIn(name, actions)
 
+    async def test_remote_api_checkpoint_discards_stale_editor_instructions(self):
+        checkpoint = {
+            "objective": "Use game_edit_script to repair home.js",
+            "subobjective": "Open the Script Editor",
+            "accomplishments": ["Remote API Online", "Monaco editor opened"],
+            "latest_visible_state": "Stale Script Editor snapshot",
+            "scripts_and_observed_results": ["home.js editor input mismatch"],
+            "errors": ["game_edit_script failed", "No script execution verified"],
+            "next_intended_action": "Open the editor and retry game_edit_script",
+        }
+        with patch.dict(os.environ, {"BITBURNER_REMOTE_API_URL": "http://localhost:3001",
+                                     "BITBURNER_REMOTE_API_TOKEN": "test"}):
+            summary = server.checkpoint_prompt_summary(checkpoint)
+        rendered = json.dumps(summary)
+        for stale in ("game_edit_script", "Monaco", "Script Editor", "editor input"):
+            self.assertNotIn(stale.casefold(), rendered.casefold())
+        self.assertIn("game_deploy_script", summary["next_intended_action"])
+        self.assertIn("Remote API Online", summary["accomplishments"])
+
     async def test_slow_local_inference_timeouts_remain_bounded(self):
         with patch.dict(os.environ, {"LLM_TIMEOUT": "170", "STEP_TIMEOUT": "190"}):
             self.assertEqual(server.inference_timeout_settings(), {"llm_timeout": 170, "step_timeout": 190})

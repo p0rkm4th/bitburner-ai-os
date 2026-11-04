@@ -11,7 +11,7 @@ from browser_use import Tools
 
 
 FILENAME = re.compile(r"^[A-Za-z0-9_.-]+\.js$")
-IDENTIFIER = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]{0,79}$")
+IDENTIFIER = re.compile(r"^(?:ns\.)?([A-Za-z_$][A-Za-z0-9_$]{0,79})$")
 ALLOWED_METHODS = {"getFile", "pushFile", "calculateRam", "getDefinitionFile"}
 
 
@@ -28,10 +28,16 @@ class RemoteApi:
                 f"{self.base_url}/api/remote/{method}", json=params,
                 headers={"Authorization": f"Bearer {self.token}"},
             )
-            response.raise_for_status()
-            payload = response.json()
+            try:
+                payload = response.json()
+            except ValueError:
+                payload = {"error": response.text[:1200]}
+        if response.is_error:
+            detail = payload.get("error") or payload.get("message") or response.text
+            raise RuntimeError(f"{method} returned HTTP {response.status_code}: {str(detail)[:1200]}")
         if not payload.get("success"):
-            raise RuntimeError(str(payload.get("error", "Remote API request failed")))
+            detail = payload.get("error") or payload.get("message") or "Remote API request failed"
+            raise RuntimeError(f"{method} failed: {str(detail)[:1200]}")
         return payload.get("result")
 
 
@@ -85,17 +91,31 @@ def register_remote_api_tools(tools: Tools, api: RemoteApi) -> dict[str, object]
     ))
     async def game_netscript_reference(symbol: str) -> str:
         try:
-            if not IDENTIFIER.fullmatch(symbol):
-                raise ValueError("Query one Netscript identifier, such as weaken or getHackingLevel")
+            requested = symbol.strip()
+            match = IDENTIFIER.fullmatch(requested)
+            if not match:
+                raise ValueError("Query one Netscript identifier, such as ns.grow, grow, or getHackingLevel")
+            name = match.group(1)
             definition = await api.call("getDefinitionFile", {})
             if not isinstance(definition, str):
                 raise RuntimeError("The game did not return its Netscript definitions")
             lines = definition.splitlines()
-            hits = [i for i, line in enumerate(lines) if re.search(rf"\b{re.escape(symbol)}\b", line)]
-            if not hits:
-                return f"No match for {symbol} in this game's Netscript definitions."
-            excerpts = [lines[i] for i in hits[:8]]
-            return "Official in-game Netscript type definition lines:\n" + "\n".join(excerpts)[:5000]
+            signature = re.compile(rf"^\s*{re.escape(name)}\s*\(.*\)\s*:")
+            index = next((i for i, line in enumerate(lines) if signature.search(line)), None)
+            if index is None:
+                return f"No exact Netscript function signature found for {name} in this game's definitions."
+
+            start = index
+            for candidate in range(index - 1, max(-1, index - 50), -1):
+                if lines[candidate].strip().startswith("/**"):
+                    start = candidate
+                    break
+            end = index + 1
+            while end < min(len(lines), index + 4) and lines[end].strip() not in ("", "}"):
+                end += 1
+            documentation = "\n".join(lines[start:end]).strip()
+            return (f"Official in-game Netscript definition for ns.{name}:\n{documentation}\n"
+                    f"Exact signature: {lines[index].strip()}")[:5000]
         except Exception as exc:
             return f"ERROR: Could not read Netscript reference: {type(exc).__name__}: {exc}"
 

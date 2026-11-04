@@ -1,6 +1,9 @@
 import unittest
+from unittest.mock import patch
 
-from app.remote_api_tools import register_remote_api_tools
+import httpx
+
+from app.remote_api_tools import RemoteApi, register_remote_api_tools
 
 
 class FakeTools:
@@ -14,9 +17,12 @@ class FakeApi:
     def __init__(self):
         self.files = {"home.js": "export async function main(ns) {}"}
         self.calls = []
+        self.failure = None
 
     async def call(self, method, params):
         self.calls.append((method, params))
+        if self.failure and method == self.failure[0]:
+            raise RuntimeError(self.failure[1])
         if method == "pushFile":
             self.files[params["filename"]] = params["content"]
             return "OK"
@@ -25,7 +31,12 @@ class FakeApi:
         if method == "calculateRam":
             return 1.6
         if method == "getDefinitionFile":
-            return "export interface NS {\n  weaken(host: string): Promise<number>;\n\n  hack(host: string): Promise<number>;\n}"
+            return ("export interface NS {\n"
+                    "  /** Reduce target security.\n   * Returns the reduction.\n   */\n"
+                    "  weaken(host: string, opts?: BasicHGWOptions): Promise<number>;\n\n"
+                    "  /** Increase target money.\n   * Returns the growth multiplier.\n   */\n"
+                    "  grow(host?: string, opts?: BasicHGWOptions): Promise<number>;\n\n"
+                    "  hack(host: string): Promise<number>;\n}")
         raise AssertionError(f"unexpected method {method}")
 
 
@@ -51,10 +62,32 @@ class RemoteApiToolTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(call[1].get("server", "home") == "home" for call in self.api.calls))
 
     async def test_docs_returns_only_relevant_official_definition_excerpt(self):
-        result = await self.actions["game_netscript_reference"]("weaken")
-        self.assertIn("weaken(host: string)", result)
+        result = await self.actions["game_netscript_reference"]("ns.grow")
+        self.assertIn("Exact signature: grow(host?: string, opts?: BasicHGWOptions): Promise<number>;", result)
+        self.assertIn("Increase target money", result)
         self.assertNotIn("hack(host: string)", result)
+        bare = await self.actions["game_netscript_reference"]("grow")
+        self.assertIn("Exact signature: grow(host?: string, opts?: BasicHGWOptions): Promise<number>;", bare)
         self.assertIn("getDefinitionFile", [call[0] for call in self.api.calls])
+
+    async def test_docs_lookup_failure_keeps_bridge_error(self):
+        self.api.failure = ("getDefinitionFile", "definition request timed out")
+        result = await self.actions["game_netscript_reference"]("ns.grow")
+        self.assertIn("definition request timed out", result)
+
+    async def test_deployment_failure_keeps_ram_error(self):
+        self.api.failure = ("calculateRam", "Unknown Netscript function ns.fakeCall")
+        result = await self.actions["game_deploy_script"]("student.js", "export function main(ns) {}")
+        self.assertIn("Unknown Netscript function ns.fakeCall", result)
+
+    async def test_http_error_body_is_preserved_for_model_debugging(self):
+        async def respond(request):
+            return httpx.Response(500, json={"success": False, "error": "Bitburner is not connected"})
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+        with patch("app.remote_api_tools.httpx.AsyncClient", return_value=client):
+            with self.assertRaisesRegex(RuntimeError, "Bitburner is not connected"):
+                await RemoteApi("http://bridge", "token").call("getDefinitionFile", {})
 
     async def test_invalid_docs_query_is_rejected(self):
         result = await self.actions["game_netscript_reference"]("ns.weaken\ngetSaveFile")

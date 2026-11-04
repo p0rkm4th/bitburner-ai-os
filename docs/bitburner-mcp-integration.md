@@ -30,14 +30,18 @@ REST facade. Their fixed game-facing surface is:
 - `game_read_script`: read one simple `.js` filename from `home`.
 - `game_deploy_script`: write model-authored code to one simple `.js` filename
   on `home`, read it back, and ask the game to calculate its RAM cost.
-- `game_netscript_reference`: retrieve a small excerpt from the running game's
-  official type definitions for a single symbol.
+- `game_netscript_reference`: accept a bare symbol such as `grow` or a
+  namespaced symbol such as `ns.grow`, then return its exact signature and
+  nearby official documentation from the running game's type definitions.
 
 The Browser Use session remains responsible for gameplay, observations,
 visible script execution, and spectator output. These tools do not call save
 APIs, enumerate servers, delete files, read arbitrary game-state values, or
 execute code. The bridge is opt-in via `BITBURNER_REMOTE_API_URL` and
 `BITBURNER_REMOTE_API_TOKEN`; do not publish its token.
+When the bridge is configured, the browser editor helpers are omitted from the
+model's tool list so script authoring uses this verified API path. Visible
+terminal execution, browser observations, and spectator access remain enabled.
 
 Bitburner's official Remote API documents `pushFile`, `getFile`,
 `calculateRam`, and `getDefinitionFile`. It also documents `getSaveFile`,

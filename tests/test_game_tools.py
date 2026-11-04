@@ -52,6 +52,7 @@ class FakePage:
         self.editor_text = ""
         self.saved_text = ""
         self.focused = None
+        self.run_output = None
         self.visible = "Bitburner Terminal"
         self.files = {"home.js": "export async function main(ns) {}"}
 
@@ -89,7 +90,7 @@ class FakePage:
             else:
                 self.visible = f"ERROR: no script named {filename}"
         elif command.startswith("run "):
-            self.visible = f"Bitburner Terminal\n{command}\nRunning script home.js with PID 4; $1.25/s"
+            self.visible = self.run_output or f"Bitburner Terminal\n{command}\nRunning script home.js with PID 4; $1.25/s"
         else:
             self.visible = f"Bitburner Terminal\n{command}\nCommand accepted"
 
@@ -166,6 +167,12 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.page.editor = False
         result = await self.actions["game_run_script"]("unsafe.txt", self.browser, [])
         self.assertIn("simple in-game .js", result)
+
+    async def test_run_returns_visible_game_error_for_model_debugging(self):
+        self.page.run_output = "Bitburner Terminal\nrun home.js\nRUNTIME ERROR\nhacknumthreads is not a function"
+        result = await self.actions["game_run_script"]("home.js", self.browser, [])
+        self.assertIn("RUNTIME ERROR", result)
+        self.assertIn("hacknumthreads is not a function", result)
 
 
 if __name__ == "__main__":

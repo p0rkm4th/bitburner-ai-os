@@ -141,15 +141,45 @@ def browser_task(objective: str, progress: str, current_url: str, game_url: str)
 
 def checkpoint_prompt_summary(checkpoint: dict) -> dict:
     """Pass only compact, useful progress context to the next model session."""
+    remote_authoring = bool(os.getenv("BITBURNER_REMOTE_API_URL") and
+                            os.getenv("BITBURNER_REMOTE_API_TOKEN"))
+
+    def obsolete_editor_text(value: object) -> bool:
+        text = str(value).casefold()
+        return any(marker in text for marker in (
+            "game_open_editor", "game_edit_script", "monaco", "editor input",
+            "script editor", "visible editor", "open the editor",
+        ))
+
+    def clean_items(values) -> list[str]:
+        items = [str(x)[:350] for x in values[-4:]]
+        if remote_authoring:
+            items = [item for item in items if not obsolete_editor_text(item)]
+        return items
+
+    objective = str(checkpoint.get("objective", ""))[:500]
+    subobjective = str(checkpoint.get("subobjective", ""))[:500]
+    latest_visible = str(checkpoint.get("latest_visible_state", ""))[-1400:]
+    next_action = str(checkpoint.get("next_intended_action", ""))[:500]
+    scripts = checkpoint.get("scripts_and_observed_results", [])[-6:]
+    if remote_authoring:
+        if obsolete_editor_text(objective) or obsolete_editor_text(subobjective):
+            objective = "Use the current task objective; previous editor-based guidance is obsolete."
+            subobjective = "Read scripts and author them with the official Remote API; execute and observe through the visible game UI."
+        if obsolete_editor_text(latest_visible):
+            latest_visible = "Prior UI snapshot is stale. Use game_observe for the current visible state."
+        if obsolete_editor_text(next_action):
+            next_action = "Prior editor action is obsolete. Use game_read_script, consult official definitions, then author and deploy with game_deploy_script."
+        scripts = [item for item in scripts if not obsolete_editor_text(item)]
     return {
         "session": checkpoint.get("session"), "steps": checkpoint.get("steps"),
-        "objective": str(checkpoint.get("objective", ""))[:500],
-        "subobjective": str(checkpoint.get("subobjective", ""))[:500],
-        "accomplishments": [str(x)[:350] for x in checkpoint.get("accomplishments", [])[-4:]],
-        "latest_visible_state": str(checkpoint.get("latest_visible_state", ""))[-1400:],
-        "scripts_and_observed_results": checkpoint.get("scripts_and_observed_results", [])[-6:],
-        "errors": [str(x)[:350] for x in checkpoint.get("errors", [])[-4:]],
-        "next_intended_action": str(checkpoint.get("next_intended_action", ""))[:500],
+        "objective": objective,
+        "subobjective": subobjective,
+        "accomplishments": clean_items(checkpoint.get("accomplishments", [])),
+        "latest_visible_state": latest_visible,
+        "scripts_and_observed_results": scripts,
+        "errors": clean_items(checkpoint.get("errors", [])),
+        "next_intended_action": next_action,
     }
 
 
