@@ -2,7 +2,7 @@
 import unittest
 from types import SimpleNamespace
 
-from app.game_tools import register_game_tools
+from app.game_tools import _visible_content_matches, register_game_tools
 
 
 class FakeElement:
@@ -30,7 +30,8 @@ class FakeElement:
             self.page.command = value
         elif self.kind == "editor_input":
             self.page.editor_text = value
-            self.page.visible = f"Script Editor home.js\n{value}"
+            tokens = "\n".join(f"[{900 + i}] {token}" for i, token in enumerate(value.split()))
+            self.page.visible = f"Script Editor home.js\n{tokens}"
 
     async def get_attribute(self, name):
         if name == "value" and self.kind == "editor_input":
@@ -131,6 +132,12 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Visible dialog: none", state)
         result = await self.actions["game_terminal"]("ls", self.browser)
         self.assertIn("home.js", result)
+
+    async def test_visible_editor_verification_accepts_tokenized_monaco_text(self):
+        source = "export async function main(ns) {\n  await ns.sleep(10);\n}"
+        tokenized = "[10] export\n[11] async\n[12] function\n[13] main\n[14] (ns)\n[15] {\n[16] await\n[17] ns.sleep(10);\n[18] }"
+        self.assertTrue(_visible_content_matches(source, tokenized))
+        self.assertFalse(_visible_content_matches(source, tokenized.replace("sleep(10)", "hack(\"food\")")))
 
     async def test_modal_stops_terminal_operation_with_actionable_error(self):
         self.page.modal = True

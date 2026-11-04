@@ -70,6 +70,14 @@ def _box_dimension(box, key: str) -> float:
     return float(value or 0)
 
 
+def _visible_content_matches(content: str, visible: str) -> bool:
+    """Match source against Monaco's tokenized, index-decorated rendered text."""
+    expected = re.sub(r"\s+", "", content)
+    rendered = re.sub(r"\[\d+\]", "", visible)
+    rendered = re.sub(r"\s+", "", rendered)
+    return bool(expected) and expected in rendered
+
+
 TERMINAL_INPUTS = (
     "#terminal-input",
     'input[aria-label*="terminal" i]',
@@ -171,8 +179,7 @@ def register_game_tools(tools: Tools) -> dict[str, object]:
             value = await field.get_attribute("value")
             state = await _visible(browser_session)
             # Monaco's UI renders model text into visible lines; plain textareas expose their value.
-            rendered_lines = [line.strip() for line in content.splitlines() if line.strip()]
-            rendered_ok = bool(rendered_lines) and all(line in state for line in rendered_lines)
+            rendered_ok = _visible_content_matches(content, state)
             if value != content and not rendered_ok:
                 raise RuntimeError("Editor input did not match the supplied content in the visible editor; script was not saved")
             button = await _visible_element(page, SAVE_BUTTONS)
@@ -184,8 +191,7 @@ def register_game_tools(tools: Tools) -> dict[str, object]:
             still_open = await _visible_element(page, EDITOR_SURFACES)
             if still_open is None or filename not in final_state:
                 raise RuntimeError("Save control was clicked, but the expected script editor is no longer visible")
-            rendered_ok = bool(rendered_lines) and all(line in final_state for line in rendered_lines)
-            if not rendered_ok:
+            if not _visible_content_matches(content, final_state):
                 raise RuntimeError("After saving, the visible editor no longer matches the supplied content")
             return f"Saved {filename}; the editor remains open and its visible contents still match.\n{final_state[-MAX_OBSERVATION:]}"
         except Exception as exc:
