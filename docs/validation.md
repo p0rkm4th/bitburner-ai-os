@@ -14,7 +14,7 @@ This document records measured results only. A running container alone does not 
 | Core statistics update | Pending | The dashboard observation endpoint now returns a live rendered game UI summary and container RAM usage/limit. The model has not yet created and run a Netscript statistics display. |
 | Browser/container restart preserves progress | Passed (profile data) | After a container recreate, Chromium reopened the same persistent profile and the game showed the existing character HUD and offline-progress summary. |
 | Checkpoint recovery and sequential sessions | Pending | |
-| VM backup/snapshot and scheduled backup | Partial | Proxmox snapshot `bitburner-foundation` exists; existing nightly backup job now includes VM 100. A restore run is pending. |
+| VM backup/snapshot and scheduled backup | Partial | Proxmox snapshot `bitburner-foundation` exists; existing nightly backup job now includes VM 100. The native game-save archive worker is implemented, but no actual exported save has yet been validated or restored. |
 | Management exposure and isolation | Passed (configuration) | UFW defaults to deny inbound and allows SSH only from the management LAN. Dashboard and VNC bind to guest loopback, container drops all capabilities and sets `no-new-privileges`; tunnel access uses SSH. |
 
 The service starts the persistent Chromium profile and opens the official game on container startup. Explicit emergency stop now clears the durable auto-resume objective; an unplanned process or VM interruption retains it for recovery.

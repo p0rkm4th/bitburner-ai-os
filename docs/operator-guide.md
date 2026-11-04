@@ -25,13 +25,16 @@ Set `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, and `INFERENCE_NODE` in the private `.env
 
 ## Backups
 
-The VM is included in the Proxmox scheduled backup job, and VM snapshots are kept as deployment rollback points. The active game save is in Chromium's persistent profile. Game-native export and restore are preferred for portable save backups, but should be exercised from the game's UI and checked before relying on them. Do not copy profile or save data into the public repository.
+The VM is included in the Proxmox scheduled backup job, and VM snapshots are kept as deployment rollback points. The active game save is in Chromium's persistent profile. Use the game's visible save UI to export a native `.json.gz` save. The service waits for a completed download, checks its gzip integrity, and archives it under `/opt/bitburner-agent/data/backups/`; it keeps the latest 30 verified exports. `/api/backups` and the dashboard list those exports. No export is considered validated until an actual file appears there.
+
+To restore a verified export, preserve the active profile first, then use the game's visible Import Save UI with a copy of the archived file. Never edit save contents or import a backup to gain progress. Test restoration in a separate browser profile before restoring the primary profile.
 
 ## Troubleshooting
 
 - `docker compose ps` and `docker compose logs` show container state and errors.
 - `curl http://127.0.0.1:8080/api/health` checks the local control API.
 - “Check inference” confirms endpoint reachability and configured model presence without inference generation.
+- `/api/backups` reports archived game-native exports and sizes; the service log records successful archive validation.
 - If a session stops unexpectedly, review `/api/status`, the latest checkpoint, and `data/logs/actions.jsonl`; start a new session from the latest objective/result.
 
 Instance-specific VM ID, address, endpoint, access key, and tested backup commands belong in an ignored local instance record, never this public guide.
