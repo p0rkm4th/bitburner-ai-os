@@ -122,7 +122,7 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         with patch.dict(os.environ, {"LLM_TIMEOUT": "170", "STEP_TIMEOUT": "190"}):
             self.assertEqual(server.inference_timeout_settings(), {"llm_timeout": 170, "step_timeout": 190})
         with patch.dict(os.environ, {"LLM_TIMEOUT": "999", "STEP_TIMEOUT": "999"}):
-            self.assertEqual(server.inference_timeout_settings(), {"llm_timeout": 180, "step_timeout": 195})
+            self.assertEqual(server.inference_timeout_settings(), {"llm_timeout": 180, "step_timeout": 240})
 
     async def test_bitnode_completion_requires_positive_report_and_visible_confirmation(self):
         self.assertTrue(server.bitnode1_completion_confirmed(
