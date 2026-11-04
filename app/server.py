@@ -643,7 +643,8 @@ async def auto_resume():
             return
     persisted_state = runtime.get("state")
     if persisted_state in ("operator_stopped", "failed", "exhausted", "completed", "paused"):
-        status.update(state=persisted_state, objective=runtime.get("objective", ""), error=runtime.get("error", ""))
+        status.update(state=persisted_state, objective=runtime.get("objective", ""), error=runtime.get("error", ""),
+                      session=runtime_session_number(runtime.get("session")))
         record("supervisor", f"Startup preserved terminal state {persisted_state}")
         return
     objective_file = STATE / "checkpoints" / "objective.json"
