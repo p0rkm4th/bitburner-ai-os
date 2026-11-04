@@ -111,6 +111,15 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(a, b)
         self.assertNotEqual(b, c)
 
+    async def test_stagnation_streak_survives_sessions_and_ignores_action_cycles(self):
+        old = {"latest_visible_state": "[1] Terminal $10", "action": "click", "action_count": 2,
+               "no_progress_sessions": 1, "recent_actions": ["a", "b", "a"]}
+        current = {"latest_visible_state": "[99] Terminal $10", "action": "click", "action_count": 3}
+        self.assertEqual(server.stagnation_count(old, current), 2)
+        self.assertEqual(len(current["recent_actions"]), 4)
+        changed = {"latest_visible_state": "Terminal $11", "action": "type", "action_count": 4}
+        self.assertEqual(server.stagnation_count(current, changed), 0)
+
     async def test_failed_atomic_checkpoint_keeps_previous_valid_file(self):
         path = server.STATE / "checkpoints" / "latest.json"
         previous = {"objective": "previous", "steps": 2}

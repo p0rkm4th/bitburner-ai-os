@@ -141,6 +141,30 @@ def progress_signature(visible: str, action: str) -> str:
     return hashlib.sha256((visible + "\n" + action).encode()).hexdigest()
 
 
+def stagnation_count(previous: dict, current: dict) -> int:
+    """Persist a session-level stagnation streak, discounting UI churn and repeated action patterns."""
+    old_state = re.sub(r"\[\d+\]", "[]", str(previous.get("latest_visible_state", "")))
+    new_state = re.sub(r"\[\d+\]", "[]", str(current.get("latest_visible_state", "")))
+    old_state = re.sub(r"offline for \d+ seconds", "offline for # seconds", old_state, flags=re.I)
+    new_state = re.sub(r"offline for \d+ seconds", "offline for # seconds", new_state, flags=re.I)
+    action = re.sub(r'("index"\s*:\s*)\d+', r"\1#", str(current.get("action", "")))
+    old_action = re.sub(r'("index"\s*:\s*)\d+', r"\1#", str(previous.get("action", "")))
+    action_history = list(previous.get("recent_actions", []))[-3:]
+    action_history.append(hashlib.sha256(action.encode()).hexdigest()[:16])
+    action_history = action_history[-4:]
+    # Only visible gameplay change or successful action evidence resets the streak.
+    changed = bool(old_state and new_state and old_state != new_state)
+    repeated_cycle = len(action_history) == 4 and len(set(action_history)) <= 2
+    completed = int(current.get("action_count", 0)) > 0 and action != old_action and not repeated_cycle
+    if changed or (completed and not repeated_cycle):
+        count = 0
+    else:
+        count = int(previous.get("no_progress_sessions", 0)) + 1
+    current["recent_actions"] = action_history
+    current["no_progress_sessions"] = count
+    return count
+
+
 class StartRequest(BaseModel):
     objective: str = Field(min_length=3, max_length=2000)
 
@@ -385,10 +409,13 @@ async def supervise(objective: str) -> None:
     maximum = configured or 1_000_000_000
     retry_limit = max(1, min(4, int(os.getenv("MAX_RETRIES", "2"))))
     no_progress_limit = max(2, min(20, int(os.getenv("NO_PROGRESS_SESSIONS", "5"))))
-    no_progress = 0
     failures = 0
     number = runtime_session_number(status.get("session"))
-    prior_signature = ""
+    runtime_path = STATE / "checkpoints" / "runtime.json"
+    try:
+        persisted_runtime = json.loads(runtime_path.read_text()) if runtime_path.exists() else {}
+    except Exception:
+        persisted_runtime = {}
     while number < maximum and not stop_requested:
         while status.get("state") == "paused" and not stop_requested:
             await asyncio.sleep(1)
@@ -397,7 +424,28 @@ async def supervise(objective: str) -> None:
         number += 1
         status.update(session=number, sessions_limit=configured or "unlimited")
         save_runtime("active", objective=objective, session=number)
-        await run_agent(objective)
+        try:
+            await run_agent(objective)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            # Setup failures occur before Agent.run exists; persist them and send them
+            # through the same bounded retry policy as runtime failures.
+            status.update(error=f"{type(exc).__name__}: {exc}")
+            record("error", f"Agent setup/session failed: {status['error']}")
+            try:
+                previous = json.loads((STATE / "checkpoints" / "latest.json").read_text())
+            except Exception:
+                previous = {}
+            previous.update(time=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                            objective=objective, session=number, state="active",
+                            errors=(list(previous.get("errors", [])) + [status["error"]])[-8:],
+                            unresolved_problems=[status["error"]],
+                            next_intended_action=previous.get("next_intended_action") or "Retry after setup failure")
+            try:
+                save_checkpoint(previous)
+            except Exception:
+                log.exception("Could not persist setup failure checkpoint")
         if stop_requested:
             break
         if status.get("error"):
@@ -415,13 +463,7 @@ async def supervise(objective: str) -> None:
         data = json.loads(checkpoint.read_text()) if checkpoint.exists() else {}
         observed = str(data.get("latest_visible_state", ""))
         action = str(data.get("action", ""))
-        signature = progress_signature(observed, action)
-        action_count = int(data.get("action_count", 0))
-        if signature == prior_signature or action_count == 0:
-            no_progress += 1
-        else:
-            no_progress = 0
-        prior_signature = signature
+        no_progress = stagnation_count(persisted_runtime, data)
         report = "\n".join([str(data.get("result", "")), str(data.get("next_intended_action", "")),
                             *[str(item) for item in data.get("accomplishments", [])]])
         if bitnode1_completion_confirmed(report, observed):
@@ -434,6 +476,12 @@ async def supervise(objective: str) -> None:
             save_runtime("exhausted", objective=objective, session=number)
             record("supervisor", f"Stopped after {no_progress} sessions with no observable progress")
             break
+        save_runtime("active", objective=objective, session=number,
+                     no_progress_sessions=no_progress, recent_actions=data.get("recent_actions", []),
+                     latest_visible_state=observed, action=action)
+        persisted_runtime = {"no_progress_sessions": no_progress,
+                             "recent_actions": data.get("recent_actions", []),
+                             "latest_visible_state": observed, "action": action}
         await asyncio.sleep(max(10, min(600, int(os.getenv("SESSION_DELAY", "60")))))
     if stop_requested:
         status["state"] = "operator_stopped"
