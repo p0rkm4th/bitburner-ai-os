@@ -74,6 +74,7 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         await server.resume()
         self.assertFalse(fake.paused)
         self.assertTrue(server.pause_event.is_set())
+        self.assertEqual(server.status["state"], "active")
         if server.runner and not server.runner.done():
             server.runner.cancel()
             await asyncio.gather(server.runner, return_exceptions=True)

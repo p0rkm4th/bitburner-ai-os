@@ -494,13 +494,12 @@ async def resume():
     if agent:
         agent.resume()
     pause_event.set()
+    status["state"] = "active"
     if runner is None or runner.done():
         objective_path = STATE / "checkpoints" / "objective.json"
         if not objective_path.exists():
             raise HTTPException(409, "No saved objective to resume")
         runner = asyncio.create_task(supervise(json.loads(objective_path.read_text())["objective"]))
-    else:
-        status["state"] = "running" if agent else "active"
     save_runtime("active", objective=status.get("objective", ""), session=status.get("session", 0))
     record("control", "Resumed")
     return {"resumed": True}
