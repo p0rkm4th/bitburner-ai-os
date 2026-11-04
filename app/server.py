@@ -30,6 +30,7 @@ log = logging.getLogger("bitburner-agent")
 app = FastAPI(title="Bitburner AI OS", docs_url=None, redoc_url=None)
 gate = asyncio.Lock()
 runner: Optional[asyncio.Task] = None
+agent_run_task: Optional[asyncio.Task] = None
 backup_worker: Optional[asyncio.Task] = None
 agent: Optional[Agent] = None
 shared_browser: Optional[BrowserSession] = None
@@ -37,6 +38,9 @@ started_at = None
 events: list[dict] = []
 status = {"state": "stopped", "objective": "", "model": os.getenv("OLLAMA_MODEL", "unset"),
           "node": os.getenv("INFERENCE_NODE", "unconfigured"), "error": "", "steps": 0}
+stop_requested = False
+pause_event = asyncio.Event()
+pause_event.set()
 existing_events = STATE / "logs" / "actions.jsonl"
 if existing_events.exists():
     try:
@@ -64,9 +68,51 @@ def record(kind: str, message: str) -> None:
 
 def save_checkpoint(checkpoint: dict) -> None:
     path = STATE / "checkpoints" / "latest.json"
-    temporary = path.with_suffix(".json.tmp")
-    temporary.write_text(json.dumps(checkpoint, ensure_ascii=False, indent=2))
-    os.replace(temporary, path)
+    temporary = path.with_name(path.name + f".{os.getpid()}.tmp")
+    try:
+        temporary.write_text(json.dumps(checkpoint, ensure_ascii=False, indent=2))
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def save_runtime(state: str, **extra) -> None:
+    path = STATE / "checkpoints" / "runtime.json"
+    temporary = path.with_name(path.name + f".{os.getpid()}.tmp")
+    data = {"state": state, "time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), **extra}
+    try:
+        temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2))
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+async def visible_snapshot(browser: Optional[BrowserSession]) -> str:
+    if browser is None:
+        return ""
+    try:
+        summary = await browser.get_browser_state_summary(include_screenshot=False)
+        return summary.dom_state.llm_representation()[:5000]
+    except Exception as exc:
+        return f"Visible UI unavailable: {type(exc).__name__}"
+
+
+def visible_script_evidence(text: str) -> list[str]:
+    """Keep only script names/results actually present in rendered UI text."""
+    markers = (".js", "script", "running", "income", "error", "RAM")
+    lines = [line.strip()[:300] for line in text.splitlines()
+             if any(marker.casefold() in line.casefold() for marker in markers)]
+    return lines[-12:]
+
+
+def startup_resume_allowed(auto_resume: str, runtime_state: Optional[str], objective_exists: bool) -> bool:
+    return auto_resume == "1" and objective_exists and runtime_state not in {
+        "operator_stopped", "failed", "exhausted", "completed", "paused"
+    }
+
+
+def watchdog_expired(state: str, idle_seconds: float, idle_limit: float) -> bool:
+    return state != "paused" and idle_seconds >= idle_limit
 
 
 class StartRequest(BaseModel):
@@ -155,7 +201,7 @@ async def archive_game_saves() -> None:
 
 
 async def run_agent(objective: str) -> None:
-    global agent, shared_browser
+    global agent, shared_browser, agent_run_task
     status.update(state="running", objective=objective, error="", steps=0, node=os.getenv("INFERENCE_NODE", "unconfigured"))
     record("session", f"Started: {objective}")
     profile = get_browser_profile()
@@ -169,26 +215,46 @@ async def run_agent(objective: str) -> None:
     progress = f"\nPrevious checkpoint (summary only): {json.dumps(previous, ensure_ascii=False)[:3500]}" if previous else ""
     task = f"Open {os.getenv('GAME_URL', 'https://bitburner-official.github.io/')} using ordinary visible browser controls. {objective}{progress}"
     last_activity = time.monotonic()
+    prior = json.loads(checkpoint_path.read_text()) if checkpoint_path.exists() else {}
+    accomplishments = list(prior.get("accomplishments", []))[-8:]
+    errors = list(prior.get("errors", []))[-8:]
+    visible = prior.get("latest_visible_state", "")
+    last_output = {}
+    last_actions = []
 
     async def on_step_start(current: Agent) -> None:
         nonlocal last_activity
         last_activity = time.monotonic()
 
     async def on_step_end(current: Agent) -> None:
-        nonlocal last_activity
+        nonlocal last_activity, visible, last_output, last_actions
         last_activity = time.monotonic()
         status["steps"] += 1
         actions = []
+        output = {}
         try:
             latest = current.history.history[-1]
+            output = latest.model_output.model_dump(exclude_none=True, mode="json")
             actions = [a.model_dump(exclude_none=True, mode="json") for a in latest.model_output.action]
         except Exception:
             pass
+        last_output = output
+        last_actions = actions
+        visible = await visible_snapshot(shared_browser)
+        accomplishment = str(output.get("evaluation_previous_goal") or output.get("memory") or
+                             f"Completed visible browser action: {json.dumps(actions, ensure_ascii=False)[:500]}")
+        if accomplishment and accomplishment not in accomplishments:
+            accomplishments.append(accomplishment[:700])
+            del accomplishments[:-8]
         record("action", f"Step {status['steps']}: {json.dumps(actions, ensure_ascii=False)[:700]}")
         save_checkpoint({"time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                         "objective": objective, "session": status.get("session", 1),
-                         "steps": status["steps"], "state": "in_progress",
-                         "result": f"Completed visible browser action: {json.dumps(actions, ensure_ascii=False)[:1800]}"})
+                         "objective": objective, "subobjective": str(output.get("next_goal", ""))[:700],
+                         "accomplishments": accomplishments, "latest_visible_state": visible,
+                         "scripts_and_observed_results": visible_script_evidence(visible), "errors": errors,
+                         "unresolved_problems": [], "next_intended_action": str(output.get("next_goal", ""))[:700],
+                         "session": status.get("session", 1), "steps": status["steps"],
+                         "state": "active", "action": json.dumps(actions, ensure_ascii=False)[:1000],
+                         "action_count": status["steps"]})
         if status["steps"] % 4 == 0:
             shot = STATE / "screenshots" / f"{int(time.time())}.png"
             try:
@@ -205,71 +271,140 @@ async def run_agent(objective: str) -> None:
                   max_history_items=12,
                   save_conversation_path=STATE / "logs" / "conversation.json")
     try:
-        run_task = asyncio.create_task(agent.run(max_steps=int(os.getenv("MAX_STEPS", "8")),
-                                                 on_step_start=on_step_start, on_step_end=on_step_end))
+        agent_run_task = asyncio.create_task(agent.run(max_steps=int(os.getenv("MAX_STEPS", "8")),
+                                                        on_step_start=on_step_start, on_step_end=on_step_end))
         idle_limit = max(60, int(os.getenv("IDLE_TIMEOUT", "900")))
-        while not run_task.done():
+        time_limit = max(60, int(os.getenv("MAX_SESSION_SECONDS", "3600")))
+        session_started = time.monotonic()
+        while not agent_run_task.done():
+            if status["state"] == "paused":
+                last_activity = time.monotonic()
+                await asyncio.sleep(1)
+                continue
             try:
-                await asyncio.wait_for(asyncio.shield(run_task), timeout=min(30, idle_limit))
+                await asyncio.wait_for(asyncio.shield(agent_run_task), timeout=min(5, idle_limit))
             except asyncio.TimeoutError:
-                if time.monotonic() - last_activity >= idle_limit:
+                if time.monotonic() - session_started >= time_limit:
                     agent.stop()
-                    run_task.cancel()
-                    await asyncio.gather(run_task, return_exceptions=True)
+                    agent_run_task.cancel()
+                    await asyncio.gather(agent_run_task, return_exceptions=True)
+                    raise TimeoutError(f"Session exceeded {time_limit} seconds")
+                if watchdog_expired(status["state"], time.monotonic() - last_activity, idle_limit):
+                    agent.stop()
+                    agent_run_task.cancel()
+                    await asyncio.gather(agent_run_task, return_exceptions=True)
                     raise TimeoutError(f"No agent step completed for {idle_limit} seconds")
-        history = await run_task
+        history = await agent_run_task
         status["steps"] = len(history.history)
         record("session", f"Completed {len(history.history)} steps")
-        # Checkpoint is an objective/progress memo, never game state.
+        final_result = str(history.final_result() or "")[:1200]
         checkpoint = {"time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "objective": objective,
-                      "steps": len(history.history), "result": str(history.final_result())[:3000]}
-        checkpoint["state"] = "completed"
+                      "subobjective": str(last_output.get("next_goal", ""))[:700],
+                      "accomplishments": accomplishments, "latest_visible_state": await visible_snapshot(shared_browser),
+                      "scripts_and_observed_results": visible_script_evidence(await visible_snapshot(shared_browser)), "errors": errors,
+                      "unresolved_problems": [], "next_intended_action": final_result or str(last_output.get("next_goal", ""))[:700],
+                      "session": status.get("session", 1), "steps": len(history.history),
+                      "state": "active", "result": final_result,
+                      "action": json.dumps(last_actions, ensure_ascii=False)[:1000],
+                      "action_count": len(history.history)}
         save_checkpoint(checkpoint)
-        record("checkpoint", checkpoint["result"] or "session ended")
+        record("checkpoint", final_result or (accomplishments[-1] if accomplishments else "Session ended at step limit"))
     except asyncio.CancelledError:
-        status.update(state="stopped")
-        record("session", "Cancelled by operator")
+        status.update(state="operator_stopped" if stop_requested else "active")
+        record("session", "Cancelled by operator" if stop_requested else "Interrupted; resumable checkpoint retained")
         raise
     except Exception as exc:
         status.update(error=f"{type(exc).__name__}: {exc}")
+        errors.append(status["error"][:700])
+        try:
+            save_checkpoint({"time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "objective": objective,
+                             "subobjective": str(last_output.get("next_goal", ""))[:700],
+                             "accomplishments": accomplishments, "latest_visible_state": await visible_snapshot(shared_browser),
+                             "scripts_and_observed_results": visible_script_evidence(await visible_snapshot(shared_browser)), "errors": errors[-8:],
+                             "unresolved_problems": errors[-4:], "next_intended_action": str(last_output.get("next_goal", ""))[:700],
+                             "session": status.get("session", 1), "steps": status["steps"], "state": "active"})
+        except Exception:
+            log.exception("Could not persist failure checkpoint")
         record("error", status["error"])
     finally:
+        child = agent_run_task
+        if child and not child.done():
+            if agent:
+                agent.stop()
+            child.cancel()
+            await asyncio.gather(child, return_exceptions=True)
+        agent_run_task = None
         if status["state"] == "running":
-            status["state"] = "stopped"
+            status["state"] = "active"
         agent = None
 
 
 async def supervise(objective: str) -> None:
-    """Run bounded, sequential sessions and stop on repeated failures or results."""
-    (STATE / "checkpoints" / "objective.json").write_text(json.dumps({"objective": objective}, indent=2))
-    maximum = max(1, min(24, int(os.getenv("MAX_SESSIONS", "12"))))
+    """Continue bounded sessions until progress exhaustion or an explicit terminal state."""
+    global stop_requested
+    objective_path = STATE / "checkpoints" / "objective.json"
+    tmp = objective_path.with_name(objective_path.name + ".tmp")
+    tmp.write_text(json.dumps({"objective": objective}, indent=2))
+    os.replace(tmp, objective_path)
+    configured = max(0, int(os.getenv("MAX_SESSIONS", "0")))
+    maximum = configured or 1_000_000_000
     retry_limit = max(1, min(4, int(os.getenv("MAX_RETRIES", "2"))))
-    prior_result = ""
-    repeats = 0
+    no_progress_limit = max(2, min(20, int(os.getenv("NO_PROGRESS_SESSIONS", "5"))))
+    no_progress = 0
     failures = 0
-    for number in range(1, maximum + 1):
-        status.update(session=number, sessions_limit=maximum)
+    number = int(status.get("session", 0))
+    prior_signature = ""
+    while number < maximum and not stop_requested:
+        while status.get("state") == "paused" and not stop_requested:
+            await asyncio.sleep(1)
+        if stop_requested:
+            break
+        number += 1
+        status.update(session=number, sessions_limit=configured or "unlimited")
+        save_runtime("active", objective=objective, session=number)
         await run_agent(objective)
+        if stop_requested:
+            break
         if status.get("error"):
             failures += 1
             if failures >= retry_limit:
                 record("supervisor", f"Stopped after {failures} consecutive failed sessions")
+                status.update(state="failed")
+                save_runtime("failed", error=status["error"], objective=objective)
                 break
-            await asyncio.sleep(min(30 * failures, 60))
+            delay = min(300, max(10, int(os.getenv("SESSION_DELAY", "60"))) * (2 ** (failures - 1)))
+            await asyncio.sleep(delay)
             continue
         failures = 0
         checkpoint = STATE / "checkpoints" / "latest.json"
-        result = json.loads(checkpoint.read_text()).get("result", "") if checkpoint.exists() else ""
-        repeats = repeats + 1 if result and result == prior_result else 0
-        prior_result = result
-        if repeats >= 2:
-            record("supervisor", "Stopped after repeated identical session results")
+        data = json.loads(checkpoint.read_text()) if checkpoint.exists() else {}
+        observed = str(data.get("latest_visible_state", ""))
+        action = str(data.get("action", ""))
+        signature = hashlib.sha256((observed + "\n" + action).encode()).hexdigest()
+        action_count = int(data.get("action_count", 0))
+        if signature == prior_signature or action_count == 0:
+            no_progress += 1
+        else:
+            no_progress = 0
+        prior_signature = signature
+        if "BITNODE_1_COMPLETE" in str(data.get("result", "")) and "BitNode 1" in observed:
+            status.update(state="completed")
+            save_runtime("completed", objective=objective, session=number)
+            record("supervisor", "Model reported and visible UI confirmed BitNode 1 completion")
             break
-        if number < maximum:
-            await asyncio.sleep(max(10, min(600, int(os.getenv("SESSION_DELAY", "60")))))
-    if status["state"] != "paused":
-        status["state"] = "stopped"
-        record("supervisor", f"Supervisor stopped after at most {maximum} sessions")
+        if no_progress >= no_progress_limit:
+            status.update(state="exhausted", error=f"No observable progress across {no_progress} sessions")
+            save_runtime("exhausted", objective=objective, session=number)
+            record("supervisor", f"Stopped after {no_progress} sessions with no observable progress")
+            break
+        await asyncio.sleep(max(10, min(600, int(os.getenv("SESSION_DELAY", "60")))))
+    if stop_requested:
+        status["state"] = "operator_stopped"
+        save_runtime("operator_stopped")
+    elif status["state"] == "active":
+        status["state"] = "exhausted"
+        save_runtime("exhausted", reason="Configured session limit reached")
+    record("supervisor", f"Supervisor ended with state {status['state']}")
 
 
 @app.get("/api/status")
@@ -316,43 +451,72 @@ async def get_backups():
 
 @app.post("/api/start")
 async def start(req: StartRequest):
-    global runner
+    global runner, stop_requested
     async with gate:
         if runner and not runner.done():
             raise HTTPException(409, "An agent session is already active")
+        if agent_run_task and not agent_run_task.done():
+            raise HTTPException(409, "The previous Agent.run() task is still terminating")
+        stop_requested = False
+        status.update(state="active", error="", objective=req.objective, session=0, steps=0)
+        save_runtime("active", objective=req.objective)
         runner = asyncio.create_task(supervise(req.objective))
     return {"started": True}
 
 
 @app.post("/api/pause")
 async def pause():
-    if status["state"] != "running" or not agent:
+    if status["state"] not in ("running", "active"):
         raise HTTPException(409, "No active session")
-    agent.pause()
     status["state"] = "paused"
+    pause_event.clear()
+    if agent:
+        agent.pause()
+    save_runtime("paused", objective=status.get("objective", ""), session=status.get("session", 0))
     record("control", "Paused")
     return {"paused": True}
 
 
 @app.post("/api/resume")
 async def resume():
-    if status["state"] != "paused" or not agent:
+    global runner
+    if status["state"] != "paused":
         raise HTTPException(409, "No paused session")
-    agent.resume()
-    status["state"] = "running"
+    if agent:
+        agent.resume()
+    pause_event.set()
+    if runner is None or runner.done():
+        objective_path = STATE / "checkpoints" / "objective.json"
+        if not objective_path.exists():
+            raise HTTPException(409, "No saved objective to resume")
+        runner = asyncio.create_task(supervise(json.loads(objective_path.read_text())["objective"]))
+    else:
+        status["state"] = "running" if agent else "active"
+    save_runtime("active", objective=status.get("objective", ""), session=status.get("session", 0))
     record("control", "Resumed")
     return {"resumed": True}
 
 
 @app.post("/api/stop")
 async def stop():
+    global stop_requested
+    stop_requested = True
+    status["state"] = "operator_stopped"
+    save_runtime("operator_stopped")
     if agent:
         agent.stop()
+    child = agent_run_task
+    if child and not child.done():
+        try:
+            await asyncio.wait_for(asyncio.shield(child), timeout=15)
+        except asyncio.TimeoutError:
+            child.cancel()
+            await asyncio.gather(child, return_exceptions=True)
     if runner and not runner.done():
         runner.cancel()
+        await asyncio.gather(runner, return_exceptions=True)
     # An explicit emergency stop must survive a later service/VM restart.
     (STATE / "checkpoints" / "objective.json").unlink(missing_ok=True)
-    status["state"] = "stopped"
     record("control", "Emergency stop")
     return {"stopped": True}
 
@@ -385,15 +549,30 @@ async def auto_resume():
         shared_browser = None
         record("error", f"Browser startup failed: {type(exc).__name__}: {exc}")
         log.exception("Could not start persistent game browser")
-    if os.getenv("AUTO_RESUME", "0") != "1":
+    runtime_path = STATE / "checkpoints" / "runtime.json"
+    runtime = {}
+    if runtime_path.exists():
+        try:
+            runtime = json.loads(runtime_path.read_text())
+        except Exception:
+            record("warning", "Could not read persisted runtime state; leaving player stopped")
+            return
+    persisted_state = runtime.get("state")
+    if persisted_state in ("operator_stopped", "failed", "exhausted", "completed", "paused"):
+        status.update(state=persisted_state, objective=runtime.get("objective", ""), error=runtime.get("error", ""))
+        record("supervisor", f"Startup preserved terminal state {persisted_state}")
         return
     objective_file = STATE / "checkpoints" / "objective.json"
+    if not startup_resume_allowed(os.getenv("AUTO_RESUME", "0"), persisted_state, objective_file.exists()):
+        return
     if objective_file.exists():
         try:
             objective = json.loads(objective_file.read_text())["objective"]
         except Exception:
             log.exception("Could not load saved objective; leaving player stopped")
             return
+        status.update(state="active", objective=objective, session=int(runtime.get("session", 0)))
+        record("supervisor", "AUTO_RESUME=1; resuming the saved objective")
         runner = asyncio.create_task(supervise(objective))
 
 
@@ -404,6 +583,12 @@ async def shutdown_tasks():
         await asyncio.gather(backup_worker, return_exceptions=True)
     if agent:
         agent.stop()
+    if agent_run_task and not agent_run_task.done():
+        try:
+            await asyncio.wait_for(asyncio.shield(agent_run_task), timeout=10)
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            agent_run_task.cancel()
+            await asyncio.gather(agent_run_task, return_exceptions=True)
 
 
 PAGE = r"""<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Bitburner AI OS</title>
