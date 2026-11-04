@@ -173,6 +173,13 @@ def create_game_tools() -> Tools:
     return tools
 
 
+def inference_timeout_settings() -> dict[str, int]:
+    """Keep large visual model calls bounded while allowing a slower local response."""
+    llm_timeout = max(60, min(180, int(os.getenv("LLM_TIMEOUT", "150"))))
+    step_timeout = max(llm_timeout + 15, min(240, int(os.getenv("STEP_TIMEOUT", "180"))))
+    return {"llm_timeout": llm_timeout, "step_timeout": step_timeout}
+
+
 def bitnode1_completion_confirmed(report: str, visible: str) -> bool:
     report_lines = [line.casefold() for line in report.splitlines()]
     positive_marker = any("bitnode_1_complete" in line and
@@ -222,7 +229,7 @@ class StartRequest(BaseModel):
 
 def get_model() -> ChatOllama:
     base = os.environ["OLLAMA_BASE_URL"].rstrip("/")
-    return ChatOllama(model=os.environ["OLLAMA_MODEL"], host=base, timeout=float(os.getenv("OLLAMA_TIMEOUT", "120")))
+    return ChatOllama(model=os.environ["OLLAMA_MODEL"], host=base, timeout=float(os.getenv("OLLAMA_TIMEOUT", "180")))
 
 
 def get_browser_profile() -> BrowserProfile:
@@ -387,6 +394,7 @@ async def run_agent(objective: str) -> None:
                   use_vision=True, use_judge=False, max_failures=int(os.getenv("MAX_FAILURES", "2")),
                   max_actions_per_step=4, enable_signal_handler=False,
                   max_history_items=max(4, min(12, int(os.getenv("MAX_HISTORY_ITEMS", "6")))),
+                  **inference_timeout_settings(),
                   save_conversation_path=STATE / "logs" / "conversation.json")
     try:
         agent_run_task = asyncio.create_task(agent.run(max_steps=int(os.getenv("MAX_STEPS", "16")),
