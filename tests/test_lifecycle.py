@@ -104,6 +104,13 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(server.bitnode1_completion_confirmed(
             "BITNODE_1_COMPLETE", "BitNode 1 progress"))
 
+    async def test_progress_signature_ignores_volatile_element_ids(self):
+        a = server.progress_signature("[13] Terminal [14] Money $10", '{"index": 13, "click": true}')
+        b = server.progress_signature("[94] Terminal [95] Money $10", '{"index": 94, "click": true}')
+        c = server.progress_signature("[94] Terminal [95] Money $11", '{"index": 94, "click": true}')
+        self.assertEqual(a, b)
+        self.assertNotEqual(b, c)
+
     async def test_failed_atomic_checkpoint_keeps_previous_valid_file(self):
         path = server.STATE / "checkpoints" / "latest.json"
         previous = {"objective": "previous", "steps": 2}

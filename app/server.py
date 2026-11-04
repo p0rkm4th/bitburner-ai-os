@@ -133,6 +133,14 @@ def bitnode1_completion_confirmed(report: str, visible: str) -> bool:
     return positive_marker and visible_confirmation
 
 
+def progress_signature(visible: str, action: str) -> str:
+    """Compare rendered content and actions without volatile browser element IDs."""
+    visible = re.sub(r"\[\d+\]", "[]", visible)
+    visible = re.sub(r"offline for \d+ seconds", "offline for # seconds", visible, flags=re.IGNORECASE)
+    action = re.sub(r'("index"\s*:\s*)\d+', r"\1#", action)
+    return hashlib.sha256((visible + "\n" + action).encode()).hexdigest()
+
+
 class StartRequest(BaseModel):
     objective: str = Field(min_length=3, max_length=2000)
 
@@ -407,7 +415,7 @@ async def supervise(objective: str) -> None:
         data = json.loads(checkpoint.read_text()) if checkpoint.exists() else {}
         observed = str(data.get("latest_visible_state", ""))
         action = str(data.get("action", ""))
-        signature = hashlib.sha256((observed + "\n" + action).encode()).hexdigest()
+        signature = progress_signature(observed, action)
         action_count = int(data.get("action_count", 0))
         if signature == prior_signature or action_count == 0:
             no_progress += 1
