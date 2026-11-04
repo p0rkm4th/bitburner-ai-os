@@ -63,11 +63,11 @@ class RemoteApiToolTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_docs_returns_only_relevant_official_definition_excerpt(self):
         result = await self.actions["game_netscript_reference"]("ns.grow")
-        self.assertIn("Exact signature: grow(host?: string, opts?: BasicHGWOptions): Promise<number>;", result)
+        self.assertIn("Exact signature for ns.grow: grow(host?: string, opts?: BasicHGWOptions): Promise<number>;", result)
         self.assertIn("Increase target money", result)
         self.assertNotIn("hack(host: string)", result)
         bare = await self.actions["game_netscript_reference"]("grow")
-        self.assertIn("Exact signature: grow(host?: string, opts?: BasicHGWOptions): Promise<number>;", bare)
+        self.assertIn("Exact signature for ns.grow: grow(host?: string, opts?: BasicHGWOptions): Promise<number>;", bare)
         self.assertIn("getDefinitionFile", [call[0] for call in self.api.calls])
 
     async def test_docs_lookup_failure_keeps_bridge_error(self):

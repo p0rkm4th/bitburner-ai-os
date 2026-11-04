@@ -110,12 +110,14 @@ def register_remote_api_tools(tools: Tools, api: RemoteApi) -> dict[str, object]
                 if lines[candidate].strip().startswith("/**"):
                     start = candidate
                     break
-            end = index + 1
-            while end < min(len(lines), index + 4) and lines[end].strip() not in ("", "}"):
-                end += 1
-            documentation = "\n".join(lines[start:end]).strip()
-            return (f"Official in-game Netscript definition for ns.{name}:\n{documentation}\n"
-                    f"Exact signature: {lines[index].strip()}")[:5000]
+            doc_lines = lines[start:index]
+            # Keep both the short description and parameter/return details. Some
+            # Netscript docblocks are long enough to push their signature out of
+            # a naive prefix truncation, so always put the exact signature first.
+            excerpt = list(doc_lines[:10]) + list(doc_lines[-5:])
+            excerpt = list(dict.fromkeys(line for line in excerpt if line.strip()))
+            return (f"Exact signature for ns.{name}: {lines[index].strip()}\n"
+                    "Official documentation excerpt:\n" + "\n".join(excerpt))[:2500]
         except Exception as exc:
             return f"ERROR: Could not read Netscript reference: {type(exc).__name__}: {exc}"
 
