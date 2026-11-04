@@ -125,7 +125,9 @@ def runtime_session_number(value) -> int:
 def browser_task(objective: str, progress: str, current_url: str, game_url: str) -> str:
     """Avoid reloading the persistent game tab when continuing an existing session."""
     if current_url.rstrip("/") == game_url.rstrip("/"):
-        prefix = f"The official Bitburner game is already open in the persistent browser tab at {game_url}. Do not navigate or reload it."
+        # Browser Use treats any URL in a task as an initial navigation request.
+        # Do not include the URL at all while already on the game page.
+        prefix = "Bitburner is already open in the persistent browser tab. Do not navigate or reload it."
     else:
         prefix = f"Open {game_url} using ordinary visible browser controls."
     return f"{prefix} {objective}{progress}"

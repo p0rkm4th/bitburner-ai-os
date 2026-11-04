@@ -102,6 +102,7 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("already open", task)
         self.assertIn("Do not navigate or reload", task)
         self.assertNotIn("Open https://", task)
+        self.assertNotIn("https://", task)
         self.assertIn("Open https://", server.browser_task("Continue", "", "about:blank",
                                                             "https://bitburner-official.github.io/"))
         summary = server.checkpoint_prompt_summary({"result": "x" * 10000,
