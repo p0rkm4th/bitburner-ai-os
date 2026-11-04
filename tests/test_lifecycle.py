@@ -93,6 +93,8 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         runtime = json.loads((server.STATE / "checkpoints" / "runtime.json").read_text())
         self.assertEqual(runtime["session"], 4)
         self.assertTrue(server.startup_resume_allowed("1", runtime["state"], objective_path.exists()))
+        self.assertEqual(server.runtime_session_number(None), 0)
+        self.assertEqual(server.runtime_session_number("3"), 3)
 
     async def test_failed_atomic_checkpoint_keeps_previous_valid_file(self):
         path = server.STATE / "checkpoints" / "latest.json"

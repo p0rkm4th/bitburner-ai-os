@@ -115,6 +115,13 @@ def watchdog_expired(state: str, idle_seconds: float, idle_limit: float) -> bool
     return state != "paused" and idle_seconds >= idle_limit
 
 
+def runtime_session_number(value) -> int:
+    try:
+        return max(0, int(value or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
 class StartRequest(BaseModel):
     objective: str = Field(min_length=3, max_length=2000)
 
@@ -361,7 +368,7 @@ async def supervise(objective: str) -> None:
     no_progress_limit = max(2, min(20, int(os.getenv("NO_PROGRESS_SESSIONS", "5"))))
     no_progress = 0
     failures = 0
-    number = int(status.get("session", 0))
+    number = runtime_session_number(status.get("session"))
     prior_signature = ""
     while number < maximum and not stop_requested:
         while status.get("state") == "paused" and not stop_requested:
@@ -579,7 +586,7 @@ async def auto_resume():
         except Exception:
             log.exception("Could not load saved objective; leaving player stopped")
             return
-        status.update(state="active", objective=objective, session=int(runtime.get("session", 0)))
+        status.update(state="active", objective=objective, session=runtime_session_number(runtime.get("session")))
         record("supervisor", "AUTO_RESUME=1; resuming the saved objective")
         runner = asyncio.create_task(supervise(objective))
 
