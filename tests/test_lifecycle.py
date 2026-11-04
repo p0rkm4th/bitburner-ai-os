@@ -96,6 +96,14 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(server.runtime_session_number(None), 0)
         self.assertEqual(server.runtime_session_number("3"), 3)
 
+    async def test_bitnode_completion_requires_positive_report_and_visible_confirmation(self):
+        self.assertTrue(server.bitnode1_completion_confirmed(
+            "BITNODE_1_COMPLETE", "Congratulations, BitNode 1 completed."))
+        self.assertFalse(server.bitnode1_completion_confirmed(
+            "BITNODE_1_COMPLETE: NOT YET VERIFIED", "BitNode 1 completed"))
+        self.assertFalse(server.bitnode1_completion_confirmed(
+            "BITNODE_1_COMPLETE", "BitNode 1 progress"))
+
     async def test_failed_atomic_checkpoint_keeps_previous_valid_file(self):
         path = server.STATE / "checkpoints" / "latest.json"
         previous = {"objective": "previous", "steps": 2}

@@ -122,6 +122,17 @@ def runtime_session_number(value) -> int:
         return 0
 
 
+def bitnode1_completion_confirmed(report: str, visible: str) -> bool:
+    report_lines = [line.casefold() for line in report.splitlines()]
+    positive_marker = any("bitnode_1_complete" in line and
+                          not any(term in line for term in ("not yet", "not verified", "incomplete", "not complete"))
+                          for line in report_lines)
+    ui = re.sub(r"[-_\s]+", " ", visible.casefold())
+    visible_confirmation = bool(re.search(r"bitnode 1.{0,100}(completed|complete|destroyed|finished)", ui) or
+                                re.search(r"(completed|complete|destroyed|finished).{0,100}bitnode 1", ui))
+    return positive_marker and visible_confirmation
+
+
 class StartRequest(BaseModel):
     objective: str = Field(min_length=3, max_length=2000)
 
@@ -403,7 +414,9 @@ async def supervise(objective: str) -> None:
         else:
             no_progress = 0
         prior_signature = signature
-        if "BITNODE_1_COMPLETE" in str(data.get("result", "")) and "BitNode 1" in observed:
+        report = "\n".join([str(data.get("result", "")), str(data.get("next_intended_action", "")),
+                            *[str(item) for item in data.get("accomplishments", [])]])
+        if bitnode1_completion_confirmed(report, observed):
             status.update(state="completed")
             save_runtime("completed", objective=objective, session=number)
             record("supervisor", "Model reported and visible UI confirmed BitNode 1 completion")
