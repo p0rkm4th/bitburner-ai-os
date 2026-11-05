@@ -15,8 +15,21 @@ MAX_SESSION_SECONDS="${MAX_SESSION_SECONDS:-1800}"
 OLLAMA_NUM_CTX="${OLLAMA_NUM_CTX:-16384}"
 OLLAMA_TEMPERATURE="${OLLAMA_TEMPERATURE:-0.2}"
 OLLAMA_SEED="${OLLAMA_SEED:-7}"
+BENCH_AGENT_PORT="${BENCH_AGENT_PORT:-8180}"
+BENCH_VNC_PORT="${BENCH_VNC_PORT:-6180}"
+BENCH_OLLAMA_TIMEOUT="${BENCH_OLLAMA_TIMEOUT:-180}"
+AGENT_URL="http://127.0.0.1:${BENCH_AGENT_PORT}"
 if ! [[ "$MAX_STEPS" =~ ^[1-9][0-9]*$ && "$MAX_SESSION_SECONDS" =~ ^[1-9][0-9]*$ && "$OLLAMA_NUM_CTX" =~ ^[1-9][0-9]*$ ]]; then
   echo "MAX_STEPS, MAX_SESSION_SECONDS, and OLLAMA_NUM_CTX must be positive integers" >&2
+  exit 2
+fi
+if ! [[ "$BENCH_AGENT_PORT" =~ ^[1-9][0-9]{0,4}$ && "$BENCH_VNC_PORT" =~ ^[1-9][0-9]{0,4}$ ]] || \
+   ((BENCH_AGENT_PORT > 65535 || BENCH_VNC_PORT > 65535)); then
+  echo "BENCH_AGENT_PORT and BENCH_VNC_PORT must be valid nonzero TCP ports" >&2
+  exit 2
+fi
+if ! [[ "$BENCH_OLLAMA_TIMEOUT" =~ ^[1-9][0-9]{0,2}$ ]] || ((BENCH_OLLAMA_TIMEOUT < 60 || BENCH_OLLAMA_TIMEOUT > 240)); then
+  echo "BENCH_OLLAMA_TIMEOUT must be between 60 and 240 seconds" >&2
   exit 2
 fi
 
@@ -60,9 +73,11 @@ mkdir -p "$BENCH_STATE_DIR/profile" "$BENCH_STATE_DIR/logs"
 cp -a "$BENCH_SEED_PROFILE/." "$BENCH_STATE_DIR/profile/"
 env_file="${BENCH_ENV_FILE:-local/benchmark-run.env}"
 mkdir -p "$(dirname "$env_file")"
-printf 'OLLAMA_BASE_URL=%s\nOLLAMA_MODEL=%s\nINFERENCE_NODE=%s\nBENCH_STATE_DIR=%s\nBENCH_UID=%s\nBENCH_GID=%s\nMAX_STEPS=%s\nMAX_SESSION_SECONDS=%s\nOLLAMA_NUM_CTX=%s\nOLLAMA_TEMPERATURE=%s\nOLLAMA_SEED=%s\n' \
+printf 'OLLAMA_BASE_URL=%s\nOLLAMA_MODEL=%s\nINFERENCE_NODE=%s\nBENCH_STATE_DIR=%s\nBENCH_UID=%s\nBENCH_GID=%s\nBENCH_AGENT_PORT=%s\nBENCH_VNC_PORT=%s\nMAX_STEPS=%s\nMAX_SESSION_SECONDS=%s\nOLLAMA_NUM_CTX=%s\nOLLAMA_TEMPERATURE=%s\nOLLAMA_SEED=%s\nBENCH_OLLAMA_TIMEOUT=%s\n' \
   "$OLLAMA_BASE_URL" "$OLLAMA_MODEL" "$INFERENCE_NODE" "$BENCH_STATE_DIR" "$BENCH_UID" "$BENCH_GID" \
-  "$MAX_STEPS" "$MAX_SESSION_SECONDS" "$OLLAMA_NUM_CTX" "$OLLAMA_TEMPERATURE" "$OLLAMA_SEED" > "$env_file"
+  "$BENCH_AGENT_PORT" "$BENCH_VNC_PORT" \
+  "$MAX_STEPS" "$MAX_SESSION_SECONDS" "$OLLAMA_NUM_CTX" "$OLLAMA_TEMPERATURE" "$OLLAMA_SEED" \
+  "$BENCH_OLLAMA_TIMEOUT" > "$env_file"
 chmod 600 "$env_file"
 project="bitburner-bench-${TRIAL_ID}"
 compose=(docker compose --project-name "$project" --env-file config/.env --env-file "$env_file" \
@@ -81,15 +96,15 @@ sampler_pid=$!
 "${compose[@]}" up -d --build
 
 for _ in $(seq 1 120); do
-  if curl --max-time 3 -fsS http://127.0.0.1:8180/api/health >/dev/null; then break; fi
+  if curl --max-time 3 -fsS "$AGENT_URL/api/health" >/dev/null; then break; fi
   sleep 2
 done
-curl --max-time 3 -fsS http://127.0.0.1:8180/api/health >/dev/null || {
+curl --max-time 3 -fsS "$AGENT_URL/api/health" >/dev/null || {
   echo "Benchmark agent did not become healthy" >&2; exit 1;
 }
 remote_api_ready=0
 for _ in $(seq 1 30); do
-  if curl --max-time 8 -fsS http://127.0.0.1:8180/api/game-observation \
+  if curl --max-time 8 -fsS "$AGENT_URL/api/game-observation" \
       > "$BENCH_STATE_DIR/logs/initial-game-observation.json"; then
     if python3 - "$BENCH_STATE_DIR/logs/initial-game-observation.json" <<'PY'
 import json, sys
@@ -109,11 +124,11 @@ if [[ "$remote_api_ready" != 1 ]]; then
   exit 1
 fi
 payload="$(python3 -c 'import json,pathlib; print(json.dumps({"objective": pathlib.Path("benchmarks/gameplay-objective.md").read_text()}))')"
-curl --max-time 10 -fsS -X POST http://127.0.0.1:8180/api/start \
+curl --max-time 10 -fsS -X POST "$AGENT_URL/api/start" \
   -H 'Content-Type: application/json' --data-binary "$payload"
 
 while :; do
-  curl --max-time 8 -fsS http://127.0.0.1:8180/api/status > "$BENCH_STATE_DIR/logs/status-latest.json"
+  curl --max-time 8 -fsS "$AGENT_URL/api/status" > "$BENCH_STATE_DIR/logs/status-latest.json"
   state="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("state","unknown"))' \
     "$BENCH_STATE_DIR/logs/status-latest.json")"
   case "$state" in
@@ -121,7 +136,7 @@ while :; do
   esac
   sleep 5
 done
-curl --max-time 8 -fsS http://127.0.0.1:8180/api/game-observation \
+curl --max-time 8 -fsS "$AGENT_URL/api/game-observation" \
   > "$BENCH_STATE_DIR/logs/final-game-observation.json" || true
 cp "$BENCH_STATE_DIR/logs/status-latest.json" "$BENCH_STATE_DIR/logs/final-status.json"
 printf '\nTrial %s ended in state %s. Private evidence: %s/logs\n' \

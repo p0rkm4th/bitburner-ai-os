@@ -41,8 +41,8 @@ services:
       BITBURNER_REMOTE_API_URL: http://127.0.0.1:3001
       ALLOWED_DOMAINS: bitburner-official.github.io
     ports:
-      - "127.0.0.1:8180:8080"
-      - "127.0.0.1:6180:6080"
+      - "127.0.0.1:${BENCH_AGENT_PORT:-8180}:8080"
+      - "127.0.0.1:${BENCH_VNC_PORT:-6180}:6080"
     volumes:
       - ${BENCH_STATE_DIR:?Set a disposable benchmark state directory}:/state
       - ./objective.md:/config/objective.md:ro
