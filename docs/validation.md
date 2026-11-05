@@ -326,4 +326,6 @@ unrelated infrastructure change was made. A new gameplay run still requires a
 bounded, coordinated local inference window. The deployed control API's
 read-only inference check returned the configured model in the local Ollama
 catalog; this confirms model-tag reachability only and does not verify text
-generation.
+generation. The native-save backup endpoint currently reports zero archived
+exports; periodic backup capture is implemented, but a visible game-native
+export and isolated restore have not yet been verified.
