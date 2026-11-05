@@ -259,5 +259,11 @@ earlier Ollama connection failures. A separate read-only request to the
 configured Ollama `/api/tags` endpoint returned HTTP 200 and listed the
 configured model. This confirms catalog reachability only; no generation
 request was sent after the owner's Ollama/Herd rollout began, so inference
-success remains unverified. The latest gameplay guard commit is published but
-has not yet been deployed to production.
+success remains unverified. At 15:23 UTC, the latest gameplay guard was
+deployed after a gzip-verified backup of the active profile, checkpoints, logs,
+screenshots, and save archives. The agent and bridge containers were recreated
+together. The browser reopened the same profile (110 MB), the game Remote API
+remained Online, and persisted runtime state remained terminally `failed` with
+zero active steps; startup did not resume gameplay. The new deployment image
+and deployed source file were verified by digest. No model generation request
+was made during this deployment.
