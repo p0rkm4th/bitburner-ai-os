@@ -71,7 +71,7 @@ TROUBLESHOOT_TOPICS: tuple[tuple[tuple[str, ...], str], ...] = (
     (("ram", "calculate", "unknown netscript", "main", "function removed", "undefined"),
      "Deployment and Netscript errors"),
     (("cannot hack", "root", "hostname", "server"), "Deployment and Netscript errors"),
-    (("dialog", "popup", "modal", "terminal not visible", "stale", "click", "unchanged"),
+    (("browser", "ui", "dialog", "popup", "modal", "terminal not visible", "stale", "click", "unchanged"),
      "Browser and modal errors"),
     (("timeout", "context", "malformed", "repeat", "progress", "money"),
      "Observation, progress, and inference limits"),

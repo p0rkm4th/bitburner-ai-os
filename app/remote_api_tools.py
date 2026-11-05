@@ -13,6 +13,7 @@ from browser_use import Tools
 FILENAME = re.compile(r"^[A-Za-z0-9_.-]+\.js$")
 IDENTIFIER = re.compile(r"^(?:ns\.)?([A-Za-z_$][A-Za-z0-9_$]{0,79})(?:\([^()\r\n]{0,160}\))?$")
 ALLOWED_METHODS = {"getFile", "pushFile", "calculateRam", "getDefinitionFile"}
+MAX_DEPLOYMENTS_WITHOUT_RUN = 2
 
 
 class RemoteApi:
@@ -94,6 +95,13 @@ def register_remote_api_tools(tools: Tools, api: RemoteApi,
             filename = _safe_filename(filename)
             if not content.strip() or len(content) > 30000:
                 raise ValueError("Script content must be 1 to 30,000 characters")
+            deployments = int(action_state.get("deployments_without_run", 0))
+            if deployments >= MAX_DEPLOYMENTS_WITHOUT_RUN:
+                last_filename = str(action_state.get("last_deployed_filename") or filename)
+                return (f"NO_PROGRESS: {deployments} scripts have already been deployed and read-back verified "
+                        f"without a visible execution. Run the latest verified file with "
+                        f"game_run_script('{last_filename}') and inspect its exact result before writing more code. "
+                        "A Terminal file listing from before deployment is stale evidence.")
             ram_rejection = action_state.get("ram_rejection")
             if (ram_rejection and ram_rejection.get("filename") == filename.casefold()
                     and not ram_rejection.get("diagnosed")):
@@ -136,6 +144,8 @@ def register_remote_api_tools(tools: Tools, api: RemoteApi,
             action_state.pop("last_terminal_command", None)
             if ram_rejection and ram_rejection.get("filename") == filename.casefold():
                 action_state.pop("ram_rejection", None)
+            action_state["deployments_without_run"] = deployments + 1
+            action_state["last_deployed_filename"] = filename
             return f"Deployed and read-back verified {filename}; calculated RAM: {ram} GB. Run it through game_run_script."
         except Exception as exc:
             return f"ERROR: Could not deploy {filename}: {type(exc).__name__}: {exc}"

@@ -165,11 +165,11 @@ local primary model completes the money-generation objective.
 
 ## Post-restart Qwen trial (2026-11-05)
 
-After the owner restarted Tartarus, repeated checks found SSH and the Ollama
-endpoint responding. The model catalog listed `qwen3.6:35b`; `/api/show`
+After the owner restarted the local inference node, repeated checks found the
+Ollama endpoint responding. The model catalog listed `qwen3.6:35b`; `/api/show`
 reported completion, vision, tools, and thinking capabilities. Before the run,
-`/api/ps` showed no loaded model and read-only telemetry showed four idle Quadro
-P4000 GPUs. A disposable copy of the saved seed showed Remote API Online before
+`/api/ps` showed no loaded model and the available accelerator devices were
+idle. A disposable copy of the saved seed showed Remote API Online before
 inference. No production profile or service was used.
 
 Run 12 ended exhausted after 10 Browser Use history steps (10-step cap; 15-
@@ -183,11 +183,10 @@ or hacking progression was verified.
 There were 10 inference requests, with 77,964 prompt and 1,314 completion
 tokens reported across responses with token counts. Summed reported request
 duration was 508.3 seconds; the cold first load took 49.2 seconds. Telemetry
-spanned 11m46s. Ollama reported 23.3 GB VRAM allocation. Each P4000 reached
-100% sampled utilization; per-card sampled memory peaks were 7,165 / 5,267 /
-5,799 / 5,867 MiB. CPU offload was not measured. At the post-run sample, the
-model was still loaded after benchmark-container cleanup; after the later Run
-14 cleanup, `/api/ps` was empty.
+spanned 11m46s. Ollama reported 23.3 GB aggregate VRAM allocation; CPU offload
+was not measured. At the post-run sample, the model was still loaded after
+benchmark-container cleanup; after the later Run 14 cleanup, `/api/ps` was
+empty.
 
 The error itself names the replacement API, but the model did not call
 `game_troubleshoot`, query its live definition, or repair and rerun within its
@@ -217,10 +216,35 @@ deploying Netscript; the final visible state remained $1.262k / Hack 1. The
 captured UI showed Remote API Online. The isolated runner removed its
 containers; production was not involved.
 
-Afterward, read-only HTTP checks to Tartarus returned Ollama version 0.40.14
-and an empty `/api/ps` model list. An SSH process/service-manager check could
+Afterward, read-only HTTP checks to the inference endpoint returned Ollama
+version 0.40.14 and an empty `/api/ps` model list. An SSH process/service-manager check could
 not authenticate from this session, so the cause and service-process
 provenance of the transient disconnect remain undetermined. No service restart,
-inference retry, or production recheck was performed. Across fourteen
+inference retry, or production recheck was performed. Across fifteen
 documented isolated runs, none has met the acceptance criterion of verified
 AI-authored income.
+
+## Read-back / stale-list recovery trial (2026-11-05)
+
+Run 15 used a fresh copy of the disposable Remote API Online seed with
+`qwen3.6:35b`, 16,384 context, temperature 0.2, seed 7, a 16-step cap, and a
+30-minute session cap. No production service or profile was used. The initial
+offline-progress dialog was dismissed successfully.
+
+Qwen scanned nearby servers and made six model-authored deployments across two
+filenames. Each `game_deploy_script` result said the write was read-back
+verified and included the calculated RAM. Qwen repeatedly treated its earlier
+Terminal `ls` output as proof that those later writes had failed. It never
+called `game_run_script` or entered a visible `run` command; its final response
+explicitly said it had failed. The final visible balance remained $1.262k and
+Hacking remained level 1. No income or execution was verified.
+
+The 13 inference attempts produced 12 responses and one read timeout. The
+successful responses reported 101,469 prompt and 17,456 completion tokens;
+their summed Ollama request duration was 702.5 seconds. The first model-load
+duration was 16.1 seconds; trial telemetry spanned 14m57s. `/api/ps` reported
+about 23.0 GB aggregate VRAM allocation. Per-device GPU sampling could not
+authenticate over SSH, and CPU offload was not measured. After this run, two
+verified writes without visible execution were added as a deployment limit;
+the agent must run the latest verified file before attempting more writes.
+Automated tests cover the limit and its reset after a visible run.

@@ -83,6 +83,17 @@ class RemoteApiToolTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(call[1].get("server", "home") == "home" for call in self.api.calls))
         self.assertNotIn("last_terminal_command", self.action_state)
 
+    async def test_successive_verified_deployments_require_visible_execution(self):
+        first = "export async function main(ns) { await ns.sleep(1); }"
+        revised = "export async function main(ns) { await ns.sleep(2); }"
+        self.assertIn("read-back verified", await self.actions["game_deploy_script"]("student.js", first))
+        self.assertIn("read-back verified", await self.actions["game_deploy_script"]("student.js", revised))
+        calls_before_rejected_write = len(self.api.calls)
+        blocked = await self.actions["game_deploy_script"]("other.js", first)
+        self.assertTrue(blocked.startswith("NO_PROGRESS:"))
+        self.assertIn("game_run_script('student.js')", blocked)
+        self.assertEqual(len(self.api.calls), calls_before_rejected_write)
+
     async def test_deploy_creates_file_when_bridge_reports_missing_file_as_api_error(self):
         self.api.missing_file_error = True
         code = "export async function main(ns) { await ns.hack('n00dles'); }"

@@ -406,6 +406,13 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("RUNTIME ERROR", result)
         self.assertIn("hacknumthreads is not a function", result)
 
+    async def test_visible_run_clears_verified_deployment_streak(self):
+        self.action_state.update(deployments_without_run=2, last_deployed_filename="home.js")
+        result = await self.actions["game_run_script"]("home.js", self.browser, [])
+        self.assertIn("Running script home.js with PID 4", result)
+        self.assertEqual(self.action_state["deployments_without_run"], 0)
+        self.assertNotIn("last_deployed_filename", self.action_state)
+
     async def test_terminal_blocks_repeated_run_until_a_diagnostic_command(self):
         first = await self.actions["game_terminal"]("run home.js", self.browser)
         self.assertIn("Running script home.js with PID 4", first)

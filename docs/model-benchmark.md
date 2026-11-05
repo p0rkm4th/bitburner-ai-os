@@ -203,17 +203,18 @@ game Options UI, then verified Online after browser-session recreation.
 | 12 | Exhausted after 10 history steps | Qwen queried `ns.hack`, authored and deployed `hack-n00dles.js`, and visibly started it (PID 1). Bitburner v3.0.1 then reported `formatNumber` was removed in 3.0.0 and named `ns.format.number()` as the replacement. The HUD at run confirmation remained $1.262k / Hack 1; the model reported incomplete and no income was verified. | 10 requests; 508.3s summed request duration; 77,964 prompt / 1,314 completion tokens reported; cold load 49.2s; 11m46s from first to last node sample. |
 | 13 | Failed after 3 history steps | Remote API was Online, but the game showed an offline-progress dialog. The model repeated `game_observe`; the no-progress guard stopped the session. No Netscript was authored or deployed. | 3 requests; 59.9s summed duration; 12,456 prompt / 187 completion tokens; model was warm. The 68-second node sample interval had no meaningful gameplay progression. |
 | 14 | Failed after 5 steps | The updated startup instruction worked: Qwen dismissed the visible offline-progress dialog and resumed terminal observation. Ollama then disconnected twice (`Server disconnected without sending a response`, then connection failure). No script was authored or deployed; final visible balance remained $1.262k / Hack 1. | Five inference attempts were recorded, three with responses and two transport failures. No retry was made after the endpoint failure. The isolated session ended without gameplay progress. |
+| 15 | Exhausted after 13 steps | Qwen scanned the network, authored six versions across `hack.js` and `hack_n00dles.js`, and repeatedly treated the pre-deployment `ls` output as current. The Remote API tool reported each write read-back verified and supplied RAM cost, but Qwen never called `game_run_script` or ran a Terminal command. It ended by explicitly reporting failure. Visible money remained $1.262k and hacking remained level 1. | 13 Ollama requests: 12 responses, 1 read timeout. Responses reported 101,469 prompt and 17,456 completion tokens; summed server request duration 702.5s; first model-load duration 16.1s. Trial telemetry spanned 14m57s. `/api/ps` reported about 23.0 GB VRAM allocation. Per-GPU SSH telemetry was unavailable. |
 
-Both used `gemma4:e4b` (8B, Q4_K_M), 16,384 context, temperature 0.2, seed 7,
+Runs 10 and 11 used `gemma4:e4b` (8B, Q4_K_M), 16,384 context, temperature 0.2, seed 7,
 and the same bounded objective. The second trial sampled GPU peaks of 3.3 GB
 and 2.1 GB, with utilization up to 100%. CPU offload was not measured. A
 tested completion guard now rejects successful `done` claims for money tasks
 unless the model has a visible positive script-run confirmation and a visible
 balance increase after the run. The guard's positive and negative cases pass;
-this model still did not meet the gameplay objective. Tartarus later returned
-and enabled the isolated Qwen follow-up in Run 12. No UI action model was tested;
+this model still did not meet the gameplay objective. The local inference
+endpoint later returned and enabled the isolated Qwen follow-up in Run 12. No UI action model was tested;
 that experiment remains deferred until a primary local model meets the income
-gate. Fourteen documented isolated runs have not met that gate.
+gate. Fifteen documented isolated runs have not met that gate.
 
 ## Reproducing a trial
 

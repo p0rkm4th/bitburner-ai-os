@@ -356,6 +356,9 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         after = await _visible(browser_session)
         if after == before:
             raise RuntimeError("Enter was sent, but the visible game UI did not change. Check terminal focus and inspect the UI before retrying.")
+        if run_filename and run_filename == str(action_state.get("last_deployed_filename", "")).casefold():
+            action_state["deployments_without_run"] = 0
+            action_state.pop("last_deployed_filename", None)
         action_state["last_terminal_command"] = normalized_command.casefold()
         if not run_filename:
             # A successfully executed diagnostic command permits a later
