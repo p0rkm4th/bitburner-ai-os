@@ -151,9 +151,9 @@ def money_completion_block(objective: str, success: bool, action_state: dict,
         return None
     if not action_state.get("confirmed_script_run"):
         return "No visible successful Netscript run has been confirmed. Use the visible game terminal to run your authored script and inspect its result before claiming success."
-    baseline = action_state.get("money_at_script_run")
+    baseline = action_state.get("initial_visible_money")
     if baseline is None:
-        baseline = action_state.get("initial_visible_money")
+        baseline = action_state.get("money_at_script_run")
     current = visible_money_amount(visible)
     if baseline is None or current is None:
         return "Visible money could not be compared with the session baseline. Use game_progress to observe the current balance and verify the result before claiming success."
@@ -161,6 +161,25 @@ def money_completion_block(objective: str, success: bool, action_state: dict,
         return (f"The game-visible balance has not increased from the session baseline (${baseline:,.0f}; current ${current:,.0f}). "
                 "Inspect the script output and game_progress, debug using the returned evidence, and retry within the session budget.")
     return None
+
+
+def money_progress_verified(objective: str, action_state: dict, visible: str) -> bool:
+    """Recognize visible progress for money objectives without completing the task."""
+    if not re.search(r"\b(money|income|earnings|profit)\b", objective, re.IGNORECASE):
+        return False
+    if not action_state.get("confirmed_script_run"):
+        return False
+    baseline = action_state.get("initial_visible_money")
+    if baseline is None:
+        baseline = action_state.get("money_at_script_run")
+    current = visible_money_amount(visible)
+    reward = re.search(
+        r"(?:successfully hacked .+? for|\b(?:earned|reward|profit|income)\b[^$\n]{0,50})\s*\$\s*([\d,]+(?:\.\d+)?)",
+        visible, re.IGNORECASE,
+    )
+    positive_reward = bool(reward and float(reward.group(1).replace(",", "")) > 0)
+    return (positive_reward and baseline is not None and current is not None and
+            current > baseline)
 
 
 def register_completion_guard(tools: Tools, objective: str, action_state: dict) -> None:
@@ -206,6 +225,11 @@ def gameplay_task(objective: str, progress: str, current_url: str, game_url: str
                   *, remote_authoring: bool) -> str:
     """Build the same compact, guide-backed instruction on every resumed session."""
     task = browser_task(objective, progress, current_url, game_url)
+    task += (" Once the requested success evidence is visible and verified, call done(success=True) immediately; "
+             "do not add cleanup or extra observations after the evidence is sufficient. For a money/income objective, "
+             "a visible positive script reward together with a game_progress balance above the recorded baseline is "
+             "sufficient: report the script, reward, and before/after balance in done, without killing the script or "
+             "taking another observation.")
     if remote_authoring:
         task += (" Use game_read_script/game_deploy_script for model-authored script work, "
                  "game_netscript_reference for exact live APIs, game_open_tab for visible game pages, game_terminal/game_run_script "
@@ -753,6 +777,14 @@ async def run_agent(objective: str) -> None:
             if repeated_failure_count >= 2:
                 status["error"] = "The same failed model/tool result repeated with no visible state change; session stopped to prevent an unproductive loop."
                 errors.append(status["error"])
+                if (any(item.get("tool") == "game_observe" and
+                        str(item.get("message", "")).startswith("NO_PROGRESS:")
+                        for item in tool_results) and
+                        money_progress_verified(objective, action_state, visible)):
+                    status["outcome"] = "progress_verified_report_missing"
+                    record("outcome", "Visible money-objective progress was verified, but the agent repeated a guarded observation before reporting completion")
+                    save_runtime("active", objective=objective,
+                                 session=status.get("session", 1), outcome=status["outcome"])
                 current.stop()
         else:
             previous_failure_signature = ""
@@ -772,6 +804,7 @@ async def run_agent(objective: str) -> None:
                          "accomplishments": accomplishments, "latest_visible_state": visible,
                          "scripts_and_observed_results": visible_script_evidence(visible), "errors": errors,
                          "tool_results": tool_results, "tool_metrics": dict(tool_metrics),
+                         "session_outcome": status.get("outcome"),
                          "ram_rejection": action_state.get("ram_rejection"),
                          "deployment_guard": deployment_guard_checkpoint(action_state),
                          "unresolved_problems": errors[-4:], "next_intended_action": subobjective,
@@ -836,6 +869,7 @@ async def run_agent(objective: str) -> None:
                           [last_actions[-1]] if last_actions else [],
                           list(getattr(history.history[-1], "result", []) or []) if history.history else []),
                       "tool_metrics": dict(tool_metrics),
+                      "session_outcome": status.get("outcome"),
                       "ram_rejection": action_state.get("ram_rejection"),
                       "deployment_guard": deployment_guard_checkpoint(action_state),
                       "unresolved_problems": errors[-4:], "next_intended_action": final_result or subobjective,
@@ -903,7 +937,8 @@ async def supervise(objective: str) -> None:
             break
         number += 1
         status.update(session=number, sessions_limit=configured or "unlimited")
-        save_runtime("active", objective=objective, session=number)
+        save_runtime("active", objective=objective, session=number,
+                     outcome=status.get("outcome"))
         try:
             await run_agent(objective)
         except asyncio.CancelledError:
@@ -933,7 +968,8 @@ async def supervise(objective: str) -> None:
             if failures >= retry_limit:
                 record("supervisor", f"Stopped after {failures} consecutive failed sessions")
                 status.update(state="failed")
-                save_runtime("failed", error=status["error"], objective=objective)
+                save_runtime("failed", error=status["error"], objective=objective,
+                             outcome=status.get("outcome"))
                 break
             delay = min(300, max(10, int(os.getenv("SESSION_DELAY", "60"))) * (2 ** (failures - 1)))
             await asyncio.sleep(delay)
@@ -958,7 +994,8 @@ async def supervise(objective: str) -> None:
             break
         save_runtime("active", objective=objective, session=number,
                      no_progress_sessions=no_progress, recent_actions=data.get("recent_actions", []),
-                     latest_visible_state=observed, action=action)
+                     latest_visible_state=observed, action=action,
+                     outcome=status.get("outcome"))
         persisted_runtime = {"no_progress_sessions": no_progress,
                              "recent_actions": data.get("recent_actions", []),
                              "latest_visible_state": observed, "action": action}
@@ -1023,7 +1060,7 @@ async def start(req: StartRequest):
         if agent_run_task and not agent_run_task.done():
             raise HTTPException(409, "The previous Agent.run() task is still terminating")
         stop_requested = False
-        status.update(state="active", error="", objective=req.objective, session=0, steps=0)
+        status.update(state="active", error="", objective=req.objective, session=0, steps=0, outcome=None)
         save_runtime("active", objective=req.objective)
         runner = asyncio.create_task(supervise(req.objective))
     return {"started": True}
@@ -1124,7 +1161,7 @@ async def auto_resume():
     persisted_state = runtime.get("state")
     if persisted_state in ("operator_stopped", "failed", "exhausted", "completed", "paused"):
         status.update(state=persisted_state, objective=runtime.get("objective", ""), error=runtime.get("error", ""),
-                      session=runtime_session_number(runtime.get("session")))
+                      session=runtime_session_number(runtime.get("session")), outcome=runtime.get("outcome"))
         record("supervisor", f"Startup preserved terminal state {persisted_state}")
         return
     objective_file = STATE / "checkpoints" / "objective.json"
@@ -1136,7 +1173,8 @@ async def auto_resume():
         except Exception:
             log.exception("Could not load saved objective; leaving player stopped")
             return
-        status.update(state="active", objective=objective, session=runtime_session_number(runtime.get("session")))
+        status.update(state="active", objective=objective, session=runtime_session_number(runtime.get("session")),
+                      outcome=runtime.get("outcome"))
         record("supervisor", "AUTO_RESUME=1; resuming the saved objective")
         runner = asyncio.create_task(supervise(objective))
 

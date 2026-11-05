@@ -39,11 +39,46 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
 
     def test_money_success_requires_confirmed_script_and_visible_gain(self):
         objective = "Create and run a script that earns money"
-        state = {"initial_visible_money": 1262}
+        state = {"initial_visible_money": 1500}
         self.assertIn("run", server.money_completion_block(objective, True, state, "Money $1.5k"))
         state.update(confirmed_script_run="earn.js", money_at_script_run=1500)
         self.assertIn("has not increased", server.money_completion_block(objective, True, state, "Money $1.5k"))
         self.assertIsNone(server.money_completion_block(objective, True, state, "Money $1.6k"))
+
+    def test_verified_money_progress_outcome_is_objective_scoped(self):
+        evidence = {"confirmed_script_run": "hack.js", "money_at_script_run": 1262}
+        self.assertTrue(server.money_progress_verified(
+            "Create a script that earns money", evidence,
+            "Money $1.551k\nhack: Successfully hacked 'n00dles' for $288.750"))
+        self.assertFalse(server.money_progress_verified(
+            "Complete BitNode 1", evidence,
+            "Money $1.551k\nhack: Successfully hacked 'n00dles' for $288.750"))
+        self.assertFalse(server.money_progress_verified(
+            "Create a script that earns money", {},
+            "Money $1.551k\nhack: Successfully hacked 'n00dles' for $288.750"))
+        self.assertFalse(server.money_progress_verified(
+            "Create a script that earns money", evidence,
+            "Money $1.262k\nhack: Successfully hacked 'n00dles' for $288.750"))
+        self.assertFalse(server.money_progress_verified(
+            "Create a script that earns money", evidence, "Money $1.551k"))
+
+    def test_session_start_balance_wins_over_post_run_balance(self):
+        # `money_at_script_run` may be sampled after a fast script has already
+        # earned money; compare with the earliest visible session balance.
+        evidence = {"confirmed_script_run": "hack.js", "initial_visible_money": 1262,
+                    "money_at_script_run": 1551}
+        visible = "Money $1.551k\nhack: Successfully hacked 'n00dles' for $288.750"
+        self.assertTrue(server.money_progress_verified(
+            "Create a script that earns money", evidence, visible))
+        self.assertIsNone(server.money_completion_block(
+            "Create a script that earns money", True, evidence, visible))
+
+    def test_progress_report_missing_outcome_is_durable_in_runtime(self):
+        server.save_runtime("failed", objective="earn money",
+                            outcome="progress_verified_report_missing")
+        runtime = json.loads((server.STATE / "checkpoints" / "runtime.json").read_text())
+        self.assertEqual(runtime["state"], "failed")
+        self.assertEqual(runtime["outcome"], "progress_verified_report_missing")
 
     def test_money_gate_allows_explicit_incomplete_report_and_non_money_objectives(self):
         self.assertIsNone(server.money_completion_block(
@@ -188,6 +223,14 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
             "latest_visible_state": "v" * 3000, "next_intended_action": "next"})
         self.assertNotIn("result", summary)
         self.assertLessEqual(len(summary["latest_visible_state"]), 1400)
+
+    def test_gameplay_task_finishes_immediately_after_verified_success(self):
+        task = server.gameplay_task(
+            "Earn money with a Netscript", "", "https://bitburner-official.github.io/",
+            "https://bitburner-official.github.io/", remote_authoring=True)
+        self.assertIn("call done(success=True) immediately", task)
+        self.assertIn("without killing the script", task)
+        self.assertIn("taking another observation", task)
 
     def test_restricted_agent_disables_browser_use_auto_navigation(self):
         tools = server.create_game_tools()
