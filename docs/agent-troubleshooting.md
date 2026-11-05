@@ -54,16 +54,19 @@ procedures, not a prescribed gameplay strategy.
 
 - **No RAM / process does not start:** Read the exact `mem` or run error and
   verify available RAM on the execution host. A RAM calculation is not proof
-  that the host currently has that RAM free. Use `ps` or the visible Active
+  that the host currently has that RAM free. Scripts have a 1.6 GB minimum;
+  API calls add RAM cost, so shortening or reformatting code that still uses the
+  same APIs may leave the required RAM unchanged. Use `ps` or the visible Active
   Scripts page to identify processes already occupying RAM. Do not relaunch a
   script with a confirmed positive PID; inspect `tail` and actual money change.
   If a failed or duplicate process is consuming RAM, use documented Terminal
   controls only after confirming its PID and that stopping it will not discard
-  useful progress. Remote API files live on `home`; connecting to a server does
-  not copy them there. Use the documented in-game `scp filename.js server`
-  command while on `home` to copy a script to that server, then connect before
-  running it. See the [official getting-started
-  guide](https://github.com/bitburner-official/bitburner-src/blob/dev/src/Documentation/doc/en/help/getting_started.md).
+  useful progress. If another rooted server has enough free RAM, deploy or
+  copy the authored file there and execute it on that server; connecting alone
+  does not copy files. Use the documented in-game `scp filename.js server`
+  command while on `home`, then connect before running it. See the [official
+  scripts guide](https://github.com/bitburner-official/bitburner-src/blob/dev/src/Documentation/doc/en/basic/scripts.md)
+  and [getting-started guide](https://github.com/bitburner-official/bitburner-src/blob/dev/src/Documentation/doc/en/help/getting_started.md).
 
 ## Browser and modal errors
 

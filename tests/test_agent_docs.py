@@ -61,8 +61,11 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         result = await self.actions["game_troubleshoot"](
             "Cannot run hack_n00dles.js on home: requires 1.70GB RAM")
         self.assertIn("Use `ps`", result)
+        self.assertIn("1.6 GB minimum", result)
+        self.assertIn("same APIs", result)
         self.assertIn("positive PID", result)
-        self.assertIn("not copy them there", result)
+        self.assertIn("connecting alone", result)
+        self.assertIn("does not copy files", result)
 
     async def test_message_dialog_troubleshooting_preserves_unlock_information(self):
         result = await self.actions["game_troubleshoot"]("Message received from unknown sender dialog")
