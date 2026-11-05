@@ -262,6 +262,21 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("game_deploy_script", summary["next_intended_action"])
         self.assertIn("Remote API Online", summary["accomplishments"])
 
+    async def test_checkpoint_continuation_prioritizes_pending_visible_script_run(self):
+        summary = server.checkpoint_prompt_summary({
+            "objective": "Earn money with an original Netscript",
+            "next_intended_action": "Rewrite the verified script again",
+            "deployment_guard": {
+                "deployments_without_run": 1,
+                "last_deployed_filename": "student.js",
+            },
+        })
+        self.assertIn("Run the latest verified student.js", summary["next_intended_action"])
+        self.assertEqual(summary["deployment_guard"], {
+            "deployments_without_run": 1,
+            "last_deployed_filename": "student.js",
+        })
+
     async def test_identical_failed_action_is_bounded_and_new_action_resets(self):
         signature = "same-action-and-visible-error"
         self.assertEqual(server.failed_action_repeat_count("", 0, signature), 1)

@@ -48,6 +48,34 @@ def _safe_filename(filename: str) -> str:
     return filename
 
 
+def restore_deployment_guard(checkpoint: dict, action_state: dict) -> None:
+    """Restore the pending visible-run gate from a durable gameplay checkpoint."""
+    stored = checkpoint.get("deployment_guard")
+    if not isinstance(stored, dict):
+        return
+    try:
+        count = max(0, int(stored.get("deployments_without_run", 0)))
+    except (TypeError, ValueError):
+        return
+    filename = stored.get("last_deployed_filename")
+    if count and isinstance(filename, str) and FILENAME.fullmatch(filename):
+        action_state["deployments_without_run"] = min(count, MAX_DEPLOYMENTS_WITHOUT_RUN)
+        action_state["last_deployed_filename"] = filename
+
+
+def deployment_guard_checkpoint(action_state: dict) -> dict:
+    """Return compact, non-code deployment state safe to persist in a checkpoint."""
+    try:
+        count = max(0, int(action_state.get("deployments_without_run", 0)))
+    except (TypeError, ValueError):
+        return {}
+    filename = action_state.get("last_deployed_filename")
+    if not count or not isinstance(filename, str) or not FILENAME.fullmatch(filename):
+        return {}
+    return {"deployments_without_run": min(count, MAX_DEPLOYMENTS_WITHOUT_RUN),
+            "last_deployed_filename": filename}
+
+
 def _same_script_ignoring_formatting_and_doc_comments(left: str, right: str) -> bool:
     """Catch cosmetic re-authoring loops without treating code changes as duplicates."""
     def normalize(source: str) -> str:

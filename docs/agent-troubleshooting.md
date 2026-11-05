@@ -18,6 +18,8 @@ procedures, not a prescribed gameplay strategy.
   refresh an old listing; after one verified write without a run, the adapter
   blocks another deployment until visible execution is attempted. A later
   revision is allowed after the run's actual output provides evidence to debug.
+  The pending filename and run requirement survive a checkpoint and the next
+  session; do not restart the write loop after a session boundary.
 - **Need to inspect a text report:** `game_read_script` reads Netscript `.js`
   files only. Use the visible Terminal command `cat report.txt` for a simple
   in-game text filename, then base the next action on the returned output.

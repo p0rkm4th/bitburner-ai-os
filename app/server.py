@@ -24,12 +24,14 @@ try:  # Package import for tests, flat import for the deployment image.
     from .agent_docs import load_core_guide, register_agent_doc_tools
     from .agent_prompt import BITBURNER_SYSTEM_PROMPT
     from .game_tools import register_game_tools
-    from .remote_api_tools import register_remote_api_tools, remote_api_from_env
+    from .remote_api_tools import (deployment_guard_checkpoint, register_remote_api_tools,
+                                   remote_api_from_env, restore_deployment_guard)
 except ImportError:
     from agent_docs import load_core_guide, register_agent_doc_tools
     from agent_prompt import BITBURNER_SYSTEM_PROMPT
     from game_tools import register_game_tools
-    from remote_api_tools import register_remote_api_tools, remote_api_from_env
+    from remote_api_tools import (deployment_guard_checkpoint, register_remote_api_tools,
+                                  remote_api_from_env, restore_deployment_guard)
 
 STATE = Path(os.getenv("STATE_DIR", "/state"))
 for name in ("profile", "checkpoints", "logs", "screenshots", "saves", "backups"):
@@ -241,6 +243,9 @@ def checkpoint_prompt_summary(checkpoint: dict) -> dict:
     latest_visible = str(checkpoint.get("latest_visible_state", ""))[-1400:]
     next_action = str(checkpoint.get("next_intended_action", ""))[:500]
     scripts = checkpoint.get("scripts_and_observed_results", [])[-6:]
+    stored_action_state = {}
+    restore_deployment_guard(checkpoint, stored_action_state)
+    deployment_guard = deployment_guard_checkpoint(stored_action_state)
     if remote_authoring:
         if obsolete_editor_text(objective) or obsolete_editor_text(subobjective):
             objective = "Use the current task objective; previous editor-based guidance is obsolete."
@@ -250,6 +255,10 @@ def checkpoint_prompt_summary(checkpoint: dict) -> dict:
         if obsolete_editor_text(next_action):
             next_action = "Prior editor action is obsolete. Use game_read_script, consult official definitions, then author and deploy with game_deploy_script."
         scripts = [item for item in scripts if not obsolete_editor_text(item)]
+    if deployment_guard:
+        filename = deployment_guard["last_deployed_filename"]
+        next_action = (f"Run the latest verified {filename} through game_run_script and inspect the visible result "
+                       "before attempting another deployment.")
     return {
         "session": checkpoint.get("session"), "steps": checkpoint.get("steps"),
         "objective": objective,
@@ -260,6 +269,7 @@ def checkpoint_prompt_summary(checkpoint: dict) -> dict:
         "errors": clean_items(checkpoint.get("errors", [])),
         "tool_results": checkpoint.get("tool_results", [])[-4:],
         "tool_metrics": checkpoint.get("tool_metrics", {}),
+        "deployment_guard": deployment_guard,
         "next_intended_action": next_action,
     }
 
@@ -573,6 +583,8 @@ async def run_agent(objective: str) -> None:
     checkpoint_path = STATE / "checkpoints" / "latest.json"
     previous = json.loads(checkpoint_path.read_text()) if checkpoint_path.exists() else None
     action_state = {}
+    if previous:
+        restore_deployment_guard(previous, action_state)
     rejection = checkpoint_ram_rejection(previous)
     if rejection:
         action_state["ram_rejection"] = rejection
@@ -679,6 +691,7 @@ async def run_agent(objective: str) -> None:
                          "scripts_and_observed_results": visible_script_evidence(visible), "errors": errors,
                          "tool_results": tool_results, "tool_metrics": dict(tool_metrics),
                          "ram_rejection": action_state.get("ram_rejection"),
+                         "deployment_guard": deployment_guard_checkpoint(action_state),
                          "unresolved_problems": errors[-4:], "next_intended_action": subobjective,
                          "session": status.get("session", 1), "steps": status["steps"],
                          "state": "active", "action": json.dumps(actions, ensure_ascii=False)[:1000],
@@ -742,6 +755,7 @@ async def run_agent(objective: str) -> None:
                           list(getattr(history.history[-1], "result", []) or []) if history.history else []),
                       "tool_metrics": dict(tool_metrics),
                       "ram_rejection": action_state.get("ram_rejection"),
+                      "deployment_guard": deployment_guard_checkpoint(action_state),
                       "unresolved_problems": errors[-4:], "next_intended_action": final_result or subobjective,
                       "session": status.get("session", 1), "steps": len(history.history),
                       "state": "active", "result": final_result,
@@ -764,6 +778,7 @@ async def run_agent(objective: str) -> None:
                              "unresolved_problems": errors[-4:], "next_intended_action": subobjective,
                              "tool_metrics": dict(tool_metrics),
                              "ram_rejection": action_state.get("ram_rejection"),
+                             "deployment_guard": deployment_guard_checkpoint(action_state),
                              "session": status.get("session", 1), "steps": status["steps"], "state": "active"})
         except Exception:
             log.exception("Could not persist failure checkpoint")

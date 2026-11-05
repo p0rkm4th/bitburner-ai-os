@@ -3,7 +3,8 @@ from unittest.mock import patch
 
 import httpx
 
-from app.remote_api_tools import RemoteApi, register_remote_api_tools
+from app.remote_api_tools import (RemoteApi, deployment_guard_checkpoint,
+                                  register_remote_api_tools, restore_deployment_guard)
 
 
 class FakeTools:
@@ -83,12 +84,16 @@ class RemoteApiToolTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(call[1].get("server", "home") == "home" for call in self.api.calls))
         self.assertNotIn("last_terminal_command", self.action_state)
 
-    async def test_successive_verified_deployments_require_visible_execution(self):
+    async def test_pending_run_guard_survives_session_checkpoint(self):
         first = "export async function main(ns) { await ns.sleep(1); }"
         revised = "export async function main(ns) { await ns.sleep(2); }"
         self.assertIn("read-back verified", await self.actions["game_deploy_script"]("student.js", first))
+        checkpoint = {"deployment_guard": deployment_guard_checkpoint(self.action_state)}
+        restored_state = {}
+        restore_deployment_guard(checkpoint, restored_state)
+        restored_actions = register_remote_api_tools(FakeTools(), self.api, action_state=restored_state)
         calls_before_rejected_write = len(self.api.calls)
-        blocked = await self.actions["game_deploy_script"]("student.js", revised)
+        blocked = await restored_actions["game_deploy_script"]("student.js", revised)
         self.assertTrue(blocked.startswith("NO_PROGRESS:"))
         self.assertIn("game_run_script('student.js')", blocked)
         self.assertEqual(len(self.api.calls), calls_before_rejected_write)
