@@ -300,3 +300,30 @@ earlier outage remains unverified. The production agent has not been started
 again, and no browser interaction, save edit, service restart, or model-setting
 change was made. A bounded recovery run requires an available, coordinated
 inference window.
+
+## Production update (2026-11-05, 21:30 UTC)
+
+Commit `e99eaea` was deployed after a fresh read-only check confirmed the agent
+was terminally failed at session 0 / 0 steps, with the browser ready and the
+game Remote API Online. Before replacing the image, an archive of the active
+profile, checkpoints, logs, screenshots, and save archives passed gzip
+integrity validation. The current checkpoint's SHA-256 still matches the
+pre-deployment archive after the update. The previous agent image was retained
+as a local rollback tag; service credentials and the private archive remain
+outside the public repository.
+
+The candidate image was built from the published source and passed all 114
+tests in a network-disabled container with temporary state and a read-only
+source mount. Compose recreated the agent and Remote API bridge together. After
+recreation, both containers were running, `/api/health` returned `ok` with the
+browser ready, the visible game still reported Remote API Online, and the
+noVNC page returned HTTP 200. The persistent profile remains mounted at the
+same data volume. Runtime state remains terminally `failed` at session 0 / 0
+steps; deployment did not start gameplay or send an inference request. The
+configured model remains `qwen3.6:35b`, with `AUTO_RESUME=1` and
+`MAX_SESSIONS=0`. No save import, profile edit, inference-server change, or
+unrelated infrastructure change was made. A new gameplay run still requires a
+bounded, coordinated local inference window. The deployed control API's
+read-only inference check returned the configured model in the local Ollama
+catalog; this confirms model-tag reachability only and does not verify text
+generation.
