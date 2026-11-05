@@ -247,6 +247,7 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Money: $1.838k", progress)
         self.assertIn("Visible script income: $0.022/s", progress)
         self.assertIn("Money comparison: current $1.838k, baseline $1.262k", progress)
+        self.assertIn("Hacking-level change from baseline: +0", progress)
         self.assertTrue((await self.actions["game_observe"](self.browser)).startswith("NO_PROGRESS:"))
 
     async def test_open_tab_reacquires_visible_label_and_verifies_transition(self):
