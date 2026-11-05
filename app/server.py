@@ -23,13 +23,13 @@ from pydantic import BaseModel, Field
 try:  # Package import for tests, flat import for the deployment image.
     from .agent_docs import load_core_guide, register_agent_doc_tools
     from .agent_prompt import BITBURNER_SYSTEM_PROMPT
-    from .game_tools import register_game_tools
+    from .game_tools import register_game_tools, visible_runtime_error
     from .remote_api_tools import (deployment_guard_checkpoint, register_remote_api_tools,
                                    remote_api_from_env, restore_deployment_guard)
 except ImportError:
     from agent_docs import load_core_guide, register_agent_doc_tools
     from agent_prompt import BITBURNER_SYSTEM_PROMPT
-    from game_tools import register_game_tools
+    from game_tools import register_game_tools, visible_runtime_error
     from remote_api_tools import (deployment_guard_checkpoint, register_remote_api_tools,
                                   remote_api_from_env, restore_deployment_guard)
 
@@ -640,6 +640,15 @@ async def run_agent(objective: str) -> None:
         last_actions = actions
         subobjective = str(output.get("next_goal") or subobjective)[:700]
         visible = await visible_snapshot(shared_browser)
+        runtime_error = visible_runtime_error(visible)
+        if runtime_error:
+            # Runtime failures can appear after `run` already returned a PID.
+            # Preserve that independently observed failure for recovery and the
+            # next session instead of treating startup confirmation as success.
+            message = f"Visible Netscript runtime error: {runtime_error[:600]}"
+            if not errors or errors[-1] != message:
+                errors.append(message)
+                del errors[:-8]
         visible_money = visible_money_amount(visible)
         if action_state.get("initial_visible_money") is None and visible_money is not None:
             action_state["initial_visible_money"] = visible_money

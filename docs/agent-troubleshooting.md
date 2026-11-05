@@ -104,9 +104,13 @@ procedures, not a prescribed gameplay strategy.
   If the input still is not visible, inspect and report; do not guess an index.
 - **No visible change after command:** Read the tool's explicit error and
   inspect the new UI. Avoid repeating the same command without a new reason.
-- **A script raises a runtime error:** Read the full error in the returned
-  Terminal output or `tail <file.js>`. Dismiss any modal, fix the diagnosed
-  cause, redeploy, and run again. Stop the failed process if it remains active.
+- **A script raises a runtime error:** `game_run_script` checks the rendered UI
+  briefly after a positive PID and can return an immediate runtime-error modal.
+  Read the exact error and stack location, retrieve the matching
+  `game_troubleshoot` note and current Netscript definition, then make one
+  model-authored correction. Redeploy and run again; a PID alone is not
+  success. If the error appears later, inspect the visible modal or
+  `tail <file.js>`. Stop a failed process only after confirming its PID.
 
 ## Observation, progress, and inference limits
 

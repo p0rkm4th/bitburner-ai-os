@@ -24,7 +24,10 @@ services:
       CHECKPOINT_PROMPT_LIMIT: 1400
       LLM_TIMEOUT: 180
       STEP_TIMEOUT: 210
-      MAX_FAILURES: 1
+      # Permit one bounded recovery after a malformed response/tool failure.
+      # A value of 1 ended the run immediately after an empty response in the
+      # observed Qwen runtime-error trial, before it could repair the script.
+      MAX_FAILURES: ${MAX_FAILURES:-2}
       IDLE_TIMEOUT: 900
       MAX_SESSION_SECONDS: ${MAX_SESSION_SECONDS:-1800}
       MAX_SESSIONS: 1

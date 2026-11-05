@@ -2,7 +2,8 @@
 import unittest
 from types import SimpleNamespace
 
-from app.game_tools import _visible_content_matches, find_visible_tab_node, register_game_tools, visible_progress
+from app.game_tools import (_visible_content_matches, find_visible_tab_node, register_game_tools,
+                            visible_progress, visible_runtime_error)
 
 
 class FakeElement:
@@ -72,6 +73,7 @@ class FakePage:
         self.focused = None
         self.terminal_visible = True
         self.run_output = None
+        self.post_run_observations = []
         self.executed_commands = []
         self.visible = "Bitburner Terminal"
         self.files = {"home.js": "export async function main(ns) {}"}
@@ -180,6 +182,13 @@ class FakeBrowserSession:
         return self.page
 
     async def get_browser_state_summary(self, include_screenshot=False):
+        if (self.page.post_run_observations and self.page.executed_commands
+                and self.page.executed_commands[-1].startswith("run ")):
+            self.page.visible = self.page.post_run_observations.pop(0)
+            if "RUNTIME ERROR" in self.page.visible:
+                self.page.modal = True
+                self.page.mui_modal = True
+                self.page.presentation_only = True
         return FakeSnapshot(self.page)
 
 
@@ -288,6 +297,22 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         result = await self.actions["game_terminal"]("run home.js", self.browser)
         self.assertTrue(result.startswith("VISIBLE GAME ERROR (verbatim):"))
         self.assertIn("requires 81.60GB of RAM", result)
+
+    async def test_run_script_catches_runtime_error_that_follows_pid_confirmation(self):
+        self.page.post_run_observations = [
+            "Bitburner Terminal\nrun home.js\nRunning script with 1 thread, PID 4",
+            "RUNTIME ERROR\nREMOVED FUNCTION ERROR\nhome.js@home (PID - 1)\nformatNumber: Function removed in 3.0.0.",
+        ]
+        result = await self.actions["game_run_script"]("home.js", self.browser)
+        self.assertIn("RUNTIME ERROR", result)
+        self.assertIn("formatNumber: Function removed in 3.0.0", result)
+        self.assertEqual(self.page.executed_commands, ["run home.js"])
+
+    async def test_runtime_error_excerpt_comes_only_from_rendered_ui(self):
+        visible = "Terminal output\nRUNTIME ERROR\nScript: home.js\nPID: 4\nns.hack is not a function\nStack: home.js:L3"
+        excerpt = visible_runtime_error(visible)
+        self.assertIn("ns.hack is not a function", excerpt)
+        self.assertEqual(visible_runtime_error("ordinary visible game page"), "")
 
     async def test_terminal_records_ram_rejection_and_process_inspection_satisfies_diagnostic_gate(self):
         self.page.run_output = (

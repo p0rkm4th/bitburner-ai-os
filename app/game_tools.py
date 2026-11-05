@@ -42,6 +42,16 @@ def _known_game_modal(visible: str) -> bool:
             or ("runtime error" in text and "script:" in text and "pid:" in text))
 
 
+def visible_runtime_error(visible: str) -> str:
+    """Return a bounded runtime-error excerpt from rendered Bitburner UI text."""
+    match = re.search(r"\bRUNTIME\s+ERROR\b", visible, re.IGNORECASE)
+    if not match:
+        return ""
+    excerpt = visible[match.start():match.start() + 700]
+    excerpt = re.sub(r"\[\d+\]", "", excerpt)
+    return excerpt.strip()
+
+
 async def _modal(page, visible: str = "") -> Optional[str]:
     """Detect visible modal surfaces and stop before clicking covered controls."""
     selectors = ('[role="dialog"]', '[aria-modal="true"]', '.MuiDialog-root', '.MuiModal-root')
@@ -354,6 +364,19 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         await page.press("Enter")
         await asyncio.sleep(0.25)
         after = await _visible(browser_session)
+        # Bitburner starts Netscript asynchronously. A positive PID can be
+        # followed almost immediately by a runtime-error modal, so sample the
+        # same visible UI briefly before reporting that the run only started.
+        # This is ordinary rendered UI observation; it does not inspect game
+        # objects or change the script.
+        if run_filename and CONFIRMED_RUN.search(after):
+            for _ in range(4):
+                await asyncio.sleep(0.25)
+                observed = await _visible(browser_session)
+                runtime_error = visible_runtime_error(observed)
+                if runtime_error:
+                    after = observed
+                    break
         if after == before:
             raise RuntimeError("Enter was sent, but the visible game UI did not change. Check terminal focus and inspect the UI before retrying.")
         if run_filename and run_filename == str(action_state.get("last_deployed_filename", "")).casefold():
@@ -467,7 +490,10 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         except Exception as exc:
             return f"ERROR: Could not verify script edit/save: {type(exc).__name__}: {exc}"
 
-    @tools.action(description="Run an existing Bitburner script through the visible terminal and report the game's rendered confirmation or error.")
+    @tools.action(description=(
+        "Run an existing Bitburner script through the visible terminal and report the game's rendered confirmation or error. "
+        "After a positive PID, briefly rechecks the rendered UI for an immediate Netscript runtime-error dialog. A PID alone is not success."
+    ))
     async def game_run_script(filename: str, browser_session: BrowserSession,
                               args: Optional[list[str]] = None) -> str:
         try:
