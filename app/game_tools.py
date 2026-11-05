@@ -127,6 +127,7 @@ def _visible_content_matches(content: str, visible: str) -> bool:
 
 
 RUN_COMMAND = re.compile(r"^\s*run\s+([A-Za-z0-9_.-]+\.js)(?:\s+.*)?$", re.IGNORECASE)
+CONNECT_COMMAND = re.compile(r"^\s*connect\s+([A-Za-z0-9_.-]+)\s*$", re.IGNORECASE)
 CONFIRMED_RUN = re.compile(r"running script.*\bpid\s*[:#]?\s*[1-9]\d*", re.IGNORECASE)
 IN_GAME_SCP = re.compile(r"^scp\s+[A-Za-z0-9_.-]+\.js\s+[A-Za-z0-9_.-]+$", re.IGNORECASE)
 
@@ -396,10 +397,18 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
             raise ValueError("Use the documented in-game copy syntax `scp filename.js server` with a simple .js filename and server name")
         run_match = RUN_COMMAND.fullmatch(command)
         run_filename = run_match.group(1).casefold() if run_match else None
+        connect_match = CONNECT_COMMAND.fullmatch(normalized_command)
         page = await _page(browser_session)
         blocked = await _clear_known_modal_before_action(browser_session, f"running terminal command {normalized_command!r}")
         if blocked:
             return blocked
+        if connect_match:
+            visible = await _visible(browser_session)
+            prompts = re.findall(r"\[([A-Za-z0-9_.-]+)\s+[^\]\r\n]*\]\s*>", visible)
+            current_host = prompts[-1] if prompts else ""
+            if current_host and current_host.casefold() == connect_match.group(1).casefold():
+                return (f"NO_PROGRESS: Already connected to {current_host}; no command was sent. "
+                        "Connecting again does not change the server or grant root access. Choose a different action from the visible state.")
         if run_filename and run_filename == last_confirmed_run:
             return (f"NO_PROGRESS: {run_match.group(1)} already received a visible positive PID. "
                     "Do not run it again yet. Inspect `ps`, `tail`, Active Scripts, or the visible error and act on that evidence.")
@@ -459,7 +468,7 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
     @tools.action(description=(
         "Focus the visible in-game Bitburner terminal, enter one command, press Enter, and return the rendered result. "
         "Recognized offline-progress, message, and script runtime-error dialogs are dismissed once before acting; in that case the command is not sent and their visible text is returned. "
-        "An identical consecutive Terminal command is rejected as NO_PROGRESS. "
+        "An identical consecutive Terminal command and a connection request to the already visible current server are rejected as NO_PROGRESS. "
         "Use `scp filename.js server` only for the documented in-game copy operation; it cannot access the host filesystem. "
         "Use `cat filename.txt` to inspect a simple in-game text report that the script-only Remote API cannot read."
     ))

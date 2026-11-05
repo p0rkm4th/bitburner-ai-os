@@ -307,6 +307,20 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("repeat was not sent", second)
         self.assertEqual(self.page.executed_commands, ["help"])
 
+    async def test_terminal_rejects_connect_to_current_host(self):
+        self.page.visible = "Bitburner Terminal\n[n00dles /]> run hack.js"
+        result = await self.actions["game_terminal"]("connect n00dles", self.browser)
+        self.assertTrue(result.startswith("NO_PROGRESS:"))
+        self.assertIn("Already connected to n00dles", result)
+        self.assertIn("does not change the server or grant root access", result)
+        self.assertEqual(self.page.executed_commands, [])
+
+    async def test_terminal_allows_connect_to_a_different_visible_host(self):
+        self.page.visible = "Bitburner Terminal\n[home /]> scan"
+        result = await self.actions["game_terminal"]("connect n00dles", self.browser)
+        self.assertIn("Command accepted", result)
+        self.assertEqual(self.page.executed_commands, ["connect n00dles"])
+
     async def test_terminal_preserves_and_marks_visible_ram_error(self):
         self.page.run_output = (
             "Bitburner Terminal\n[home /]> run home.js\n"

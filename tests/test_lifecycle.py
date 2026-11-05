@@ -378,6 +378,14 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("81.60GB of RAM", terminal[0]["message"])
         self.assertEqual(duplicate[0]["state"], "game_error")
 
+    async def test_delayed_visible_runtime_error_is_counted_once(self):
+        message = "Visible Netscript runtime error: missing root access"
+        returned = [{"tool": "game_run_script", "state": "returned", "message": "PID 1"}]
+        captured = [{"tool": "game_run_script", "state": "game_error", "message": "runtime error"}]
+        self.assertTrue(server.should_count_visible_runtime_error(message, [], returned))
+        self.assertFalse(server.should_count_visible_runtime_error(message, [message], returned))
+        self.assertFalse(server.should_count_visible_runtime_error(message, [], captured))
+
     async def test_slow_local_inference_timeouts_remain_bounded(self):
         with patch.dict(os.environ, {"LLM_TIMEOUT": "170", "STEP_TIMEOUT": "190"}):
             self.assertEqual(server.inference_timeout_settings(), {"llm_timeout": 170, "step_timeout": 190})

@@ -27,6 +27,7 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
                      "cat report.txt", "script-only Remote API", "game_progress"):
             self.assertIn(fact, guide)
         self.assertIn("`ns.nuke`", guide)
+        self.assertIn("without connecting to that target", guide)
         self.assertIn("root-access error", guide)
 
     def test_docs_root_supports_flat_container_and_source_package_layouts(self):
@@ -47,6 +48,8 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         observation = await self.actions["game_help"]("observe")
         self.assertIn("game_progress", observation)
         self.assertIn("duplicate-observation guard", observation)
+        root = await self.actions["game_help"]("root")
+        self.assertIn("without connecting to that target", root)
         bad = await self.actions["game_help"]("/etc/passwd")
         self.assertIn("ERROR: Unknown topic", bad)
         self.assertNotIn("/etc/passwd", bad)
@@ -148,6 +151,18 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         summary = summarize_action_results([{"game_run_script": {"filename": "x.js"}}], [Result()])
         self.assertEqual(summary[0]["state"], "game_error")
         self.assertNotIn("secret code", summary[0]["message"])
+
+    def test_multiline_runtime_root_error_is_counted(self):
+        class Result:
+            error = None
+            extracted_content = (
+                "RUNTIME\n ERROR\n hack: Cannot hack n00dles server because you do not have root access\n"
+                "Stack: hack.js:L6@main"
+            )
+        summary = summarize_action_results([{"game_run_script": {"filename": "hack.js"}}], [Result()])
+        self.assertEqual(summary[0]["state"], "game_error")
+        self.assertIn("RUNTIME", summary[0]["message"])
+        self.assertIn("do not have root access", summary[0]["message"])
 
     def test_visible_terminal_usage_error_is_counted_as_game_error(self):
         class Result:

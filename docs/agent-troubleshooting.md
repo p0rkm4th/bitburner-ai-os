@@ -59,7 +59,10 @@ procedures, not a prescribed gameplay strategy.
   API; verify its current signature with `game_netscript_reference`. `NUKE.exe`
   is also available as a visible Terminal program. Do not infer root access from
   a deployment, a PID, or a successful network scan; verify the target's visible
-  root status before retrying `hack`.
+  root status before retrying `hack`. A script running on `home` may call
+  `ns.nuke(target)` directly; copying a script to an unrooted server or
+  connecting to it does not grant root and cannot make that script run there.
+  Check the `ns.nuke` boolean result and visible target permissions first.
 - **No matching in-game help topic:** Terminal `help` topics are not a complete
   Netscript/API reference. Use the visible Documentation page or
   `game_netscript_reference` for an API symbol. Do not try a series of guessed

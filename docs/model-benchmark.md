@@ -369,6 +369,46 @@ that `think:false` is a better setting: Run 19 and Run 20 both earned money,
 but neither completed with a final report, and the benchmark has not repeated
 either condition enough to rank them.
 
+### Guided Run 21b — runtime-error recovery and progress-guidance repeat
+
+The first Run 21 launch stopped before containers or inference because Compose
+rejected a relative state-volume path; it is retained as a setup failure and is
+not a gameplay trial. Run 21b used a fresh copy of the same v3.0.1 seed,
+`qwen3.6:35b` Q4_K_M, explicit `think:false`, 16,384 context, temperature 0.2,
+seed 7, an 18-step / 20-minute ceiling, and source commit `51dc457`. It tested
+the post-run `game_progress` prompt and documentation after Run 20's repeated
+observation loop.
+
+Qwen dismissed the offline dialog, used visible `scan-analyze`, independently
+authored and deployed `hack.js`, and ran it. Bitburner displayed a runtime error:
+the script attempted to hack `n00dles` without root access. Qwen queried the
+live `ns.nuke` reference, inspected its own script, and redeployed a revision.
+It then copied the script to `n00dles`, connected there, and attempted to run it
+while that server remained unrooted. It did not consult `game_troubleshoot` or
+use `game_progress`; the model repeated blocked `run hack.js` calls until the
+guard stopped the session as `failed` at 17/18 steps after 7m17s. The final
+screenshot showed $1.262k and Hacking 1, unchanged from the initial HUD, with no
+verified income.
+
+The run produced 17 completed Ollama responses, 132,747 prompt and 3,894
+completion tokens, and 420.95 seconds summed response time (24.76 seconds mean,
+25.24 seconds median). No request timed out or returned malformed output. The
+visible runtime error was saved in the checkpoint, but the metrics initially
+reported zero `game_errors` because the dialog appeared after the run tool had
+already returned its positive startup result. That telemetry defect and the
+same-host `connect` loop are covered by follow-up harness fixes. The existing
+guard still stopped consecutive identical blocked commands. Across 86 hardware
+samples, the model occupied about 23.0 GB VRAM. Per-device peak memory was
+7.5/5.0/6.1/5.5 GiB; mean utilization was 30.6/15.6/21.2/17.3%, with 100%
+peaks on all four GPUs. CPU offload was not separately measured. Evidence stays
+in ignored local artifacts.
+
+Run 21b confirms that updated progress instructions alone did not prevent the
+model's root/host confusion. It is a genuine Netscript debug failure, not an
+income success; the model was not given a correction. The next controlled step
+is a fresh isolated trial after making the visible root-access mechanics and
+same-host `connect` guard clearer. Production was not used or changed.
+
 ## Reproducing a trial
 
 The isolated Compose deployment, objective, fresh-profile trial runner, and

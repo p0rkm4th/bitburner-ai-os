@@ -406,10 +406,15 @@ def summarize_action_results(actions: list[dict], results: list[object]) -> list
         elif content.startswith("ERROR:"):
             state, message = "failed", content.splitlines()[0]
         elif name == "game_run_script" and re.search(
-                r"runtime error|script crashed|does not have a main function|requires .*? RAM|not enough RAM", content, re.I):
-            state, message = "game_error", next((line.strip() for line in content.splitlines()
-                                                   if re.search(r"runtime error|script crashed|does not have a main function|requires .*? RAM|not enough RAM", line, re.I)),
-                                                  "Visible script runtime error")
+                r"runtime\s+error|script crashed|does not have a main function|requires .*? RAM|not enough RAM|"
+                r"does not have root access|cannot hack .*? yet|requires root access", content, re.I):
+            message = visible_runtime_error(content) or next(
+                (line.strip() for line in content.splitlines()
+                 if re.search(r"script crashed|does not have a main function|requires .*? RAM|not enough RAM|"
+                              r"does not have root access|cannot hack .*? yet|requires root access", line, re.I)),
+                "Visible script runtime error",
+            )
+            state = "game_error"
         elif name == "game_terminal" and re.search(
                 r"(?im)^\s*(?:visible game error|incorrect usage\b|runtime error\b|error:|unknown command\b|command .+ not found\b|cannot run .*requires .*? RAM|not enough RAM|.*(?:does not have root access|cannot hack this server yet).*)", content):
             state = "game_error"
@@ -427,6 +432,16 @@ def summarize_action_results(actions: list[dict], results: list[object]) -> list
         if error:
             summaries.append({"tool": "unmapped", "state": "failed", "message": error[:320]})
     return summaries[-8:]
+
+
+def should_count_visible_runtime_error(message: str, existing_errors: list[str],
+                                      tool_results: list[dict[str, str]]) -> bool:
+    """Count a delayed visible runtime error once when its run tool result missed it."""
+    if not message or message in existing_errors:
+        return False
+    return not any(item.get("state") == "game_error" and
+                   item.get("tool") in ("game_run_script", "game_terminal")
+                   for item in tool_results)
 
 
 def failed_action_repeat_count(previous_signature: str, previous_count: int,
@@ -695,13 +710,16 @@ async def run_agent(objective: str) -> None:
         last_actions = actions
         subobjective = str(output.get("next_goal") or subobjective)[:700]
         visible = await visible_snapshot(shared_browser)
+        tool_results = summarize_action_results(actions, list(getattr(latest, "result", []) or [])) if latest else []
         runtime_error = visible_runtime_error(visible)
+        count_visible_error = False
         if runtime_error:
             # Runtime failures can appear after `run` already returned a PID.
             # Preserve that independently observed failure for recovery and the
             # next session instead of treating startup confirmation as success.
             message = f"Visible Netscript runtime error: {runtime_error[:600]}"
-            if not errors or errors[-1] != message:
+            count_visible_error = should_count_visible_runtime_error(message, errors, tool_results)
+            if message not in errors:
                 errors.append(message)
                 del errors[:-8]
         visible_money = visible_money_amount(visible)
@@ -710,10 +728,10 @@ async def run_agent(objective: str) -> None:
         if (action_state.get("confirmed_script_run") and
                 action_state.get("money_at_script_run") is None and visible_money is not None):
             action_state["money_at_script_run"] = visible_money
-        tool_results = summarize_action_results(actions, list(getattr(latest, "result", []) or [])) if latest else []
         tool_metrics["calls"] += len(actions)
         tool_metrics["failed"] += sum(item["state"] == "failed" for item in tool_results)
         tool_metrics["game_errors"] += sum(item["state"] == "game_error" for item in tool_results)
+        tool_metrics["game_errors"] += int(count_visible_error)
         successful_actions += sum(item["state"] == "returned" for item in tool_results)
         for item in tool_results:
             if item["state"] in ("failed", "game_error"):

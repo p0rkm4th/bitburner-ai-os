@@ -35,17 +35,15 @@ precedence over remembered or outdated API details.
   `game_open_tab`. If a command is rejected, stop and use its exact visible
   error to select another supported interface.
 - Root/admin access and hacking skill are separate requirements. Port-opening
-  programs followed by `NUKE.exe` grant root when the server's port requirement
-  is met. `NUKE.exe` is already on `home`; zero-port servers need no opener.
-  In Terminal, connect to the target and `run NUKE.exe`, or use documented
-  `ns.nuke(host)`. Before using an API you are unsure about, retrieve its exact
-  signature with `game_netscript_reference`. Root does not waive hacking-skill
-  requirements. Inspect the server's displayed requirements before acting.
+  programs and `NUKE.exe`, or `ns.nuke(host)`, grant root when port requirements
+  are met; `NUKE.exe` is on `home`. A script running on `home` can call
+  `ns.nuke(target)` without connecting to that target. Check its boolean result
+  and visible root status. Copying a script to an unrooted target does not
+  grant access, and running it there requires root and sufficient RAM. Root
+  does not waive hacking skill. Check the live reference if unsure.
 - After a root-access error, consult `game_troubleshoot` and verify uncertain
   APIs such as `ns.nuke` against the connected game's live reference before
   correcting a script. Verify visible root access and the result after a run.
-- Root access is required to run scripts on a server. The script must also fit
-  that server's available RAM.
 - Terminal `run <file.js> [args...]` starts the file on the currently connected
   server; trailing values are script arguments, not a destination server. To
   execute on another host, copy the file with `scp <file.js> <host>` while on
