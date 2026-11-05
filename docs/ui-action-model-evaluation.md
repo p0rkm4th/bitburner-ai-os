@@ -2,11 +2,13 @@
 
 ## Decision
 
-Do not add a learned UI action model to the running agent yet. The candidate
-models have not been tested against the Bitburner DOM, the shared inference
-endpoint currently has a model loaded, and the primary model has not yet
-completed a verified money-making Netscript cycle. Production gameplay and its
-profile were not changed. The optional model adapter remains unimplemented.
+Do not add a learned UI action model to the running agent. The primary-only
+production workflow has since generated verified in-game script income, but
+the observed failures are repeated Terminal commands, RAM/process diagnosis,
+queued game dialogs, and long or malformed inference responses. No evidence
+shows that selecting browser targets with a second model would address these
+failures. Neither candidate has been tested against the Bitburner DOM; the
+optional adapter remains unimplemented.
 
 The current low-complexity path is the deterministic visible-UI helper set in
 `app/game_tools.py`. It resolves fresh visible labels, rejects ambiguous or
@@ -29,6 +31,18 @@ Sources: [Laya Browser model card](https://huggingface.co/Quantum08/laya-browser
 [Fast Browser Use dependency manifest](https://github.com/APUS-AI-Lab/fast-browser-use/blob/main/pyproject.toml).
 These are upstream claims and requirements, not local performance measurements.
 
+## Comparison status
+
+| Workflow | Evidence | Outcome |
+|---|---|---|
+| Primary model only | Production trace: Qwen authored and visibly ran a Netscript loop. The game reported $3.764 of offline script earnings; HUD later showed $25.516k and Hacking 17. The trace was not isolated or controlled. | Real income and progress, but repeated run attempts exhausted home RAM; the agent has not reliably diagnosed or cleaned up active processes. Calls timed out at 150 seconds. |
+| Deterministic UI helpers | 65 automated tests pass, including fresh semantic target resolution, modal handling, terminal results, and repeat-run protection. An earlier disposable-profile check opened a game tab by its semantic label. | Functional and low-cost; no controlled A/B replay and no measured end-to-end latency reduction. |
+| Tiny model assisted | Laya weights were not loaded; Fast Browser Use was not installed. | No task-success, latency, resource, or income measurements. No evidence supports integration. |
+
+The production trace is not a model benchmark: its profile and starting state
+were not controlled against an identical baseline, and the tiny model was not
+run.
+
 ## Benchmark status
 
 No head-to-head trial was run. Laya weights were not downloaded, and neither
@@ -40,11 +54,11 @@ was excluded from execution because its documented model and dependencies do
 not fit the current resource/runtime profile without changing the architecture.
 
 The required replay comparison for repeated clicks, stale indexes, blocked
-dialogs, and failed navigation therefore remains outstanding. Existing
-deterministic helper tests and the live disposable-profile check are positive
-functional checks, but do not establish that a model-assisted path reduces
-invalid actions, elapsed task time, or end-to-end gameplay time. No evidence
-currently supports the extra model complexity.
+dialogs, and failed navigation remains outstanding. Existing deterministic
+helper tests and the live disposable-profile check are positive functional
+checks, but do not establish that a model-assisted path reduces invalid
+actions, elapsed task time, or end-to-end gameplay time. No evidence currently
+supports the extra model complexity.
 
 Before reconsidering integration, first demonstrate a repeatable, isolated
 primary-model cycle that independently authors, deploys, runs, debugs, and
@@ -86,8 +100,9 @@ do not demonstrate income.
 
 No action-model adapter or replay harness was added: without a safe isolated
 inference window, results would not justify the added dependency or measure
-the proposed model. The production-readiness gate remains the same: first
-complete a reproducible primary-model Netscript income cycle, then run a
-sequential A/B replay on equivalent disposable profiles. The replay must report
-actual Bitburner task completion and money change in addition to action-level
-latency and error counts.
+the proposed model. The next gate is a repeatable, isolated primary-model cycle
+with recovery from a real runtime/RAM error. If an eligible local host is
+available without disrupting production, then run a sequential A/B replay on
+equivalent disposable profiles. Report task completion and money change as
+well as action-level latency and error counts. Keep gameplay strategy and code
+authorship exclusively with the primary LLM.
