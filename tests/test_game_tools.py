@@ -70,6 +70,7 @@ class FakePage:
         self.focused = None
         self.terminal_visible = True
         self.run_output = None
+        self.executed_commands = []
         self.visible = "Bitburner Terminal"
         self.files = {"home.js": "export async function main(ns) {}"}
         self.nav_label = "Create Program"
@@ -131,6 +132,7 @@ class FakePage:
         if key != "Enter" or self.focused != "terminal":
             return
         command = self.command
+        self.executed_commands.append(command)
         if command == "ls":
             self.visible = "Bitburner Terminal\n" + " ".join(self.files)
         elif command.startswith("cat "):
@@ -147,6 +149,8 @@ class FakePage:
                 self.visible = f"ERROR: no script named {filename}"
         elif command.startswith("run "):
             self.visible = self.run_output or f"Bitburner Terminal\n{command}\nRunning script home.js with PID 4; $1.25/s"
+        elif command == "ps":
+            self.visible = "Bitburner Terminal\nps\nPID Filename\n4 home.js"
         elif command.startswith("scan-analyze ") and command != "scan-analyze 2":
             self.visible = f"Bitburner Terminal\n{command}\nIncorrect usage of scan-analyze command. depth argument must be positive numeric"
         else:
@@ -331,6 +335,17 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         result = await self.actions["game_run_script"]("home.js", self.browser, [])
         self.assertIn("RUNTIME ERROR", result)
         self.assertIn("hacknumthreads is not a function", result)
+
+    async def test_terminal_blocks_repeated_run_until_a_diagnostic_command(self):
+        first = await self.actions["game_terminal"]("run home.js", self.browser)
+        self.assertIn("Running script home.js with PID 4", first)
+        duplicate = await self.actions["game_terminal"]("run home.js", self.browser)
+        self.assertTrue(duplicate.startswith("NO_PROGRESS:"))
+        self.assertEqual(self.page.executed_commands, ["run home.js"])
+        await self.actions["game_terminal"]("ps", self.browser)
+        second = await self.actions["game_terminal"]("run home.js", self.browser)
+        self.assertIn("Running script home.js with PID 4", second)
+        self.assertEqual(self.page.executed_commands, ["run home.js", "ps", "run home.js"])
 
     async def test_terminal_rejects_chaining_downloads_and_deletion(self):
         for command in ("ls; run home.js", "wget https://example.invalid/x.js", "rm home.js"):

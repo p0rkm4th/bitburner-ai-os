@@ -108,6 +108,10 @@ def _visible_content_matches(content: str, visible: str) -> bool:
     return bool(expected) and expected in rendered
 
 
+RUN_COMMAND = re.compile(r"^\s*run\s+([A-Za-z0-9_.-]+\.js)(?:\s+.*)?$", re.IGNORECASE)
+CONFIRMED_RUN = re.compile(r"running script.*\bpid\s*[:#]?\s*[1-9]\d*", re.IGNORECASE)
+
+
 def find_visible_tab_node(dom_state, tab: str):
     """Find one freshly observed visible navigation button by its rendered label."""
     matches = []
@@ -176,6 +180,7 @@ SAVE_BUTTONS = (
 def register_game_tools(tools: Tools, *, include_editor: bool = True) -> dict[str, object]:
     """Register a small deterministic tool set on the existing Browser Use controller."""
     last_observation: Optional[str] = None
+    last_confirmed_run: Optional[str] = None
 
     @tools.action(description="Return a compact observation of the visible Bitburner UI, including dialogs and visible game state. Does not change the game.")
     async def game_observe(browser_session: BrowserSession) -> str:
@@ -290,9 +295,19 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True) -> dict[st
         return page, field
 
     async def send_terminal(command: str, browser_session: BrowserSession) -> str:
+        nonlocal last_confirmed_run
         if (not command.strip() or len(command) > 500 or
                 any(ch in command for ch in "\r\n\x00;") or command.strip().startswith(("wget ", "scp ", "rm "))):
             raise ValueError("Enter one permitted, non-empty game Terminal command on a single line (no chaining, downloads, or deletion)")
+        run_match = RUN_COMMAND.fullmatch(command)
+        run_filename = run_match.group(1).casefold() if run_match else None
+        if run_filename and run_filename == last_confirmed_run:
+            return (f"NO_PROGRESS: {run_match.group(1)} already received a visible positive PID. "
+                    "Do not run it again yet. Inspect `ps`, `tail`, Active Scripts, or the visible error and act on that evidence.")
+        if not run_filename:
+            # A diagnostic or other terminal command provides a fresh check
+            # before the agent may deliberately launch the same script again.
+            last_confirmed_run = None
         page = await _page(browser_session)
         await _need_clear_surface(page, browser_session)
         page, field = await _ensure_terminal(page, browser_session)
@@ -304,6 +319,8 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True) -> dict[st
         after = await _visible(browser_session)
         if after == before:
             raise RuntimeError("Enter was sent, but the visible game UI did not change. Check terminal focus and inspect the UI before retrying.")
+        if run_filename and CONFIRMED_RUN.search(after):
+            last_confirmed_run = run_filename
         return after[-MAX_OBSERVATION:]
 
     @tools.action(description=(
