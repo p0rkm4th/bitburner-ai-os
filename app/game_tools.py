@@ -58,7 +58,11 @@ async def _modal(page, visible: str = "") -> Optional[str]:
                 # a visible interactive control and recognizable visible game
                 # content. The jump3R message uses this presentation shell.
                 if role == "presentation":
-                    if selector == ".MuiModal-root" and not _known_game_modal(visible):
+                    # Accessibility snapshots can expose a generic modal shell
+                    # even when no dialog is open. Only Bitburner's known modal
+                    # presentation qualifies; do not infer a dialog merely
+                    # because the shell contains a button.
+                    if selector != ".MuiModal-root" or not _known_game_modal(visible):
                         continue
                     controls = await page.get_elements_by_css_selector(
                         '[aria-modal="true"] button, [aria-modal="true"] [role="button"], '

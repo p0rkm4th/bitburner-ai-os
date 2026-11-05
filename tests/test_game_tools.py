@@ -11,7 +11,9 @@ class FakeElement:
         self.kind = kind
 
     async def get_bounding_box(self):
-        if self.kind in {"modal", "modal_close"} and not self.page.modal:
+        if self.kind == "modal" and not self.page.modal:
+            return None
+        if self.kind == "modal_close" and not self.page.modal and not self.page.mui_modal:
             return None
         if self.kind == "presentation" and not self.page.presentation_only:
             return None
@@ -276,6 +278,15 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_presentation_shell_is_not_mistaken_for_an_open_dialog(self):
         self.page.presentation_only = True
+        state = await self.actions["game_observe"](self.browser)
+        self.assertIn("Visible dialog: none", state)
+        result = await self.actions["game_terminal"]("ls", self.browser)
+        self.assertIn("home.js", result)
+
+    async def test_empty_mui_presentation_shell_with_visible_button_is_not_a_dialog(self):
+        self.page.mui_modal = True
+        self.page.presentation_only = True
+        self.page.visible = "Bitburner Terminal\n[home /]>"
         state = await self.actions["game_observe"](self.browser)
         self.assertIn("Visible dialog: none", state)
         result = await self.actions["game_terminal"]("ls", self.browser)
