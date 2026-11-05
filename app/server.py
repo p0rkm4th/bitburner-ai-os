@@ -449,14 +449,38 @@ def failed_result_signature(actions: list[dict], visible: str, failures: list[di
     )
     if pending_deployment:
         # Changing proposed source cannot unblock a verified file awaiting a
-        # visible run. Give one recovery step, then stop repeated redeploys.
+        # visible run. Visible money/HUD churn also cannot unblock it. Give one
+        # recovery step, then stop repeated redeploys.
         action_json = json.dumps(["game_deploy_script:pending_run_required"])
         failure_text = "game_deploy_script:NO_PROGRESS:pending_run_required"
+        state = ""
     else:
         action_json = json.dumps(actions, sort_keys=True, ensure_ascii=False)
         failure_text = "|".join(str(item.get("tool", "unknown")) + ":" +
                                 str(item.get("message", "")) for item in failures)
     return hashlib.sha256((action_json + "\n" + state + "\n" + failure_text).encode()).hexdigest()
+
+
+def failure_signature_for_tool_results(actions: list[dict], visible: str,
+                                       results: list[dict[str, str]]) -> str:
+    """Only count a failed response when it contains no successful recovery action."""
+    failures = [item for item in results if item.get("state") in ("failed", "game_error")]
+    if not failures:
+        return ""
+    pending_deployment = any(
+        item.get("tool") == "game_deploy_script" and
+        item.get("state") == "game_error" and
+        str(item.get("message", "")).startswith("NO_PROGRESS:") and
+        "without a visible execution" in str(item.get("message", ""))
+        for item in failures
+    )
+    # A successful model-chosen diagnostic earns a fresh recovery opportunity
+    # for this specific guard. Preserve ordinary failed-action behavior.
+    if pending_deployment and any(
+            item.get("state") == "returned" and item.get("tool") != "game_observe"
+            for item in results):
+        return ""
+    return failed_result_signature(actions, visible, failures)
 
 
 class StartRequest(BaseModel):
@@ -688,7 +712,7 @@ async def run_agent(objective: str) -> None:
             # have no action bundle. Count them by the unchanged visible state
             # and exact failure so they receive the same bounded recovery as a
             # repeated failed UI tool call.
-            repeat_signature = failed_result_signature(actions, visible, failed_results)
+            repeat_signature = failure_signature_for_tool_results(actions, visible, tool_results)
             repeated_failure_count = failed_action_repeat_count(
                 previous_failure_signature, repeated_failure_count, repeat_signature)
             previous_failure_signature = repeat_signature

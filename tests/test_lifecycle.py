@@ -305,6 +305,8 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         first = server.failed_result_signature(first_action, visible, failure)
         second = server.failed_result_signature(changed_action, visible, failure)
         self.assertEqual(first, second)
+        self.assertEqual(first, server.failed_result_signature(changed_action,
+            "[home /]> connect home\n$1.4m\nHacking: 17", failure))
         self.assertEqual(server.failed_action_repeat_count(first, 1, second), 2)
         diagnostic = [{"game_terminal": {"command": "ps"}}]
         changed_action = [{"game_terminal": {"command": "run hack.js"}}]
@@ -316,6 +318,40 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
             changed_action, visible,
             [{"tool": "game_terminal", "state": "game_error", "message": "Command failed"}],
         ))
+
+    async def test_successful_recovery_action_resets_pending_deploy_failure_streak(self):
+        blocked = {"tool": "game_deploy_script", "state": "game_error",
+                   "message": "NO_PROGRESS: 1 scripts already deployed without a visible execution"}
+        first = server.failure_signature_for_tool_results(
+            [{"game_deploy_script": {"filename": "hack.js", "content": "one"}}],
+            "Terminal", [blocked])
+        self.assertEqual(server.failed_action_repeat_count("", 0, first), 1)
+
+        recovery_response = [blocked, {"tool": "game_terminal", "state": "returned",
+                                       "message": "Tool returned a visible result"}]
+        reset = server.failure_signature_for_tool_results(
+            [{"game_deploy_script": {"filename": "hack.js", "content": "two"}},
+             {"game_terminal": {"command": "ps"}}], "Terminal", recovery_response)
+        self.assertEqual(reset, "")
+        self.assertEqual(server.failed_action_repeat_count(first, 1, reset), 0)
+
+        passive_observation = server.failure_signature_for_tool_results(
+            [{"game_deploy_script": {"filename": "hack.js", "content": "two"}},
+             {"game_observe": {}}], "Terminal", [blocked,
+                 {"tool": "game_observe", "state": "returned", "message": "Same visible state"}])
+        self.assertEqual(passive_observation, first)
+
+        ordinary_error = {"tool": "game_run_script", "state": "game_error",
+                          "message": "Visible script runtime error: invalid target"}
+        mixed_ordinary_error = server.failure_signature_for_tool_results(
+            [{"game_run_script": {"filename": "hack.js"}},
+             {"game_terminal": {"command": "ps"}}], "Terminal",
+            [ordinary_error, {"tool": "game_terminal", "state": "returned",
+                              "message": "Tool returned a visible result"}])
+        self.assertTrue(mixed_ordinary_error)
+        self.assertEqual(mixed_ordinary_error, server.failed_result_signature(
+            [{"game_run_script": {"filename": "hack.js"}},
+             {"game_terminal": {"command": "ps"}}], "Terminal", [ordinary_error]))
 
     async def test_non_pending_deployment_no_progress_stays_argument_sensitive(self):
         failure = [{"tool": "game_deploy_script", "state": "game_error",

@@ -290,8 +290,11 @@ prevented repeated writes but did not prevent repeated inference: the failure
 signature included the model-authored source text, so small code changes reset
 the repeated-failure counter. The source now normalizes this specific pending
 run refusal, while preserving a recovery opportunity and allowing other
-diagnostic actions to reset the streak. Focused regression tests cover changed
-source content, and this candidate fix still requires deployment and a later
+diagnostic actions to reset the streak. Its signature ignores changing source
+and visible HUD text; a successful model-chosen action in the same response
+clears this refusal streak, while passive observation alone does not. Ordinary
+error signatures retain their previous behavior. Focused regression tests cover
+these cases, and this candidate fix still requires deployment and a later
 isolated validation. Overall, the two post-guidance Qwen runs include one
 verified income success and one failure; repeatability is not established.
 
