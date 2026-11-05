@@ -296,6 +296,36 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotEqual(repeated, changed_ui)
         self.assertEqual(server.failed_result_signature([], "Terminal ready", []), "")
 
+    async def test_pending_deployment_refusal_ignores_changed_script_content(self):
+        visible = "[home /]> connect home"
+        failure = [{"tool": "game_deploy_script", "state": "game_error",
+                    "message": "NO_PROGRESS: 1 scripts have already been deployed and read-back verified without a visible execution. Run the latest verified file with game_run_script('hack.js')."}]
+        first_action = [{"game_deploy_script": {"filename": "hack.js", "content": "export async function main(ns) {}"}}]
+        changed_action = [{"game_deploy_script": {"filename": "hack.js", "content": "export async function main(ns) { await ns.hack('n00dles'); }"}}]
+        first = server.failed_result_signature(first_action, visible, failure)
+        second = server.failed_result_signature(changed_action, visible, failure)
+        self.assertEqual(first, second)
+        self.assertEqual(server.failed_action_repeat_count(first, 1, second), 2)
+        diagnostic = [{"game_terminal": {"command": "ps"}}]
+        changed_action = [{"game_terminal": {"command": "run hack.js"}}]
+        self.assertNotEqual(first, server.failed_result_signature(
+            diagnostic, visible,
+            [{"tool": "game_terminal", "state": "game_error", "message": "Command failed"}],
+        ))
+        self.assertNotEqual(first, server.failed_result_signature(
+            changed_action, visible,
+            [{"tool": "game_terminal", "state": "game_error", "message": "Command failed"}],
+        ))
+
+    async def test_non_pending_deployment_no_progress_stays_argument_sensitive(self):
+        failure = [{"tool": "game_deploy_script", "state": "game_error",
+                    "message": "NO_PROGRESS: script already exists; no write was made"}]
+        first = server.failed_result_signature(
+            [{"game_deploy_script": {"filename": "a.js", "content": "one"}}], "Terminal", failure)
+        second = server.failed_result_signature(
+            [{"game_deploy_script": {"filename": "a.js", "content": "two"}}], "Terminal", failure)
+        self.assertNotEqual(first, second)
+
     async def test_terminal_ram_error_and_duplicate_deploy_are_counted_as_game_errors(self):
         from types import SimpleNamespace
         terminal = server.summarize_action_results(

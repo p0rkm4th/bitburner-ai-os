@@ -29,14 +29,16 @@ reasoning tokens. “Session time” is from objective start to supervisor exit;
 | Role | Exact Ollama tag | Weights | Capabilities and license | Placement and availability |
 |---|---|---|---|---|
 | Baseline | `qwen3.6:35b` | 35.5B, Q4_K_M; 23.3 GB model, 23.3 GB reported GPU allocation | Vision and tool support; Apache-2.0 | Deep inference pool; installed and benchmarked |
-| Primary challenger | `qwen3.8:27b` | Official 27B tag; 18 GB Q4_K_M catalog build | Vision and tool support; Apache-2.0 | Deep inference pool; not scored because Ollama 0.31.1 rejected the pull with HTTP 412 requiring a newer Ollama version. Ollama was not upgraded for this benchmark. |
+| Primary challenger | `qwen3.8:27b` | Official 27B tag; 18 GB Q4_K_M catalog build | Vision and tool support; Apache-2.0 | Not scored. The original Ollama 0.31.1 pull returned HTTP 412. A later read-only check found Ollama 0.40.14 on all three inference nodes but the exact tag was still absent. No model download or generation was performed pending explicit owner approval. |
 | Coding challenger | `devstral-small-2:24b-instruct-2512-q4_K_M` | 24B, Q4_K_M; 15.2 GB model, 18.2 GB reported GPU allocation | Vision and tool support; Apache-2.0 | Deep inference pool; installed and benchmarked |
 | VRAM-sized candidate | `gemma4:12b` | 11.9B, Q4_K_M; 8.7 GB model, 8.7 GB reported GPU allocation | Vision and tool support; Apache-2.0 | Compact inference pool; installed and benchmarked |
 
 Catalog tags and requirements were checked before pulling Devstral. Its exact
-tag requires Ollama 0.13.3 or later; the serving endpoint was 0.31.1. The
-official Ollama catalog lists Qwen3.8's 27B, 18 GB tag, but this endpoint
-requires a newer Ollama release. All three tested models reported the entire
+tag requires Ollama 0.13.3 or later; the serving endpoint was 0.31.1 during
+that benchmark. The official Ollama catalog lists Qwen3.8's 27B, 18 GB tag.
+Later read-only checks found Ollama 0.40.14 on all three inference nodes, but
+did not find the tag installed; downloading it was outside the approved trial.
+All three tested models reported the entire
 weight allocation in GPU memory via `/api/ps`; no weight CPU offload was
 reported. GPU sampling observed four 8 GiB cards for the deep pool and two
 8 GiB cards for the compact pool. The per-GPU sampler did not return data in
@@ -256,8 +258,42 @@ published.
 This run meets the narrow gate of independently authored, visibly executed
 Netscript with a positive visible money delta. It does not prove reliable
 debugging of Netscript errors, repeated success, autonomous continuation across
-sessions, hacking-level progression, or BitNode completion. Continue bounded
-replication before calling this gameplay loop reliable.
+sessions, hacking-level progression, or BitNode completion.
+
+### Guided Run 18 — failed replication after the pending-run guard
+
+Run 18 used a fresh copy of the same v3.0.1 seed, model, objective, tools,
+16,384 context, temperature 0.2, seed 7, 18-step limit, and 20-minute ceiling.
+The only harness change from Run 17 was the optional visible `expected_host`
+check and a short instruction to use it when choosing a host. The initial
+visible balance was $1.262k, Hack 1, and Remote API Online. The model dismissed
+the offline popup, inspected files, scanned, selected `n00dles`, and visibly
+used `run NUKE.exe` to gain root. It authored and deployed `hack-n00dles.js`
+once through the restricted Remote API. It then made four redeployment calls
+while the one-write guard returned the same `NO_PROGRESS` instruction to run
+the already verified file. No further write was made. After repeated identical
+failures, the supervisor stopped the session at 13 steps. The visible final
+balance remained $1.262k and Hack remained 1. No Netscript execution or income
+was verified; the run did not reach the new expected-host check.
+
+The 13 inference requests returned without transport failure: 116,682 prompt
+tokens, 14,054 completion tokens, and 659.6 seconds summed response time (50.7s
+mean, 49.0s median). Cold load was 17.6s; aggregate prompt/output throughput was
+421 / 38.8 tokens per second. Wall time from objective start to supervisor
+failure was 11m08s. Ollama reported about 23.0 GB in VRAM at 16,384 context.
+Across four 8 GiB cards, sampled utilization averaged 17–27% by card and peaked
+at 100% on each; sampled memory use peaked at 7.6, 5.1, 6.2, and 5.7 GiB.
+CPU offload was not measured. Trial artifacts remain in ignored local storage.
+
+This replication failed the gameplay gate. It confirms that the write guard
+prevented repeated writes but did not prevent repeated inference: the failure
+signature included the model-authored source text, so small code changes reset
+the repeated-failure counter. The source now normalizes this specific pending
+run refusal, while preserving a recovery opportunity and allowing other
+diagnostic actions to reset the streak. Focused regression tests cover changed
+source content, and this candidate fix still requires deployment and a later
+isolated validation. Overall, the two post-guidance Qwen runs include one
+verified income success and one failure; repeatability is not established.
 
 ## Reproducing a trial
 

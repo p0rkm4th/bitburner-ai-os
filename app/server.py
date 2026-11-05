@@ -440,9 +440,22 @@ def failed_result_signature(actions: list[dict], visible: str, failures: list[di
     if not failures:
         return ""
     state = re.sub(r"\[\d+\]", "[]", visible)
-    action_json = json.dumps(actions, sort_keys=True, ensure_ascii=False)
-    failure_text = "|".join(str(item.get("tool", "unknown")) + ":" +
-                            str(item.get("message", "")) for item in failures)
+    pending_deployment = any(
+        item.get("tool") == "game_deploy_script" and
+        item.get("state") == "game_error" and
+        str(item.get("message", "")).startswith("NO_PROGRESS:") and
+        "without a visible execution" in str(item.get("message", ""))
+        for item in failures
+    )
+    if pending_deployment:
+        # Changing proposed source cannot unblock a verified file awaiting a
+        # visible run. Give one recovery step, then stop repeated redeploys.
+        action_json = json.dumps(["game_deploy_script:pending_run_required"])
+        failure_text = "game_deploy_script:NO_PROGRESS:pending_run_required"
+    else:
+        action_json = json.dumps(actions, sort_keys=True, ensure_ascii=False)
+        failure_text = "|".join(str(item.get("tool", "unknown")) + ":" +
+                                str(item.get("message", "")) for item in failures)
     return hashlib.sha256((action_json + "\n" + state + "\n" + failure_text).encode()).hexdigest()
 
 

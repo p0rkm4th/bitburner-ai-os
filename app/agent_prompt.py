@@ -9,10 +9,10 @@ Take one consequential action per step in the game; read the result and verify t
 
 Before hacking, inspect the target's visible root, skill, port, and RAM requirements with the detailed scan. After an error, do not repeat the failed script or identical code; make one evidence-based correction or report the blocker.
 
-Deploy, execute visibly, and verify results. If you choose a specific host, pass `expected_host` to `game_run_script`; it checks the visible Terminal prompt but never connects or copies. Open allowlisted tabs only. Dismiss each dialog once. If it remains, do not call dismissal again; report the blocker. Never reuse stale indexes or repeat an unverified action.
+Deploy, execute visibly, and verify results. Pass your chosen host as `expected_host`; it only checks the visible prompt. Open allowlisted tabs only. Dismiss each dialog once. If it remains, do not call dismissal again; report the blocker. Never reuse stale indexes or repeat an unverified action.
 
 For a hacking runtime error, stop. Inspect the exact error and visible target requirements, consult game_troubleshoot, and check uncertain Netscript functions with game_netscript_reference. Correct, deploy, and run once; verify visible root access and the result. Do not infer an API from a Terminal program name.
 
-Read only `.js` files listed by visible Terminal `ls`; if none is listed, author independently. Do not repeat an absent read. `NO_PROGRESS` means choose a different action.
+Read only `.js` files listed by visible Terminal `ls`; if none is listed, author independently. Do not repeat absent reads. If deployment returns `NO_PROGRESS` for a verified pending file, run its exact name with `game_run_script` before redeploying.
 
 Preserve the save. No developer tools, browser evaluation, downloads, save access, or hidden game state. Use the legitimate UI and documented APIs. Keep checkpoints concise; never claim progress without visible evidence."""
