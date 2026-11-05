@@ -117,7 +117,7 @@ credentials, and game profiles in ignored local records.
 | Approach | Setup/non-inference | Gameplay trials | Verified progress | Errors / inference / resources | Decision |
 |---|---|---:|---|---|---|
 | Existing Browser Use + restricted Remote API | Isolated Remote API Online; harmless write/read/RAM round trip verified; second isolated profile staged | Historical runs plus one bounded Qwen run; retry not started | Model-authored `hack.js` deployed and started; no balance or hacking change; $0.000/sec observed | Prior run: 12 requests, 8 completions, 4 read timeouts; 67.3k prompt / 6.4k completion tokens; 13m44s. Current Qwen model is resident, but active-request status is unavailable | Keep retry staged until the shared inference slot can be verified clear |
-| Agent Zero | Isolated current upstream container starts; 5 MCP tools discovered; no inference endpoint or game attached | 0 | None | ~902 MiB idle / 5 GiB limit, 0.17% CPU; focused pytest unavailable in image; tool surface not yet behaviorally equivalent | Setup passed; prepare same-capability browser MCP adapter before inference A/B |
+| Agent Zero | Isolated current upstream container connected to a shared-session MCP adapter; Agent Zero client discovered 12 restricted `game_*` tools and executed visible observation plus terminal `help` | 0 | None; viewer balance is cloned-seed state | Adapter suite 6/6 and full app suite 99/99; Ollama endpoint unreachable from Agent Zero's internal-only network; no inference sent | Browser/MCP setup and visible-tool gate passed; resolve least-privilege local Ollama connectivity before any model trial |
 | Deterministic UI helpers + optional Laya/JEV | Offline trace inventory/replay completed; no model weights downloaded and no live test | 0 model-assisted | None | 265 Browser Use chunks reviewed; 78 indexed clicks across 11 sessions; 3 same-index repetitions, but no confirmed stale-index target in available snapshots; several traces had irrelevant “Add to Cart” objective | Retain deterministic helpers; Laya/JEV not justified by current traces |
 
 ### Initial parallel-work results (2026-11-05)
@@ -143,12 +143,25 @@ credentials, and game profiles in ignored local records.
   the restricted bridge's five advertised tools, rejected an unadvertised
   save-file method, rejected an invalid token, and executed the health tool.
   The health result was `fetch failed` because no game API was attached. No
-  inference was sent. The server-side Remote API allowlist is shared, but raw
-  Agent Zero MCP does not yet match the baseline's visible observation/run
-  tools, read-back and RAM checks, error envelopes, or run-before-redeploy
-  guard. Do not compare gameplay until those capabilities are presented
-  equivalently. Idle footprint was about 902 MiB; the upstream image occupies
-  about 12.3 GB on disk. See the isolated report in ignored local records.
+  inference was sent. Follow-up commit `d8ee352` on the public
+  `experiment/agent-zero-browser-tools` branch adds an isolated adapter over
+  the same persistent Browser Use session. Agent Zero's MCP client discovered
+  12 `game_*` tools and called `game_observe`, receiving visible UI text. The
+  server rejects unauthenticated requests, blocks raw Remote API calls in this
+  mode, and rejects control while the Browser Use supervisor owns the session.
+  Read-only `ls`/`help`, Stats navigation, documentation, and Netscript lookup
+  were also exercised through the adapter. Agent Zero's own MCP client called
+  both `game_observe` and `game_terminal(help)` successfully. Its isolated
+  internal-only network cannot reach the configured Ollama endpoint (a
+  read-only `/api/tags` request failed to connect); no model endpoint was
+  configured in Agent Zero and no inference was attempted. Six adapter tests and the full 99
+  test suite pass. Agent Zero's settings API cannot currently apply MCP config
+  because its settings save runs `chpasswd` and fails; its isolated persistent
+  settings file was configured directly and the container restarted. The
+  benchmark browser is a cloned seed: displayed money and hacking level are
+  inherited, and no gameplay model was run. Ollama compatibility, model
+  execution, recovery, and autonomous progress remain unverified. Do not
+  interpret MCP setup as a gameplay result.
 - **Laya/JEV replay:** Laya Browser 421M's model card states Apache-2.0 and
   describes browser action prediction (click/type/select), not gameplay
   planning or Netscript. The checkpoint is F16 and roughly 842 MB. The reviewed
