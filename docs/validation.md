@@ -96,8 +96,11 @@ reset.
 Inference reachability is currently the immediate blocker. The configured
 `qwen3.6:35b` Ollama route returned HTTP 502 from the agent API; a read-only
 `/api/tags` request from inside the VM container failed with `No route to host`,
-and a workstation request timed out. These checks do not establish whether the
-inference service itself is down or only unreachable from this VM. Lightweight
+and a workstation request timed out. A fresh workstation check also failed to
+reach TCP 22 and 11437; SSH reported `No route to host`. The VM's neighbor
+table marked the configured inference host `FAILED`. This points to network
+unreachability before the Ollama API, but does not distinguish a powered-off
+host from a link, addressing, or filtering problem. Lightweight
 model-catalog requests to other local endpoints succeeded, but no generation
 was sent and no production endpoint/model setting was changed. One alternate
 endpoint already had a model loaded, so no competing inference workload was
