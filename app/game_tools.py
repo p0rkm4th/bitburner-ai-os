@@ -539,13 +539,27 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
 
     @tools.action(description=(
         "Run an existing Bitburner script through the visible terminal and report the game's rendered confirmation or error. "
+        "Optionally provide expected_host to require a matching visible Terminal prompt; a mismatch refuses to run. "
         "After a positive PID, briefly rechecks the rendered UI for an immediate Netscript runtime-error dialog. A PID alone is not success."
     ))
     async def game_run_script(filename: str, browser_session: BrowserSession,
-                              args: Optional[list[str]] = None) -> str:
+                              args: Optional[list[str]] = None,
+                              expected_host: Optional[str] = None) -> str:
         try:
             if not SCRIPT_NAME.fullmatch(filename):
                 raise ValueError("Filename must be a simple in-game .js script name, such as home.js")
+            if expected_host is not None:
+                if not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", expected_host):
+                    raise ValueError("expected_host must be a simple visible Bitburner server name")
+                visible = await _visible(browser_session)
+                prompts = re.findall(r"\[([A-Za-z0-9_.-]+)\s+[^\]\r\n]*\]\s*>", visible)
+                if not prompts:
+                    raise RuntimeError("Could not verify a current server from the visible Terminal prompt; no run command was sent")
+                current_host = prompts[-1]
+                if current_host.casefold() != expected_host.casefold():
+                    return (f"ERROR: Not running {filename}; expected visible Terminal host {expected_host}, "
+                            f"but the current prompt shows {current_host}. Connect to the intended server and verify "
+                            "the visible prompt before retrying.")
             args = args or []
             if len(args) > 16 or any(len(arg) > 100 or not re.fullmatch(r"[A-Za-z0-9_.-]*", arg) for arg in args):
                 raise ValueError("Use at most 16 short script arguments containing letters, numbers, dots, underscores, or hyphens")

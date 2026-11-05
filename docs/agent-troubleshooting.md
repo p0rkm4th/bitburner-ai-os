@@ -107,6 +107,10 @@ procedures, not a prescribed gameplay strategy.
   If the input still is not visible, inspect and report; do not guess an index.
 - **No visible change after command:** Read the tool's explicit error and
   inspect the new UI. Avoid repeating the same command without a new reason.
+- **`game_run_script` rejects `expected_host`:** No run command was sent. Read
+  the host shown in the visible Terminal prompt, connect through the normal
+  in-game interface if needed, and retry with the host you chose. The guard
+  verifies the current prompt; it does not copy the script or change servers.
 - **A script raises a runtime error:** `game_run_script` checks the rendered UI
   briefly after a positive PID and can return an immediate runtime-error modal.
   Read the exact error and stack location, retrieve the matching

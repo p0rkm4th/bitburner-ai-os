@@ -220,7 +220,7 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
             "game_dismiss_dialog": set(),
             "game_open_tab": {"tab"},
             "game_terminal": {"command"},
-            "game_run_script": {"filename", "args"},
+            "game_run_script": {"filename", "args", "expected_host"},
             "game_help": {"topic"},
             "game_troubleshoot": {"error"},
             "game_read_script": {"filename"},

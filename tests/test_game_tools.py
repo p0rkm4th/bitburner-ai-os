@@ -468,6 +468,33 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("RUNTIME ERROR", result)
         self.assertIn("hacknumthreads is not a function", result)
 
+    async def test_run_script_expected_host_guard_prevents_wrong_server_execution(self):
+        self.page.visible = "Bitburner Terminal\n[home /]>"
+        result = await self.actions["game_run_script"](
+            "home.js", self.browser, [], expected_host="n00dles")
+        self.assertIn("Not running home.js", result)
+        self.assertIn("current prompt shows home", result)
+        self.assertEqual(self.page.executed_commands, [])
+
+    async def test_run_script_expected_host_requires_visible_prompt_and_valid_host(self):
+        self.page.visible = "Bitburner Terminal without a prompt"
+        result = await self.actions["game_run_script"](
+            "home.js", self.browser, [], expected_host="n00dles")
+        self.assertIn("Could not verify a current server", result)
+        self.assertEqual(self.page.executed_commands, [])
+        invalid = await self.actions["game_run_script"](
+            "home.js", self.browser, [], expected_host="n00dles;run other.js")
+        self.assertIn("simple visible Bitburner server name", invalid)
+        self.assertEqual(self.page.executed_commands, [])
+
+    async def test_run_script_executes_when_expected_host_matches_visible_prompt(self):
+        self.page.visible = "Bitburner Terminal\n[n00dles /]>"
+        self.page.run_output = "Bitburner Terminal\n[n00dles /]> run home.js\nRunning script home.js with PID 4"
+        result = await self.actions["game_run_script"](
+            "home.js", self.browser, [], expected_host="n00dles")
+        self.assertIn("Running script home.js", result)
+        self.assertEqual(self.page.executed_commands, ["run home.js"])
+
     async def test_visible_run_clears_verified_deployment_streak(self):
         self.action_state.update(deployments_without_run=2, last_deployed_filename="home.js")
         result = await self.actions["game_run_script"]("home.js", self.browser, [])

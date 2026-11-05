@@ -14,7 +14,7 @@ not run concurrently. Check each returned result before acting again.
 | `game_read_script` | simple `filename` | Read one `.js` file from `home` through the restricted official Remote API. No path prefixes. Only read a filename shown by visible Terminal `ls`. If no `.js` is listed or the file is absent, do not guess/repeat a read; author a new script independently. |
 | `game_deploy_script` | `filename`, model-authored `content` | Write one `.js` file on `home`, read it back, compare exact contents, and ask the live game for RAM cost. After a verified deployment, immediately run that exact filename with `game_run_script`; an earlier Terminal `ls` is stale and does not disprove a later write. A second verified write before any visible run triggers a `NO_PROGRESS` guard, which is preserved in checkpoints and across sessions. After a visible run result, revise based on its actual output. After a visible RAM rejection, inspect `ps`, `mem <file.js>`, or Active Scripts before redeploying. An `ERROR:` means diagnose before retrying; deployment is not a successful run. |
 | `game_netscript_reference` | one `symbol` | Retrieve the exact signature and nearby docs for a Netscript API from the connected game's own type definitions. Accepts `ns.grow`, `grow`, or signature-like forms such as `ns.grow(host, opts)`; supplied arguments are ignored for lookup. Terminal commands and `.exe` programs are not Netscript APIs; use visible in-game help and `game_terminal` for those. |
-| `game_run_script` | `filename`, optional `args` | Run the script via the visible Terminal and return the game's confirmation or visible error. This does not prove income; inspect output and stats afterward. |
+| `game_run_script` | `filename`, optional `args`, optional `expected_host` | Run the script via the visible Terminal and return the game's confirmation or visible error. If supplied, `expected_host` must match the current host shown in the visible Terminal prompt; a mismatch or missing prompt blocks execution. The tool does not connect or copy the file. A PID does not prove income; inspect output and stats afterward. |
 
 Examples (these are tool inputs, not gameplay strategy):
 
@@ -29,6 +29,7 @@ game_terminal(command="cat discovery_result.txt")
 game_terminal(command="scan-analyze 2")
 game_terminal(command="scp hack_n00dles.js n00dles")
 game_run_script(filename="home.js", args=[])
+game_run_script(filename="home.js", args=[], expected_host="home")
 game_troubleshoot(error="Cannot hack this server yet")
 ```
 

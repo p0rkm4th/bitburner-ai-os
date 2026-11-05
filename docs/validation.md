@@ -280,3 +280,23 @@ same 110 MB profile, Remote API remained Online, and runtime remained `failed`
 with zero active steps. The running module reported a one-write limit and the
 checkpoint restore helper was present. No inference request or gameplay action
 was made.
+
+## Production status recheck (2026-11-05, 18:48 UTC)
+
+Read-only checks confirmed the production agent and Remote API bridge containers
+are running, but the agent runtime is terminally `failed` at session 0 / 0
+steps. The recorded failure followed two failed sessions with Ollama timeouts
+and connection errors earlier that day. `AUTO_RESUME=1` and `MAX_SESSIONS=0`
+are deployed; a terminal `failed` state remains preserved across startup and
+does not automatically revive. The browser is still on the official game, the
+Remote API indicator is Online, and an offline-progress dialog reports
+`$18.132` of script earnings over 28 seconds offline. This verifies retained
+game progress, not current script income rate or the health of the agent loop.
+
+From the production VM, read-only Ollama calls now return version 0.40.14; the
+configured `qwen3.6:35b` tag is installed and resident at 65,536 context. No
+generation request was sent during this check, so model generation after the
+earlier outage remains unverified. The production agent has not been started
+again, and no browser interaction, save edit, service restart, or model-setting
+change was made. A bounded recovery run requires an available, coordinated
+inference window.
