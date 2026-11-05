@@ -117,8 +117,8 @@ credentials, and game profiles in ignored local records.
 | Approach | Setup/non-inference | Gameplay trials | Verified progress | Errors / inference / resources | Decision |
 |---|---|---:|---|---|---|
 | Existing Browser Use + restricted Remote API | Existing deployment and isolated benchmark runner; current inference route must be preflighted | Historical runs documented; new run pending | Historical trials include successful script starts and old/offline earnings, but no current bounded trial with attributable income | Runtime errors, stale/incomplete recovery, skipped execution, and network failures appear in committed and ignored evidence | Continue A; repair recovery and measure one clean attributable cycle |
-| Agent Zero | Pending isolated setup and non-inference MCP checks | 0 | None | Not yet measured under equivalent controls | Do not choose until parity gate and comparable gameplay trial pass |
-| Deterministic UI helpers + optional Laya/JEV | Existing deterministic helpers have disposable integration evidence; offline replay pending | 0 model-assisted | None | No action-model latency, memory, or accuracy data yet | Keep deterministic helpers; add action model only if replay proves measurable benefit |
+| Agent Zero | Isolated current upstream container starts; 5 MCP tools discovered; no inference endpoint or game attached | 0 | None | ~902 MiB idle / 5 GiB limit, 0.17% CPU; focused pytest unavailable in image; tool surface not yet behaviorally equivalent | Setup passed; prepare same-capability browser MCP adapter before inference A/B |
+| Deterministic UI helpers + optional Laya/JEV | Offline trace inventory/replay completed; no model weights downloaded and no live test | 0 model-assisted | None | 265 Browser Use chunks reviewed; 78 indexed clicks across 11 sessions; 3 same-index repetitions, but no confirmed stale-index target in available snapshots; several traces had irrelevant “Add to Cart” objective | Retain deterministic helpers; Laya/JEV not justified by current traces |
 
 ### Initial parallel-work results (2026-11-05)
 
@@ -137,8 +137,38 @@ credentials, and game profiles in ignored local records.
   wrapper safeguards and normalized errors before a comparable gameplay trial.
   Remote API and browser-tool unit tests passed: 46 tests in the offline
   deployment image. No live isolated bridge parity test has run yet.
-- **Agent Zero setup:** pending. Its environment and non-inference tests are
-  delegated to an isolated experiment; no inference or production access has
-  occurred.
-- **Laya replay:** pending. No weights or extra inference workload have been
-  started; trace inventory and CPU replay are underway separately.
+- **Agent Zero setup:** current OSS commit `ba9b67df` starts in an isolated,
+  login-protected container with default-block tool policy and no host mounts,
+  Docker socket, model endpoint, or game profile. Its MCP client discovered
+  the restricted bridge's five advertised tools, rejected an unadvertised
+  save-file method, rejected an invalid token, and executed the health tool.
+  The health result was `fetch failed` because no game API was attached. No
+  inference was sent. The server-side Remote API allowlist is shared, but raw
+  Agent Zero MCP does not yet match the baseline's visible observation/run
+  tools, read-back and RAM checks, error envelopes, or run-before-redeploy
+  guard. Do not compare gameplay until those capabilities are presented
+  equivalently. Idle footprint was about 902 MiB; the upstream image occupies
+  about 12.3 GB on disk. See the isolated report in ignored local records.
+- **Laya/JEV replay:** Laya Browser 421M's model card states Apache-2.0 and
+  describes browser action prediction (click/type/select), not gameplay
+  planning or Netscript. The checkpoint is F16 and roughly 842 MB. The reviewed
+  logs contain 265 Browser Use conversation chunks and 78 indexed clicks in 11
+  sessions. Three sessions repeated an index, but available snapshots still
+  contained that target, so stale-element failure was not demonstrated. Other
+  failures included repeating an irrelevant “Add to Cart” goal on the game
+  page, which target selection alone would not fix. No weights were downloaded
+  and no inference/live test was run. A preliminary lexical shortlist loses
+  the gold target in roughly 21–27% of reviewed target-selection cases, so
+  adding that adapter now could reduce accuracy. Keep deterministic game UI
+  helpers; reconsider only with better-labeled traces and a replay that proves
+  improvement. Fast Browser Use is a separate browser framework/runtime and
+  does not meet the minimal adapter goal.
+- **Qwen recovery fix:** a separate worktree contains an uncommitted patch
+  that captures visible runtime error text shortly after terminal script start
+  and adds it to durable errors, plus a bounded retry allowance. The patch
+  passed 92 tests in the offline deployment image before a compose-only
+  configuration change. A new isolated trial has not yet consumed inference:
+  the bridge listener is reachable, but the game's visible Remote API status
+  remains Offline. The trial is blocked at game/bridge handshake validation;
+  no gameplay result is claimed. Do not start Qwen until the isolated UI shows
+  Online and harmless push/read/RAM validation passes.
