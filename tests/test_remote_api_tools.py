@@ -58,13 +58,30 @@ class RemoteApiToolTests(unittest.IsolatedAsyncioTestCase):
             result = await self.actions["game_read_script"](invalid)
             self.assertIn("ERROR:", result)
 
+    async def test_read_reports_missing_script_as_actionable_not_found(self):
+        self.api.missing_file_error = True
+        result = await self.actions["game_read_script"]("student.js")
+        self.assertTrue(result.startswith("NO_PROGRESS:"))
+        self.assertIn("No existing script named student.js was found on home", result)
+        self.assertIn("Do not repeat this read", result)
+        self.assertIn("`ls`", result)
+        self.assertIn("game_deploy_script", result)
+        self.assertEqual(self.api.calls, [("getFile", {"filename": "student.js", "server": "home"})])
+
+    async def test_read_preserves_non_missing_remote_api_errors(self):
+        self.api.failure = ("getFile", "Remote API is not connected")
+        result = await self.actions["game_read_script"]("student.js")
+        self.assertIn("Remote API is not connected", result)
+
     async def test_deploy_reads_back_and_calculates_ram(self):
+        self.action_state["last_terminal_command"] = "run student.js"
         code = "export async function main(ns) { await ns.sleep(1); }"
         result = await self.actions["game_deploy_script"]("student.js", code)
         self.assertIn("read-back verified student.js", result)
         self.assertIn("1.6 GB", result)
         self.assertEqual([call[0] for call in self.api.calls], ["getFile", "pushFile", "getFile", "calculateRam"])
         self.assertTrue(all(call[1].get("server", "home") == "home" for call in self.api.calls))
+        self.assertNotIn("last_terminal_command", self.action_state)
 
     async def test_deploy_creates_file_when_bridge_reports_missing_file_as_api_error(self):
         self.api.missing_file_error = True
@@ -82,6 +99,7 @@ class RemoteApiToolTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([call[0] for call in self.api.calls], ["getFile"])
 
     async def test_duplicate_deployment_is_reported_as_no_progress_without_rewriting(self):
+        self.action_state["last_terminal_command"] = "run student.js"
         code = "export async function main(ns) { await ns.sleep(1); }"
         self.api.files["student.js"] = code
         result = await self.actions["game_deploy_script"]("student.js", code)
@@ -89,6 +107,7 @@ class RemoteApiToolTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("calculated RAM: 1.6 GB", result)
         self.assertIn("Run it through the visible Terminal", result)
         self.assertEqual([call[0] for call in self.api.calls], ["getFile", "calculateRam"])
+        self.assertEqual(self.action_state["last_terminal_command"], "run student.js")
 
     async def test_duplicate_with_only_whitespace_and_doc_comment_changes_is_no_progress(self):
         self.api.files["student.js"] = 'export async function main(ns) { while (true) { await ns.hack("n00dles"); } }'
@@ -110,6 +129,18 @@ class RemoteApiToolTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("no file write was made", result)
         self.assertEqual(self.api.calls, [])
 
+    async def test_recovered_ram_rejection_reports_unknown_host_without_writing(self):
+        self.action_state["ram_rejection"] = {
+            "filename": "student.js", "host": "unknown", "required_ram": "unknown", "diagnosed": False,
+        }
+        result = await self.actions["game_deploy_script"](
+            "student.js", "export async function main(ns) { await ns.grow('n00dles'); }"
+        )
+        self.assertTrue(result.startswith("NO_PROGRESS:"))
+        self.assertIn("host and exact requirement were not preserved", result)
+        self.assertIn("no file write was made", result)
+        self.assertEqual(self.api.calls, [])
+
     async def test_ram_rejected_script_may_be_revised_after_diagnosis(self):
         self.action_state["ram_rejection"] = {
             "filename": "student.js", "host": "home", "required_ram": "1.70", "diagnosed": True,
@@ -126,6 +157,8 @@ class RemoteApiToolTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("hack(host: string)", result)
         bare = await self.actions["game_netscript_reference"]("grow")
         self.assertIn("Exact signature for ns.grow: grow(host?: string, opts?: BasicHGWOptions): Promise<number>;", bare)
+        with_args = await self.actions["game_netscript_reference"]("ns.grow(host, opts)")
+        self.assertIn("Exact signature for ns.grow: grow(host?: string, opts?: BasicHGWOptions): Promise<number>;", with_args)
         self.assertIn("getDefinitionFile", [call[0] for call in self.api.calls])
 
     async def test_docs_lookup_failure_keeps_bridge_error(self):

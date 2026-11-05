@@ -165,6 +165,29 @@ model already loaded on shared inference; an additional run was withheld to
 avoid resource contention. The update therefore has automated test coverage
 and a live disposable UI-helper check, but no new gameplay result.
 
+## Compact-model reliability follow-up (2026-11-05)
+
+After confirming the local inference GPUs were idle, six sequential isolated
+runs used `gemma4:e4b` Q4_K_M with screenshot and tool-call capabilities on the
+same fresh v3.0.1 seed. These are not comparable to the earlier Qwen3.6 model
+trials because the model and harness version differ.
+
+| Run | Steps | Inference time | Tool calls | Evidence |
+|---|---:|---:|---:|---|
+| 04 | 3 | 75.3s | 3; 2 failed | Repeated a missing script read after generic bridge 500 responses. |
+| 05 | 5 | 163.7s | 5; 4 identical reads | Not-found feedback was returned, but the model repeated the same read; operator stopped. |
+| 06 | 5 | 223.9s | 5; 2 failed, 2 no-progress | Dismissed the offline popup and ran `ls`, then issued malformed API-reference queries and guessed another absent filename. |
+| 07 | 4 | 139.6s | 4; 3 no-progress | Repeated an absent-file read; the repeated-failure guard stopped the session. |
+| 08 | 9 | 378.5s | 9; 5 no-progress | Authored and revised code after “no main function,” but the same run was blocked until a diagnostic Terminal command; never verified income. |
+| 09 | 10 | 414.3s | 10; 1 failed, 3 no-progress | Authored and deployed code, but a visible runtime-error modal still said the script lacked a main function; no final stat verification. |
+
+Across these runs no money increase was confirmed. Run 09 processed 47,070
+prompt tokens and 2,841 output tokens. The Ollama model report showed 3.745 GB
+allocated in VRAM; GPU utilization varied by sample, and the inference calls
+were sequential. Details and screenshots are retained only in ignored local
+trial records. This follow-up did not use an action model and does not establish
+that the documentation or fixes can complete autonomous gameplay.
+
 ## Reproducing a trial
 
 The isolated Compose deployment, objective, fresh-profile trial runner, and
