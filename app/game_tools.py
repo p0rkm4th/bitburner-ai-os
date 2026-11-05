@@ -35,9 +35,10 @@ async def _visible(browser_session: BrowserSession) -> str:
     return snapshot.dom_state.llm_representation()
 
 
-def _known_offline_dialog(visible: str) -> bool:
+def _known_game_modal(visible: str) -> bool:
     text = visible.casefold()
-    return "offline for" in text and "your scripts generated" in text
+    return (("offline for" in text and "your scripts generated" in text)
+            or ("message received from" in text and "message was saved" in text))
 
 
 async def _modal(page, visible: str = "") -> Optional[str]:
@@ -54,13 +55,14 @@ async def _modal(page, visible: str = "") -> Optional[str]:
                     continue
                 # The game can retain an empty aria-modal presentation shell
                 # after closing a popup. Count it only while it still contains
-                # a visible interactive control.
+                # a visible interactive control and recognizable visible game
+                # content. The jump3R message uses this presentation shell.
                 if role == "presentation":
-                    if selector == ".MuiModal-root" and not _known_offline_dialog(visible):
+                    if selector == ".MuiModal-root" and not _known_game_modal(visible):
                         continue
                     controls = await page.get_elements_by_css_selector(
                         '[aria-modal="true"] button, [aria-modal="true"] [role="button"], '
-                        '.MuiModal-root button[class*="closeButton"]'
+                        '.MuiModal-root button, .MuiModal-root [role="button"]'
                     )
                     visible_controls = []
                     for control in controls:
@@ -163,7 +165,7 @@ SEMANTIC_CLOSE_CONTROLS = (
 )
 MODAL_BUTTONS = ('[aria-modal="true"] button', '[aria-modal="true"] [role="button"]',
                  '[role="dialog"] button', '[role="dialog"] [role="button"]',
-                 '.MuiModal-root button[class*="closeButton"]')
+                 '.MuiModal-root button', '.MuiModal-root [role="button"]')
 EDITOR_INPUTS = (
     ".monaco-editor textarea.inputarea",
     ".monaco-editor textarea",

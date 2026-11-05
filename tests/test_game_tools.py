@@ -94,18 +94,18 @@ class FakePage:
                 return [FakeElement(self, "modal")]
             return [FakeElement(self, "presentation")] if self.presentation_only else []
         if selector in ('[aria-modal="true"] button, [aria-modal="true"] [role="button"]',
-                        '[aria-modal="true"] button, [aria-modal="true"] [role="button"], .MuiModal-root button[class*="closeButton"]',
+                        '[aria-modal="true"] button, [aria-modal="true"] [role="button"], .MuiModal-root button, .MuiModal-root [role="button"]',
                         '[aria-modal="true"] button', '[aria-modal="true"] [role="button"]',
                         '[role="dialog"] button', '[role="dialog"] [role="button"]',
-                        '.MuiModal-root button[class*="closeButton"]'):
+                        '.MuiModal-root button', '.MuiModal-root [role="button"]'):
             if self.mui_modal and selector in ('[aria-modal="true"] button, [aria-modal="true"] [role="button"]',
-                                                '[aria-modal="true"] button, [aria-modal="true"] [role="button"], .MuiModal-root button[class*="closeButton"]',
-                                                '.MuiModal-root button[class*="closeButton"]'):
+                                                '[aria-modal="true"] button, [aria-modal="true"] [role="button"], .MuiModal-root button, .MuiModal-root [role="button"]',
+                                                '.MuiModal-root button', '.MuiModal-root [role="button"]'):
                 return [FakeElement(self, "modal_close")]
             if self.modal:
                 return [FakeElement(self, "modal_close") for _ in range(self.modal_button_count)]
             return []
-        if selector == '.MuiModal-root button[class*="closeButton"]' and self.mui_modal:
+        if selector in ('.MuiModal-root button', '.MuiModal-root [role="button"]') and self.mui_modal:
             return [FakeElement(self, "modal_close")]
         if selector in (".monaco-editor", '[role="textbox"][aria-label*="editor" i]'):
             return [FakeElement(self, "editor")] if self.editor else []
@@ -293,6 +293,19 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.page.mui_modal = True
         self.page.presentation_only = True
         self.page.visible = "Offline for 1 hour. Your scripts generated $0.000"
+        result = await self.actions["game_dismiss_dialog"](self.browser)
+        self.assertIn("dismissed and verified absent", result)
+        self.assertEqual(self.page.close_clicks, 1)
+        self.assertFalse(self.page.modal)
+
+    async def test_bitburner_message_modal_uses_unique_visible_button_in_presentation_shell(self):
+        self.page.modal = True
+        self.page.mui_modal = True
+        self.page.presentation_only = True
+        self.page.visible = (
+            "Message received from unknown sender: Use this program to track your progress. "
+            "This message was saved as j0.msg onto your home computer."
+        )
         result = await self.actions["game_dismiss_dialog"](self.browser)
         self.assertIn("dismissed and verified absent", result)
         self.assertEqual(self.page.close_clicks, 1)
