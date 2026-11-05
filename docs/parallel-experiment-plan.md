@@ -189,7 +189,6 @@ credentials, and game profiles in ignored local records.
   viewer used port 6180; port 6080 remained the preserved production spectator
   tunnel. Production was not modified.
 
-  Recovery source is committed locally as `95c8748` on
-  `experiment/qwen-runtime-recovery`; its push was denied by GitHub SSH with
-  `Permission denied (publickey)`. Do not repeat the same trial until provider
-  failures are diagnosed or a single justified variable changes.
+  Recovery source is committed and published as `95c8748` on
+  `experiment/qwen-runtime-recovery`. Do not repeat the same trial until
+  provider failures are diagnosed or a single justified variable changes.
