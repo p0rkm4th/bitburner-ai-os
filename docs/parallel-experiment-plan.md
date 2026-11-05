@@ -116,18 +116,18 @@ credentials, and game profiles in ignored local records.
 
 | Approach | Setup/non-inference | Gameplay trials | Verified progress | Errors / inference / resources | Decision |
 |---|---|---:|---|---|---|
-| Existing Browser Use + restricted Remote API | Existing deployment and isolated benchmark runner; current inference route must be preflighted | Historical runs documented; new run pending | Historical trials include successful script starts and old/offline earnings, but no current bounded trial with attributable income | Runtime errors, stale/incomplete recovery, skipped execution, and network failures appear in committed and ignored evidence | Continue A; repair recovery and measure one clean attributable cycle |
+| Existing Browser Use + restricted Remote API | Isolated Remote API Online; harmless write/read/RAM round trip verified | Historical runs plus one new bounded Qwen run | Model-authored `hack.js` deployed and started; no balance or hacking change; $0.000/sec observed | 12 requests: 8 completions, 4 empty provider errors; 67.3k prompt / 6.4k completion tokens; 13m44s; about 23.3 GB VRAM resident; GPU utilization unavailable | Diagnose provider failures and script runtime behavior before another trial |
 | Agent Zero | Isolated current upstream container starts; 5 MCP tools discovered; no inference endpoint or game attached | 0 | None | ~902 MiB idle / 5 GiB limit, 0.17% CPU; focused pytest unavailable in image; tool surface not yet behaviorally equivalent | Setup passed; prepare same-capability browser MCP adapter before inference A/B |
 | Deterministic UI helpers + optional Laya/JEV | Offline trace inventory/replay completed; no model weights downloaded and no live test | 0 model-assisted | None | 265 Browser Use chunks reviewed; 78 indexed clicks across 11 sessions; 3 same-index repetitions, but no confirmed stale-index target in available snapshots; several traces had irrelevant “Add to Cart” objective | Retain deterministic helpers; Laya/JEV not justified by current traces |
 
 ### Initial parallel-work results (2026-11-05)
 
-- **Inference preflight:** workstation checks to the configured local Ollama
-  API returned HTTP 200 for `/api/version`, `/api/tags`, and `/api/ps`; the
-  baseline `qwen3.6:35b` tag is present and reported loaded. No generation was
-  sent, so the endpoint's ability to complete a request after the Ollama/Herd
-  changes is still unverified. A loaded model is treated as a shared resource;
-  gameplay inference waits for a clear slot.
+- **Inference:** initial checks to local Ollama returned HTTP 200 for
+  `/api/version`, `/api/tags`, and `/api/ps`; `qwen3.6:35b` was present, loaded,
+  and advertised vision/tool support. The subsequent bounded run did receive
+  model completions, so generation worked, but 4 of 12 requests failed with
+  empty `ModelProviderError`s. Do not treat a successful endpoint preflight as
+  proof of reliable inference. No concurrent candidate inference was launched.
 - **MCP audit:** the server-side allowlist is `getFile`, `pushFile`,
   `calculateRam`, and `getDefinitionFile`, with `health_check` in the MCP
   catalog. Save/state enumeration, deletion, bulk file routes, and public bridge
@@ -163,12 +163,33 @@ credentials, and game profiles in ignored local records.
   helpers; reconsider only with better-labeled traces and a replay that proves
   improvement. Fast Browser Use is a separate browser framework/runtime and
   does not meet the minimal adapter goal.
-- **Qwen recovery fix:** a separate worktree contains an uncommitted patch
-  that captures visible runtime error text shortly after terminal script start
-  and adds it to durable errors, plus a bounded retry allowance. The patch
-  passed 92 tests in the offline deployment image before a compose-only
-  configuration change. A new isolated trial has not yet consumed inference:
-  the bridge listener is reachable, but the game's visible Remote API status
-  remains Offline. The trial is blocked at game/bridge handshake validation;
-  no gameplay result is claimed. Do not start Qwen until the isolated UI shows
-  Online and harmless push/read/RAM validation passes.
+- **Qwen recovery fix and trial:** the isolated branch captures visible
+  runtime error text shortly after terminal script start and stores it in
+  durable errors; the retry limit is configurable and defaults to two. The
+  source passed all 92 tests in the offline deployment image. In a disposable
+  profile, we dismissed the visible offline-earnings modal, set the Remote API
+  port in the game's UI, confirmed **Online**, and completed a harmless
+  `pushFile → getFile → calculateRam` round trip (`OK`, exact read-back,
+  1.6 GB). A bounded Qwen3.6:35b run used 12 steps over 13m44s from session
+  start to completion. It observed $1.262k and hacking 1, scanned, authored and
+  deployed `hack.js`, and ran it with a PID. Its code attempted `ns.nuke(target)`
+  to obtain root; the agent did not confirm a runtime error or repair the code.
+  Afterward, visible balance remained $1.262k, hacking remained 1, Active
+  Scripts showed $0.000/sec, and Recent Errors had no visible rows. The final
+  checkpoint still called for inspecting output. Deployment and execution start
+  passed; attributable income and autonomous debugging did not. No gameplay
+  success is claimed.
+
+  The run recorded 12 inference requests: 8 returned completions and 4 returned
+  empty `ModelProviderError`s. Successful responses totalled 67,333 prompt and
+  6,358 completion tokens, 333.3 seconds summed server duration (41.7 seconds
+  average); first model load took 17.6 seconds. Ollama reported about 23.3 GB
+  VRAM resident. Per-GPU utilization and CPU offload data were unavailable. The
+  agent ended at step 12 of its 16-step cap after provider errors. The trial
+  viewer used port 6180; port 6080 remained the preserved production spectator
+  tunnel. Production was not modified.
+
+  Recovery source is committed locally as `95c8748` on
+  `experiment/qwen-runtime-recovery`; its push was denied by GitHub SSH with
+  `Permission denied (publickey)`. Do not repeat the same trial until provider
+  failures are diagnosed or a single justified variable changes.
