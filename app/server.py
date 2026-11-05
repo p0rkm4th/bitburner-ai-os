@@ -586,6 +586,9 @@ async def run_agent(objective: str) -> None:
                   override_system_message=BITBURNER_SYSTEM_PROMPT,
                   max_actions_per_step=1, enable_planning=False, loop_detection_enabled=True,
                   loop_detection_window=8, enable_signal_handler=False,
+                  # Startup owns initial game navigation; Browser Use must not
+                  # synthesize an excluded `navigate` action from guide URLs.
+                  directly_open_url=False,
                   max_history_items=int(agent_context_settings()["max_history_items"]),
                   message_compaction=True,
                   **inference_timeout_settings(),

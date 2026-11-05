@@ -110,6 +110,18 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("result", summary)
         self.assertLessEqual(len(summary["latest_visible_state"]), 1400)
 
+    def test_restricted_agent_disables_browser_use_auto_navigation(self):
+        tools = server.create_game_tools()
+        self.assertNotIn("navigate", tools.registry.registry.actions)
+        llm = server.ChatOllama(model="qwen3.6:35b", host="http://127.0.0.1:11434")
+        task = "Open https://example.com"
+        with self.assertRaises(KeyError) as raised:
+            server.Agent(task=task, llm=llm, tools=tools)
+        self.assertEqual(raised.exception.args, ("navigate",))
+
+        agent = server.Agent(task=task, llm=llm, tools=tools, directly_open_url=False)
+        self.assertIsNone(agent.initial_actions)
+
     async def test_gameplay_registry_removes_stale_index_actions(self):
         with patch.object(server, "remote_api_from_env", return_value=object()):
             tools = server.create_game_tools()
