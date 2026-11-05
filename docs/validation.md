@@ -244,7 +244,20 @@ successful responses reported 101,469 prompt and 17,456 completion tokens;
 their summed Ollama request duration was 702.5 seconds. The first model-load
 duration was 16.1 seconds; trial telemetry spanned 14m57s. `/api/ps` reported
 about 23.0 GB aggregate VRAM allocation. Per-device GPU sampling could not
-authenticate over SSH, and CPU offload was not measured. After this run, two
-verified writes without visible execution were added as a deployment limit;
-the agent must run the latest verified file before attempting more writes.
+authenticate over SSH, and CPU offload was not measured. After this run, one
+verified write without visible execution was made the deployment limit; the
+agent must run the latest verified file before attempting another write.
 Automated tests cover the limit and its reset after a visible run.
+
+## Production read-only check (2026-11-05)
+
+At 15:17 UTC, the production control API reported a terminal `failed` state with
+zero active steps. The persistent browser remained available, the visible game
+reported Remote API Online, and an offline-progress dialog was present. No
+browser interaction or service restart was performed. Agent events record
+earlier Ollama connection failures. A separate read-only request to the
+configured Ollama `/api/tags` endpoint returned HTTP 200 and listed the
+configured model. This confirms catalog reachability only; no generation
+request was sent after the owner's Ollama/Herd rollout began, so inference
+success remains unverified. The latest gameplay guard commit is published but
+has not yet been deployed to production.
