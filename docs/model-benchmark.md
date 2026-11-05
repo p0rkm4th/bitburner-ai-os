@@ -29,15 +29,15 @@ reasoning tokens. “Session time” is from objective start to supervisor exit;
 | Role | Exact Ollama tag | Weights | Capabilities and license | Placement and availability |
 |---|---|---|---|---|
 | Baseline | `qwen3.6:35b` | 35.5B, Q4_K_M; 23.3 GB model, 23.3 GB reported GPU allocation | Vision and tool support; Apache-2.0 | Deep inference pool; installed and benchmarked |
-| Primary challenger | `qwen3.8:27b` | Official 27B tag; 18 GB Q4_K_M catalog build | Vision and tool support; Apache-2.0 | Not scored. The original Ollama 0.31.1 pull returned HTTP 412. A later read-only check found Ollama 0.40.14 on all three inference nodes but the exact tag was still absent. No model download or generation was performed pending explicit owner approval. |
+| Primary challenger | `qwen3.8:27b` | Official 27B tag; 18 GB Q4_K_M catalog build | Vision and tool support; Apache-2.0 | Not scored. The original Ollama 0.31.1 pull returned HTTP 412. A later read-only check found Ollama 0.40.14 on the current local endpoint, but the exact tag is still absent from its catalog. No download or generation has been performed; local resource and scheduling checks remain pending. |
 | Coding challenger | `devstral-small-2:24b-instruct-2512-q4_K_M` | 24B, Q4_K_M; 15.2 GB model, 18.2 GB reported GPU allocation | Vision and tool support; Apache-2.0 | Deep inference pool; installed and benchmarked |
 | VRAM-sized candidate | `gemma4:12b` | 11.9B, Q4_K_M; 8.7 GB model, 8.7 GB reported GPU allocation | Vision and tool support; Apache-2.0 | Compact inference pool; installed and benchmarked |
 
 Catalog tags and requirements were checked before pulling Devstral. Its exact
 tag requires Ollama 0.13.3 or later; the serving endpoint was 0.31.1 during
 that benchmark. The official Ollama catalog lists Qwen3.8's 27B, 18 GB tag.
-Later read-only checks found Ollama 0.40.14 on all three inference nodes, but
-did not find the tag installed; downloading it was outside the approved trial.
+Later read-only checks found Ollama 0.40.14 on the current local endpoint, but
+did not find the tag installed; no pull or generation has been performed.
 All three tested models reported the entire
 weight allocation in GPU memory via `/api/ps`; no weight CPU offload was
 reported. GPU sampling observed four 8 GiB cards for the deep pool and two
@@ -53,7 +53,7 @@ Sources: [Qwen3.6 model card](https://huggingface.co/Qwen/Qwen3.6-35B-A3B),
 [Gemma 4 12B model card](https://huggingface.co/google/gemma-4-12B-it).
 Each model card specifies Apache-2.0.
 
-## Results
+## Unguided baseline results
 
 **No candidate completed a verified money-making gameplay cycle.** Across the
 nine scored trials, no script both executed successfully and produced
@@ -294,9 +294,47 @@ diagnostic actions to reset the streak. Its signature ignores changing source
 and visible HUD text; a successful model-chosen action in the same response
 clears this refusal streak, while passive observation alone does not. Ordinary
 error signatures retain their previous behavior. Focused regression tests cover
-these cases, and this candidate fix still requires deployment and a later
-isolated validation. Overall, the two post-guidance Qwen runs include one
-verified income success and one failure; repeatability is not established.
+these cases. Run 19 exercised this fix and is recorded below. Overall, Runs
+17–19 contain two verified income cycles and one failed replication; reliable
+completion and reporting are not established.
+
+### Guided Run 19 — income after pending-run recovery
+
+Run 19 used a fresh copy of the same v3.0.1 seed and the current source at
+`3360ec9`, with `qwen3.6:35b` Q4_K_M, Browser Use, the restricted Remote API,
+16,384 context, temperature 0.2, seed 7, an 18-step limit, and a 20-minute
+session limit. The model received no code, target, or gameplay correction. It
+scanned, gained root on `n00dles`, authored and deployed `hack_n00dles.js`, and
+then received the pending-run refusal when it tried to redeploy before a
+visible run. It returned to `home`, listed files, and ran that exact script;
+the visible terminal confirmed PID 1. A later screenshot showed the running
+process, a successful `n00dles` hack output of `$320.651`, and HUD money of
+$1.583k versus the initial $1.262k (about +$321). Hacking stayed at level 1.
+The first retained screenshot confirming income was 7m19s after the visible
+script-run confirmation; the game may have earned money earlier.
+This is an independently authored, deployed, and visibly executed
+money-generating program. No Netscript runtime error occurred, so code repair
+was not needed. The model received the success evidence in its browser
+observation, but did not return a final written report.
+
+The supervisor ended the session as `failed` at 17/18 steps after the
+1,200-second session limit. The model recovered from one invalid structured
+response, inspected the script and process list, and a repeated `tail` command
+was blocked. The final response timed out at 180 seconds before it could
+complete. Across 16 completed Ollama responses, the run used 148,113 prompt
+tokens and 23,468 completion tokens, with 1,002.24 seconds summed response
+time (62.64s mean, 60.66s median). One response consumed 179 seconds and 6,199
+completion tokens before returning invalid JSON after consuming 16,384 combined
+prompt and completion tokens, consistent with context exhaustion.
+The model used about 23.0 GB VRAM across four GPUs; 232 GPU samples averaged
+21.2% utilization and peaked at 100%, while sampled memory averaged 5.7 GiB
+per card and peaked at 7.2 GiB. The screenshot evidence and detailed traces
+remain in ignored local artifacts. Production was not used or changed.
+
+Run 19 validates that the revised guard let Qwen recover from the pending-run
+refusal and that its script earned money. It does not establish that the agent
+can consistently finish a session, provide a concise result, recover from
+Netscript runtime errors, or continue autonomously across sessions.
 
 ## Reproducing a trial
 
