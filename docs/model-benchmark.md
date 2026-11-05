@@ -345,3 +345,9 @@ endpoints, exact installed tag, an unchanged clean seed profile, and a unique
 state directory in ignored `local/` records. Run three trials per eligible
 model sequentially. Never reuse trial state, use production profiles, or expose
 private endpoint mappings in committed records. See `scripts/run-benchmark-trial.sh`.
+
+For a controlled Qwen thinking-mode comparison, leave `OLLAMA_THINK` unset for
+the model default or set it to `false` (or `true`) for an explicit Ollama chat
+parameter. The runner validates and records this setting. This option is
+benchmark-only unless deliberately configured elsewhere; results must confirm
+that the selected model honors it before treating it as a distinct condition.

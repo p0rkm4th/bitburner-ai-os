@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 : "${TRIAL_ID:?Use a unique ID such as qwen38-01}"
 : "${OLLAMA_BASE_URL:?Set the locally hosted Ollama API URL}"
 : "${OLLAMA_MODEL:?Set the exact Ollama model tag}"
@@ -15,6 +16,7 @@ MAX_SESSION_SECONDS="${MAX_SESSION_SECONDS:-1800}"
 OLLAMA_NUM_CTX="${OLLAMA_NUM_CTX:-16384}"
 OLLAMA_TEMPERATURE="${OLLAMA_TEMPERATURE:-0.2}"
 OLLAMA_SEED="${OLLAMA_SEED:-7}"
+OLLAMA_THINK="${OLLAMA_THINK:-}"
 BENCH_AGENT_PORT="${BENCH_AGENT_PORT:-8180}"
 BENCH_VNC_PORT="${BENCH_VNC_PORT:-6180}"
 BENCH_OLLAMA_TIMEOUT="${BENCH_OLLAMA_TIMEOUT:-180}"
@@ -30,6 +32,10 @@ if ! [[ "$BENCH_AGENT_PORT" =~ ^[1-9][0-9]{0,4}$ && "$BENCH_VNC_PORT" =~ ^[1-9][
 fi
 if ! [[ "$BENCH_OLLAMA_TIMEOUT" =~ ^[1-9][0-9]{0,2}$ ]] || ((BENCH_OLLAMA_TIMEOUT < 60 || BENCH_OLLAMA_TIMEOUT > 240)); then
   echo "BENCH_OLLAMA_TIMEOUT must be between 60 and 240 seconds" >&2
+  exit 2
+fi
+if [[ -n "$OLLAMA_THINK" && "$OLLAMA_THINK" != "true" && "$OLLAMA_THINK" != "false" ]]; then
+  echo "OLLAMA_THINK must be true or false when set" >&2
   exit 2
 fi
 
@@ -48,9 +54,9 @@ fi
 
 # Browser Use sends screenshots with its tool prompt, so reject Ollama models
 # that cannot accept both image data and tool definitions before starting a trial.
-python3 - "$OLLAMA_BASE_URL" "$OLLAMA_MODEL" <<'PY'
+model_metadata="$(python3 - "$OLLAMA_BASE_URL" "$OLLAMA_MODEL" "$OLLAMA_THINK" <<'PY'
 import json, sys, urllib.request
-base, model = sys.argv[1:]
+base, model, requested_think = sys.argv[1:]
 try:
     request = urllib.request.Request(
         base.rstrip("/") + "/api/show",
@@ -58,25 +64,80 @@ try:
         headers={"Content-Type": "application/json"},
     )
     with urllib.request.urlopen(request, timeout=10) as response:
-        capabilities = set(json.load(response).get("capabilities", []))
+        show = json.load(response)
 except Exception as exc:
     print(f"Ollama model preflight failed for {model}: {type(exc).__name__}", file=sys.stderr)
     raise SystemExit(2)
+capabilities = set(show.get("capabilities", []))
 missing = {"vision", "tools"} - capabilities
 if missing:
     print(f"Model {model} is incompatible with this screenshot-and-tools harness; missing: {', '.join(sorted(missing))}", file=sys.stderr)
     raise SystemExit(2)
-print(f"Model preflight passed: {model} supports vision and tool calls.")
+thinking = show.get("thinking")
+if requested_think:
+    expected = requested_think == "true"
+    values = thinking.get("values", []) if isinstance(thinking, dict) else []
+    if expected not in values:
+        print(f"Model {model} does not advertise requested think={expected}; supported values: {values}", file=sys.stderr)
+        raise SystemExit(2)
+details = show.get("details", {})
+metadata = {
+    "model_tag": model,
+    "family": details.get("family"),
+    "parameter_size": details.get("parameter_size"),
+    "quantization_level": details.get("quantization_level"),
+    "capabilities": sorted(capabilities),
+    "thinking": thinking,
+}
+try:
+    request = urllib.request.Request(base.rstrip("/") + "/api/tags")
+    with urllib.request.urlopen(request, timeout=10) as response:
+        tags = json.load(response).get("models", [])
+    match = next((item for item in tags if item.get("name") == model or item.get("model") == model), None)
+except Exception as exc:
+    print(f"Unable to verify exact model digest for {model}: {type(exc).__name__}", file=sys.stderr)
+    raise SystemExit(2)
+if not match or not match.get("digest"):
+    print(f"Exact model tag {model} is missing from /api/tags or has no digest", file=sys.stderr)
+    raise SystemExit(2)
+metadata["digest"] = match["digest"]
+print(json.dumps(metadata, separators=(",", ":")))
 PY
+)"
 
 mkdir -p "$BENCH_STATE_DIR/profile" "$BENCH_STATE_DIR/logs"
+python3 - "$BENCH_STATE_DIR/logs/trial-config.json" "$TRIAL_ID" "$INFERENCE_NODE" \
+  "$OLLAMA_THINK" "$OLLAMA_NUM_CTX" "$OLLAMA_TEMPERATURE" "$OLLAMA_SEED" \
+  "$MAX_STEPS" "$MAX_SESSION_SECONDS" "$BENCH_OLLAMA_TIMEOUT" \
+  "$(basename "$BENCH_SEED_PROFILE")" "$model_metadata" <<'PY'
+import datetime, hashlib, json, pathlib, sys
+path, trial_id, node, think, context, temperature, seed, steps, seconds, timeout, profile, model_json = sys.argv[1:]
+model = json.loads(model_json)
+objective = pathlib.Path("benchmarks/gameplay-objective.md").read_bytes()
+config = {
+    "trial_id": trial_id,
+    "inference_node_label": node,
+    "model": model,
+    "think_setting": think or "default",
+    "context_size": int(context),
+    "temperature": float(temperature),
+    "seed": int(seed),
+    "max_steps": int(steps),
+    "max_session_seconds": int(seconds),
+    "request_timeout_seconds": int(timeout),
+    "seed_profile_label": profile,
+    "objective_sha256": hashlib.sha256(objective).hexdigest(),
+    "created_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+}
+pathlib.Path(path).write_text(json.dumps(config, indent=2) + "\n")
+PY
 cp -a "$BENCH_SEED_PROFILE/." "$BENCH_STATE_DIR/profile/"
 env_file="${BENCH_ENV_FILE:-local/benchmark-run.env}"
 mkdir -p "$(dirname "$env_file")"
-printf 'OLLAMA_BASE_URL=%s\nOLLAMA_MODEL=%s\nINFERENCE_NODE=%s\nBENCH_STATE_DIR=%s\nBENCH_UID=%s\nBENCH_GID=%s\nBENCH_AGENT_PORT=%s\nBENCH_VNC_PORT=%s\nMAX_STEPS=%s\nMAX_SESSION_SECONDS=%s\nOLLAMA_NUM_CTX=%s\nOLLAMA_TEMPERATURE=%s\nOLLAMA_SEED=%s\nBENCH_OLLAMA_TIMEOUT=%s\n' \
+printf 'OLLAMA_BASE_URL=%s\nOLLAMA_MODEL=%s\nINFERENCE_NODE=%s\nBENCH_STATE_DIR=%s\nBENCH_UID=%s\nBENCH_GID=%s\nBENCH_AGENT_PORT=%s\nBENCH_VNC_PORT=%s\nMAX_STEPS=%s\nMAX_SESSION_SECONDS=%s\nOLLAMA_NUM_CTX=%s\nOLLAMA_TEMPERATURE=%s\nOLLAMA_SEED=%s\nOLLAMA_THINK=%s\nBENCH_OLLAMA_TIMEOUT=%s\n' \
   "$OLLAMA_BASE_URL" "$OLLAMA_MODEL" "$INFERENCE_NODE" "$BENCH_STATE_DIR" "$BENCH_UID" "$BENCH_GID" \
   "$BENCH_AGENT_PORT" "$BENCH_VNC_PORT" \
-  "$MAX_STEPS" "$MAX_SESSION_SECONDS" "$OLLAMA_NUM_CTX" "$OLLAMA_TEMPERATURE" "$OLLAMA_SEED" \
+  "$MAX_STEPS" "$MAX_SESSION_SECONDS" "$OLLAMA_NUM_CTX" "$OLLAMA_TEMPERATURE" "$OLLAMA_SEED" "$OLLAMA_THINK" \
   "$BENCH_OLLAMA_TIMEOUT" > "$env_file"
 chmod 600 "$env_file"
 project="bitburner-bench-${TRIAL_ID}"

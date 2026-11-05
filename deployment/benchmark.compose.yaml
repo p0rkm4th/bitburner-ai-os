@@ -21,6 +21,8 @@ services:
       OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-16384}
       OLLAMA_TEMPERATURE: ${OLLAMA_TEMPERATURE:-0.2}
       OLLAMA_SEED: ${OLLAMA_SEED:-7}
+      # Optional experiment. Empty preserves the model's default behavior.
+      OLLAMA_THINK: ${OLLAMA_THINK:-}
       INFERENCE_NODE: ${INFERENCE_NODE:?Set a private node label}
       MAX_STEPS: ${MAX_STEPS:-24}
       MAX_HISTORY_ITEMS: 6
