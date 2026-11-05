@@ -189,6 +189,17 @@ credentials, and game profiles in ignored local records.
   viewer used port 6180; port 6080 remained the preserved production spectator
   tunnel. Production was not modified.
 
-  Recovery source is committed and published as `95c8748` on
-  `experiment/qwen-runtime-recovery`. Do not repeat the same trial until
-  provider failures are diagnosed or a single justified variable changes.
+  Follow-up inspection of the retained metrics identified all four provider
+  failures as HTTP-client `ReadTimeout`s at 120 seconds. The benchmark had
+  `LLM_TIMEOUT=180` while its ignored local config injected `OLLAMA_TIMEOUT=120`.
+  The benchmark Compose file now explicitly sets `OLLAMA_TIMEOUT` from the
+  separate `BENCH_OLLAMA_TIMEOUT` override (default 180), preventing that
+  local-only value from silently truncating model requests. Compose resolution
+  confirms `OLLAMA_TIMEOUT=180`, `LLM_TIMEOUT=180`, `STEP_TIMEOUT=210`; all 93
+  tests pass. This is a measured harness correction, not yet a gameplay
+  success. No repeat generation was launched because the shared endpoint's
+  resident model had changed and its current use was unclear. The installed
+  `qwen3.6:35b` tag was still available but unloaded. The timeout fix is
+  published in `0b1db62` on `experiment/qwen-runtime-recovery`. Schedule the
+  next isolated trial when the shared inference slot is clear, changing only
+  this justified timeout variable.
