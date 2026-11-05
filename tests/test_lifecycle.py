@@ -42,6 +42,17 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         })
         self.assertIsNone(server.checkpoint_ram_rejection({"latest_visible_state": "no RAM error"}))
 
+    def test_checkpoint_keeps_ram_rejection_after_visible_state_changes(self):
+        result = server.checkpoint_ram_rejection({
+            "latest_visible_state": "Offline earnings dialog",
+            "ram_rejection": {
+                "filename": "simple_hack.js", "host": "home", "required_ram": "1.70", "diagnosed": True,
+            },
+        })
+        self.assertEqual(result, {
+            "filename": "simple_hack.js", "host": "home", "required_ram": "1.70", "diagnosed": False,
+        })
+
     async def test_stop_awaits_actual_agent_run_and_supervisor(self):
         old_agent, old_child, old_runner = server.agent, server.agent_run_task, server.runner
         fake = FakeAgent()

@@ -211,8 +211,13 @@ def checkpoint_ram_rejection(checkpoint: Optional[dict]) -> Optional[dict]:
     """Restore a visible RAM rejection as a diagnostic gate after session restart."""
     if not checkpoint:
         return None
+    stored = checkpoint.get("ram_rejection")
+    if isinstance(stored, dict) and stored.get("filename") and stored.get("host"):
+        return {"filename": str(stored["filename"]).casefold(), "host": str(stored["host"]),
+                "required_ram": str(stored.get("required_ram", "unknown")), "diagnosed": False}
     candidates = [checkpoint.get("latest_visible_state", ""), *checkpoint.get("scripts_and_observed_results", []),
-                  *checkpoint.get("errors", [])]
+                  *checkpoint.get("errors", []), checkpoint.get("subobjective", ""),
+                  checkpoint.get("next_intended_action", "")]
     for candidate in reversed(candidates):
         match = RAM_REJECTION_PATTERN.search(str(candidate))
         if match:
@@ -592,6 +597,7 @@ async def run_agent(objective: str) -> None:
                          "accomplishments": accomplishments, "latest_visible_state": visible,
                          "scripts_and_observed_results": visible_script_evidence(visible), "errors": errors,
                          "tool_results": tool_results, "tool_metrics": dict(tool_metrics),
+                         "ram_rejection": action_state.get("ram_rejection"),
                          "unresolved_problems": errors[-4:], "next_intended_action": subobjective,
                          "session": status.get("session", 1), "steps": status["steps"],
                          "state": "active", "action": json.dumps(actions, ensure_ascii=False)[:1000],
@@ -654,6 +660,7 @@ async def run_agent(objective: str) -> None:
                           [last_actions[-1]] if last_actions else [],
                           list(getattr(history.history[-1], "result", []) or []) if history.history else []),
                       "tool_metrics": dict(tool_metrics),
+                      "ram_rejection": action_state.get("ram_rejection"),
                       "unresolved_problems": errors[-4:], "next_intended_action": final_result or subobjective,
                       "session": status.get("session", 1), "steps": len(history.history),
                       "state": "active", "result": final_result,
@@ -675,6 +682,7 @@ async def run_agent(objective: str) -> None:
                              "scripts_and_observed_results": visible_script_evidence(await visible_snapshot(shared_browser)), "errors": errors[-8:],
                              "unresolved_problems": errors[-4:], "next_intended_action": subobjective,
                              "tool_metrics": dict(tool_metrics),
+                             "ram_rejection": action_state.get("ram_rejection"),
                              "session": status.get("session", 1), "steps": status["steps"], "state": "active"})
         except Exception:
             log.exception("Could not persist failure checkpoint")

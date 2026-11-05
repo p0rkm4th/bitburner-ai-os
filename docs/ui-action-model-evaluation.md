@@ -36,7 +36,7 @@ These are upstream claims and requirements, not local performance measurements.
 | Workflow | Evidence | Outcome |
 |---|---|---|
 | Primary model only | Production trace: Qwen authored and visibly ran a Netscript loop. The game reported $3.764 of offline script earnings; HUD later showed $25.516k and Hacking 17. The trace was not isolated or controlled. | Real income and progress, but repeated run attempts exhausted home RAM; the agent has not reliably diagnosed or cleaned up active processes. Calls timed out at 150 seconds. |
-| Deterministic UI helpers | 73 automated tests pass, including fresh semantic target resolution, modal handling, terminal results, RAM recovery gating, and repeat-run protection. An earlier disposable-profile check opened a game tab by its semantic label. | Functional and low-cost; no controlled A/B replay and no measured end-to-end latency reduction. |
+| Deterministic UI helpers | 74 automated tests pass, including fresh semantic target resolution, modal handling, terminal results, RAM recovery gating, and repeat-run protection. An earlier disposable-profile check opened a game tab by its semantic label. | Functional and low-cost; no controlled A/B replay and no measured end-to-end latency reduction. |
 | Tiny model assisted | Laya weights were not loaded; Fast Browser Use was not installed. | No task-success, latency, resource, or income measurements. No evidence supports integration. |
 
 The production trace is not a model benchmark: its profile and starting state
