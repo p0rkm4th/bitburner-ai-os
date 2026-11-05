@@ -53,3 +53,41 @@ semantic helpers and an optional Laya adapter, with inference workloads
 sequential and production excluded. Compare task success and actual money
 progress as well as latency and invalid/repeated actions. Keep the primary LLM
 as the sole owner of gameplay strategy and code authorship.
+
+## Follow-up verification (2026-11-04)
+
+The upstream model card and Fast Browser Use README/manifest were rechecked.
+Laya remains an Apache-2.0, 421M-parameter F16 typed action/target selector.
+It requires the Laya typed-question formatter and lexical shortlist to reproduce
+its reported scores, does not generate text, and has no live-page evaluation.
+Its published end-to-end task success is 2.3% to 4.0% on Mind2Web splits; the
+card explicitly describes it as a research/hobby checkpoint. These results do
+not establish reliable Bitburner UI behavior. [Model card](https://huggingface.co/Quantum08/laya-browser-mind2web)
+
+Fast Browser Use is MIT licensed, requires Python 3.12+ and Playwright >=1.58,
+and its documented local inference path uses Qwen3.5-9B or Qwen3.5-35B-A3B with
+PyTorch/MLX. Its examples launch and control their own Playwright Chromium
+session. That conflicts with this project's single shared Browser Use session
+and pinned Playwright 1.56 image; it is neither a tiny action model nor a
+drop-in action adapter. Its published timings use an RTX PRO 6000 96GB, so
+they are not transferable to this deployment. [README](https://github.com/APUS-AI-Lab/fast-browser-use),
+[dependency manifest](https://github.com/APUS-AI-Lab/fast-browser-use/blob/main/pyproject.toml)
+
+An endpoint metadata-only check reported `qwen3.6:35b` resident in the existing
+Ollama pool. No model request was issued, no candidate weights were downloaded,
+and no production service/profile or benchmark state was changed. An inference
+comparison was withheld so this experiment would not compete with the existing
+local-model workload. The repository's 58 tests passed in the existing
+`bitburner-agent:local` image with networking disabled. These include simulated
+stale/ambiguous navigation, dialog blocking/dismissal, semantic element
+reacquisition, repeated observation, and terminal error reporting. They
+validate deterministic helpers only; they are not a live replay benchmark and
+do not demonstrate income.
+
+No action-model adapter or replay harness was added: without a safe isolated
+inference window, results would not justify the added dependency or measure
+the proposed model. The production-readiness gate remains the same: first
+complete a reproducible primary-model Netscript income cycle, then run a
+sequential A/B replay on equivalent disposable profiles. The replay must report
+actual Bitburner task completion and money change in addition to action-level
+latency and error counts.
