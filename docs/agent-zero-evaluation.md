@@ -27,9 +27,11 @@ in ignored local configuration.
 - The application test suite passed: 99 tests. The Agent Zero adapter tests
   passed: 6 tests.
 - Agent Zero's own MCP client connected to the sidecar and discovered 12
-  allowlisted `game_*` tools. A call to `game_observe` through Agent Zero's
-  `MCPConfig.call_tool` returned 2,821 characters of visible game UI text.
-  An attempted raw save API operation was denied by the server.
+  allowlisted `game_*` tools. Calls to `game_observe` and
+  `game_terminal(command="help")` through Agent Zero's `MCPConfig.call_tool`
+  returned visible UI text and terminal help with no tool errors. The
+  observation contained 2,821 characters. An attempted raw save API operation
+  was denied by the server.
 - The sidecar reached the isolated browser app. An unauthenticated request was
   rejected with HTTP 401. Authenticated MCP calls to observe the game, retrieve
   guide/reference text, open the Stats tab, and run harmless visible `ls` and
@@ -43,6 +45,11 @@ in ignored local configuration.
   persistent settings file and restarted; its own MCP client then connected
   and executed a read-only observation. This is specific to the disposable
   Agent Zero experiment and does not change the production deployment.
+- A read-only request to the configured Ollama `/api/tags` endpoint from
+  Agent Zero failed to connect because its Docker network is internal-only.
+  No Ollama endpoint is configured in Agent Zero and no inference request was
+  made. Keep this network boundary until a least-privilege path to local Ollama
+  is established.
 
 ## Current conclusion
 
@@ -51,7 +58,7 @@ can be given the same existing `game_*` tool surface, while mutual exclusion
 prevents concurrent controllers. Setup and MCP discovery/read-only execution
 are verified; Agent Zero's authenticated settings API has a `chpasswd`
 blocker, while the persistent settings configuration works. Ollama
-compatibility, error recovery, context handling, autonomous continuation,
+connectivity, error recovery, context handling, autonomous continuation,
 and gameplay progress are not yet demonstrated. Do not treat the inherited money visible
 in the viewer as an Agent Zero result.
 
