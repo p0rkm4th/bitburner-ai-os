@@ -2,6 +2,7 @@
 import asyncio
 import gzip
 import hashlib
+import hmac
 import html
 import json
 import logging
@@ -17,7 +18,7 @@ from browser_use import Agent, BrowserProfile, BrowserSession, ChatOllama, Tools
 from browser_use.agent.views import ActionResult
 from browser_use.filesystem.file_system import FileSystem
 from browser_use.tools.views import DoneAction
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 try:  # Package import for tests, flat import for the deployment image.
@@ -49,6 +50,9 @@ agent_run_task: Optional[asyncio.Task] = None
 backup_worker: Optional[asyncio.Task] = None
 agent: Optional[Agent] = None
 shared_browser: Optional[BrowserSession] = None
+mcp_game_tools: Optional[Tools] = None
+mcp_action_state: dict = {}
+mcp_action_lock = asyncio.Lock()
 started_at = None
 events: list[dict] = []
 status = {"state": "stopped", "objective": "", "model": os.getenv("OLLAMA_MODEL", "unset"),
@@ -326,6 +330,25 @@ def create_game_tools(action_state: Optional[dict] = None) -> Tools:
         tools.registry.registry.actions.pop("input", None)
         register_remote_api_tools(tools, remote_api, action_state=action_state)
     return tools
+
+
+MCP_GAME_ACTIONS = frozenset({
+    "game_observe", "game_progress", "game_open_tab", "game_dismiss_dialog",
+    "game_terminal", "game_run_script", "game_read_script", "game_deploy_script",
+    "game_netscript_reference", "game_troubleshoot",
+    "game_help",
+})
+
+
+def agent_zero_mcp_enabled() -> bool:
+    return os.getenv("AGENT_ZERO_MCP_ENABLED", "0") == "1"
+
+
+def verify_agent_zero_mcp_token(request: Request) -> None:
+    expected = os.getenv("AGENT_ZERO_MCP_TOKEN", "")
+    supplied = request.headers.get("authorization", "")
+    if not expected or not hmac.compare_digest(supplied, f"Bearer {expected}"):
+        raise HTTPException(401, "Unauthorized")
 
 
 def inference_timeout_settings() -> dict[str, int]:
@@ -926,6 +949,63 @@ async def game_observation():
         raise HTTPException(503, f"Visible game observation unavailable: {type(exc).__name__}")
 
 
+@app.post("/api/agent-zero/tools/{name}")
+async def agent_zero_tool(name: str, request: Request):
+    """Call one allowlisted Browser Use action on the shared persistent session.
+
+    Enabled only in isolated Agent Zero benchmark deployments. This endpoint
+    never creates another browser and cannot run alongside the Browser Use
+    supervisor in the same deployment.
+    """
+    if not agent_zero_mcp_enabled():
+        raise HTTPException(404, "Agent Zero browser tools are disabled")
+    verify_agent_zero_mcp_token(request)
+    if name not in MCP_GAME_ACTIONS:
+        raise HTTPException(404, "Unknown game tool")
+    if status.get("state") in {"running", "active", "paused"} or (
+        runner is not None and not runner.done()
+    ) or (agent_run_task is not None and not agent_run_task.done()):
+        raise HTTPException(409, "The Browser Use controller owns the shared game session")
+    if shared_browser is None:
+        raise HTTPException(503, "Persistent game browser is not ready")
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        raise HTTPException(400, "Tool arguments must be a JSON object")
+
+    global mcp_game_tools
+    if mcp_game_tools is None:
+        previous = STATE / "checkpoints" / "latest.json"
+        if previous.exists():
+            try:
+                restore_deployment_guard(json.loads(previous.read_text()), mcp_action_state)
+            except Exception:
+                log.exception("Could not restore Agent Zero deployment guard")
+        mcp_game_tools = create_game_tools(mcp_action_state)
+    action = mcp_game_tools.registry.registry.actions.get(name)
+    if action is None:
+        raise HTTPException(404, "Game tool is not registered")
+    try:
+        params = action.param_model.model_validate(payload)
+    except Exception as exc:
+        raise HTTPException(422, f"Invalid arguments for {name}: {str(exc)[:700]}")
+
+    async with mcp_action_lock:
+        if status.get("state") in {"running", "active", "paused"}:
+            raise HTTPException(409, "The Browser Use controller acquired the shared game session")
+        try:
+            result = await action.function(params=params, browser_session=shared_browser)
+        except Exception as exc:
+            log.exception("Agent Zero game tool failed: %s", name)
+            raise HTTPException(502, f"{name} failed: {type(exc).__name__}: {str(exc)[:800]}")
+    if isinstance(result, ActionResult):
+        return {"result": result.extracted_content or "", "success": result.success,
+                "is_done": result.is_done}
+    return {"result": str(result), "success": not str(result).startswith("ERROR:")}
+
+
 @app.get("/api/health")
 async def health():
     return {"ok": True, "state": status["state"], "browser_ready": shared_browser is not None}
@@ -944,6 +1024,8 @@ async def get_backups():
 @app.post("/api/start")
 async def start(req: StartRequest):
     global runner, stop_requested
+    if agent_zero_mcp_enabled():
+        raise HTTPException(409, "Browser Use supervisor is disabled in Agent Zero controller mode")
     async with gate:
         if runner and not runner.done():
             raise HTTPException(409, "An agent session is already active")
