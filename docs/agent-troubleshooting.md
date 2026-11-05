@@ -49,9 +49,18 @@ procedures, not a prescribed gameplay strategy.
   is for Netscript function definitions. A terminal command or built-in `.exe`
   program is used through the visible in-game Terminal; do not search for it as
   an `ns` function.
-- **No RAM / process does not start:** Read the visible `mem` or run error and
-  verify available RAM on the execution host. Do not infer success from the
-  Remote API's calculated script RAM alone.
+
+## RAM and active process errors
+
+- **No RAM / process does not start:** Read the exact `mem` or run error and
+  verify available RAM on the execution host. A RAM calculation is not proof
+  that the host currently has that RAM free. Use `ps` or the visible Active
+  Scripts page to identify processes already occupying RAM. Do not relaunch a
+  script with a confirmed positive PID; inspect `tail` and actual money change.
+  If a failed or duplicate process is consuming RAM, use documented Terminal
+  controls only after confirming its PID and that stopping it will not discard
+  useful progress. Remote API files live on `home`; connecting to a server does
+  not copy them there.
 
 ## Browser and modal errors
 

@@ -57,6 +57,13 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         unknown = await self.actions["game_troubleshoot"]("Command serverinfo not found.")
         self.assertIn("Unknown Terminal command", unknown)
 
+    async def test_ram_troubleshooting_mentions_process_inspection_and_home_file_scope(self):
+        result = await self.actions["game_troubleshoot"](
+            "Cannot run hack_n00dles.js on home: requires 1.70GB RAM")
+        self.assertIn("Use `ps`", result)
+        self.assertIn("positive PID", result)
+        self.assertIn("not copy them there", result)
+
     def test_every_session_includes_guide_and_keeps_persistent_game_tab(self):
         task = gameplay_task("Earn money", "checkpoint summary", "https://bitburner-official.github.io/",
                              "https://bitburner-official.github.io/", remote_authoring=True)
