@@ -318,6 +318,13 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         with patch.dict(os.environ, {"LLM_TIMEOUT": "999", "STEP_TIMEOUT": "999"}):
             self.assertEqual(server.inference_timeout_settings(), {"llm_timeout": 180, "step_timeout": 240})
 
+    def test_ollama_http_timeout_uses_benchmark_request_budget(self):
+        with patch.dict(os.environ, {"OLLAMA_BASE_URL": "http://127.0.0.1:11434",
+                                     "OLLAMA_MODEL": "local-test", "OLLAMA_TIMEOUT": "180",
+                                     "OLLAMA_METRICS_PATH": ""}, clear=True):
+            model = server.get_model()
+        self.assertEqual(model.timeout, 180)
+
     async def test_bitnode_completion_requires_positive_report_and_visible_confirmation(self):
         self.assertTrue(server.bitnode1_completion_confirmed(
             "BITNODE_1_COMPLETE", "Congratulations, BitNode 1 completed."))
