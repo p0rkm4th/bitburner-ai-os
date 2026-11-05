@@ -98,6 +98,22 @@ class OllamaThinkOptionTests(unittest.TestCase):
             get_model()
         self.assertEqual(measured.call_args.kwargs["ollama_options"]["think"], False)
 
+    @patch("app.server.MeasuredChatOllama")
+    def test_benchmark_model_preserves_default_options_when_think_is_unset(self, measured):
+        env = {
+            "OLLAMA_BASE_URL": "http://ollama:11434",
+            "OLLAMA_MODEL": "qwen3.6:35b",
+            "OLLAMA_METRICS_PATH": "/tmp/metrics.jsonl",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            get_model()
+        self.assertEqual(measured.call_args.kwargs["ollama_options"], {
+            "num_ctx": 16384,
+            "temperature": 0.2,
+            "seed": 7,
+            "keep_alive": "30m",
+        })
+
     @patch("app.server.ChatOllama")
     def test_default_model_keeps_constructor_defaults(self, chat_model):
         env = {"OLLAMA_BASE_URL": "http://ollama:11434", "OLLAMA_MODEL": "qwen3.6:35b"}
