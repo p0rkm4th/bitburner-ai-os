@@ -53,10 +53,13 @@ procedures, not a prescribed gameplay strategy.
   the official Documentation page, or a relevant allowlisted page via
   `game_open_tab`.
 - **Target has no root access:** Stop script execution attempts against that
-  host. Inspect its visible requirements and identify the missing prerequisite.
-  An in-game `.exe` program is a Terminal program, not an `ns` function; consult
-  current visible help/documentation before using it. Do not infer access from
-  a successful network scan.
+  host. Read the exact runtime error, inspect that host's visible root, hacking
+  level, and port requirements, then query this guide and the live API reference
+  before correcting your own script. `ns.nuke(host)` is a documented Netscript
+  API; verify its current signature with `game_netscript_reference`. `NUKE.exe`
+  is also available as a visible Terminal program. Do not infer root access from
+  a deployment, a PID, or a successful network scan; verify the target's visible
+  root status before retrying `hack`.
 - **No matching in-game help topic:** Terminal `help` topics are not a complete
   Netscript/API reference. Use the visible Documentation page or
   `game_netscript_reference` for an API symbol. Do not try a series of guessed
@@ -92,9 +95,9 @@ procedures, not a prescribed gameplay strategy.
   message reappears, verify whether it is a new message or an unchanged modal
   before dismissing again.
 - **A dialog is visible:** Call `game_dismiss_dialog` once, then `game_observe`.
-  If it reports an actionable failure or the dialog remains, stop and report
-  the blocker. Do not keep clicking old indexes, reload the page, or run a
-  terminal command through a covered dialog.
+  If it reports an actionable failure or the same dialog remains, do not call
+  dismissal again; stop and report the blocker. Do not keep clicking old
+  indexes, reload the page, or run a terminal command through a covered dialog.
 - **Fresh profile shows an offline-progress dialog:** Read its visible game
   earnings and milestones, then dismiss it once with `game_dismiss_dialog`.
   Remote API Online does not mean the dialog is absent. Do not repeat

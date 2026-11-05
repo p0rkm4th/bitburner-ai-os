@@ -4,6 +4,7 @@ All actions go through the existing Browser Use session and its DOM/keyboard
 Actor API. They never inspect game internals, call page.evaluate, or touch saves.
 """
 import asyncio
+import hashlib
 import re
 import shlex
 from typing import Optional
@@ -143,6 +144,19 @@ def find_visible_tab_node(dom_state, tab: str):
     return matches[0] if len(matches) == 1 else None
 
 
+def find_visible_close_node(dom_state):
+    """Find a unique freshly observed visible button with the exact label Close."""
+    matches = []
+    for node in getattr(dom_state, "selector_map", {}).values():
+        attrs = getattr(node, "attributes", {}) or {}
+        if str(attrs.get("role", "")).casefold() != "button" or not getattr(node, "is_visible", False):
+            continue
+        label = " ".join(str(node.get_all_children_text()).split()).casefold()
+        if label == "close":
+            matches.append(node)
+    return matches[0] if len(matches) == 1 else None
+
+
 def visible_progress(visible: str, baseline_money: Optional[str] = None,
                      baseline_hacking_level: Optional[int] = None) -> str:
     """Extract only game stats rendered in the visible DOM; never inspect game objects."""
@@ -206,20 +220,26 @@ async def _dismiss_dialog_once(browser_session: BrowserSession) -> str:
     if close is not None:
         await close.click()
     else:
-        modal_buttons = []
-        for selector in MODAL_BUTTONS:
-            found = []
-            for button in await page.get_elements_by_css_selector(selector):
-                box = await button.get_bounding_box()
-                if box and _box_dimension(box, "width") > 0 and _box_dimension(box, "height") > 0:
-                    found.append(button)
-            if found:
-                modal_buttons = found
-                break
-        if len(modal_buttons) == 1:
-            await modal_buttons[0].click()
+        summary = await browser_session.get_browser_state_summary(include_screenshot=False)
+        close_node = find_visible_close_node(summary.dom_state)
+        if close_node is not None:
+            close = await page.get_element(close_node.backend_node_id)
+            await close.click()
         else:
-            await page.press("Escape")
+            modal_buttons = []
+            for selector in MODAL_BUTTONS:
+                found = []
+                for button in await page.get_elements_by_css_selector(selector):
+                    box = await button.get_bounding_box()
+                    if box and _box_dimension(box, "width") > 0 and _box_dimension(box, "height") > 0:
+                        found.append(button)
+                if found:
+                    modal_buttons = found
+                    break
+            if len(modal_buttons) == 1:
+                await modal_buttons[0].click()
+            else:
+                await page.press("Escape")
     await asyncio.sleep(0.15)
     state = await _visible(browser_session)
     remaining = await _modal(page, state)
@@ -228,6 +248,15 @@ async def _dismiss_dialog_once(browser_session: BrowserSession) -> str:
                 "Inspect the visible UI and report the blocker; no further input was sent.\n" +
                 state[-MAX_OBSERVATION:])
     return "Dialog dismissed and verified absent.\n" + state[-MAX_OBSERVATION:]
+
+
+def _dialog_signature(modal: Optional[str], visible: str) -> str:
+    """Fingerprint the same visible blocker without relying on element indexes."""
+    excerpt = visible_runtime_error(visible) or visible[-900:]
+    normalized = re.sub(r"\[\d+\]", "", excerpt)
+    normalized = re.sub(r"\bPID:\s*\S+", "PID", normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"\s+", " ", normalized).strip().casefold()
+    return hashlib.sha256(f"{modal or ''}|{normalized}".encode()).hexdigest()
 
 
 async def _clear_known_modal_before_action(browser_session: BrowserSession, action: str) -> Optional[str]:
@@ -318,9 +347,27 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         "If it remains, report the blocker; do not retry blindly."
     ))
     async def game_dismiss_dialog(browser_session: BrowserSession) -> str:
+        signature = None
         try:
-            return await _dismiss_dialog_once(browser_session)
+            page = await _page(browser_session)
+            before = await _visible(browser_session)
+            modal = await _modal(page, before)
+            if not modal:
+                action_state.pop("failed_dialog_signature", None)
+                return "No visible dialog was detected; no input was sent."
+            signature = _dialog_signature(modal, before)
+            if action_state.get("failed_dialog_signature") == signature:
+                return ("NO_PROGRESS: The same visible dialog remains after one close attempt. "
+                        "No input was sent. Read the dialog and report the exact blocker; do not retry dismissal.")
+            result = await _dismiss_dialog_once(browser_session)
+            if result.startswith("Dialog dismissed and verified absent") or "No visible dialog was detected" in result:
+                action_state.pop("failed_dialog_signature", None)
+            else:
+                action_state["failed_dialog_signature"] = signature
+            return result
         except Exception as exc:
+            if signature:
+                action_state["failed_dialog_signature"] = signature
             return f"ERROR: Could not dismiss visible dialog: {type(exc).__name__}: {exc}"
 
     async def _ensure_terminal(page, browser_session: BrowserSession):

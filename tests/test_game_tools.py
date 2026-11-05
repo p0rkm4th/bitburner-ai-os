@@ -47,7 +47,7 @@ class FakeElement:
     async def click(self):
         if self.kind == "modal_close":
             self.page.close_clicks += 1
-            if self.page.modal_button_count == 1:
+            if self.page.close_attempt_succeeds:
                 self.page.modal = False
                 self.page.mui_modal = False
                 self.page.presentation_only = False
@@ -66,6 +66,7 @@ class FakePage:
         self.presentation_only = False
         self.mui_modal = False
         self.modal_button_count = 1
+        self.close_attempt_succeeds = True
         self.close_clicks = 0
         self.command = ""
         self.editor_text = ""
@@ -84,6 +85,8 @@ class FakePage:
         return self.url
 
     async def get_element(self, backend_node_id):
+        if backend_node_id == 999:
+            return FakeElement(self, "modal_close")
         return FakeElement(self, "nav")
 
     async def get_elements_by_css_selector(self, selector):
@@ -389,7 +392,41 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         result = await self.actions["game_dismiss_dialog"](self.browser)
         self.assertIn("dismissed and verified absent", result)
         self.assertEqual(self.page.close_clicks, 1)
+
+    async def test_runtime_error_modal_selects_visible_close_with_other_buttons_present(self):
+        self.page.modal = True
+        self.page.mui_modal = True
+        self.page.presentation_only = True
+        self.page.modal_button_count = 3
+        self.page.nav_nodes = [FakeNavNode("Close", backend_node_id=999)]
+        self.page.visible = (
+            "RUNTIME ERROR hack: no root access Script: home.js PID: 2 "
+            "Suppress error modals (5 min) Close View Script Logs Errors Page"
+        )
+        result = await self.actions["game_dismiss_dialog"](self.browser)
+        self.assertIn("dismissed and verified absent", result)
+        self.assertEqual(self.page.close_clicks, 1)
         self.assertFalse(self.page.modal)
+
+    async def test_failed_dialog_close_is_never_repeated_for_same_visible_modal(self):
+        self.page.modal = True
+        self.page.mui_modal = True
+        self.page.presentation_only = True
+        self.page.modal_button_count = 3
+        self.page.nav_nodes = [FakeNavNode("Close", backend_node_id=999)]
+        self.page.close_attempt_succeeds = False
+        self.page.visible = (
+            "RUNTIME ERROR hack: no root access Script: home.js PID: 2 "
+            "Suppress error modals (5 min) Close View Script Logs Errors Page"
+        )
+        first = await self.actions["game_dismiss_dialog"](self.browser)
+        self.assertIn("ERROR: Dialog", first)
+        self.assertEqual(self.page.close_clicks, 1)
+        second = await self.actions["game_dismiss_dialog"](self.browser)
+        self.assertIn("NO_PROGRESS", second)
+        self.assertIn("No input was sent", second)
+        self.assertEqual(self.page.close_clicks, 1)
+        self.assertTrue(self.page.modal)
 
     async def test_dialog_still_visible_is_reported_without_repeat(self):
         self.page.modal = True

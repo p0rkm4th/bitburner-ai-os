@@ -1,8 +1,7 @@
 # Bitburner core guide for the agent
 
-Use this short guide as orientation. The running game and its live type
-definitions are authoritative when a detail differs. Do not assume old wiki
-examples or remembered APIs match the current game version.
+Use this guide for orientation. The running game and live type definitions take
+precedence over remembered or outdated API details.
 
 ## Observe before acting
 
@@ -36,8 +35,12 @@ examples or remembered APIs match the current game version.
   programs followed by `NUKE.exe` grant root when the server's port requirement
   is met. `NUKE.exe` is already on `home`; zero-port servers need no opener.
   In Terminal, connect to the target and `run NUKE.exe`, or use documented
-  `ns.nuke(host)`. Root does not waive hacking-skill requirements. Inspect the
-  server's displayed requirements before acting.
+  `ns.nuke(host)`. Before using an API you are unsure about, retrieve its exact
+  signature with `game_netscript_reference`. Root does not waive hacking-skill
+  requirements. Inspect the server's displayed requirements before acting.
+- After a root-access error, consult `game_troubleshoot` and verify uncertain
+  APIs such as `ns.nuke` against the connected game's live reference before
+  correcting a script. Verify visible root access and the result after a run.
 - Root access is required to run scripts on a server. The script must also fit
   that server's available RAM.
 - Terminal `run <file.js> [args...]` starts the file on the currently connected
@@ -92,8 +95,5 @@ examples or remembered APIs match the current game version.
   `tail` output, Active Scripts, and updated game stats. Stop a failed process
   before replacing it if it is still running.
 
-## Source notes
-
 Function details are version-specific; retrieve them from the connected game's
-live definitions with `game_netscript_reference`. General root-access behavior
-is documented in the [official hacking guide](https://github.com/bitburner-official/bitburner-src/blob/dev/src/Documentation/doc/en/basic/hacking.md).
+live definitions with `game_netscript_reference`.

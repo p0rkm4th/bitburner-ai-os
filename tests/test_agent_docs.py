@@ -26,6 +26,8 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
                      "game_netscript_reference", "does not prove", "scan-analyze 2",
                      "cat report.txt", "script-only Remote API"):
             self.assertIn(fact, guide)
+        self.assertIn("`ns.nuke`", guide)
+        self.assertIn("root-access error", guide)
 
     def test_docs_root_supports_flat_container_and_source_package_layouts(self):
         with TemporaryDirectory() as tmp:
@@ -92,6 +94,9 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("run that exact filename through game_run_script", task)
         self.assertIn("An earlier Terminal `ls` does not disprove a later verified deployment", task)
         self.assertIn("call game_dismiss_dialog once", task)
+        self.assertIn("one game_dismiss_dialog attempt", task)
+        self.assertIn("visible root, skill, and port requirements", task)
+        self.assertIn("verify any Netscript root-access API against the live reference", task)
         self.assertIn("do not repeat an unchanged observation", task)
         self.assertIn("Do not navigate or reload", task)
         self.assertIn("checkpoint summary", task)
@@ -106,7 +111,9 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("one consequential action per step", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("never claim progress without visible evidence", BITBURNER_SYSTEM_PROMPT.casefold())
         self.assertIn("at most one corrected diagnostic attempt", BITBURNER_SYSTEM_PROMPT)
-        self.assertIn("If no `.js` file is listed, do not guess a filename", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("If it remains, do not call dismissal again", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("check uncertain Netscript functions with game_netscript_reference", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("if none is listed, author independently", BITBURNER_SYSTEM_PROMPT)
 
     def test_checkpoint_carries_tool_failures_but_not_long_outputs(self):
         summary = checkpoint_prompt_summary({

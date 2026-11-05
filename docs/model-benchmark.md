@@ -204,6 +204,7 @@ game Options UI, then verified Online after browser-session recreation.
 | 13 | Failed after 3 history steps | Remote API was Online, but the game showed an offline-progress dialog. The model repeated `game_observe`; the no-progress guard stopped the session. No Netscript was authored or deployed. | 3 requests; 59.9s summed duration; 12,456 prompt / 187 completion tokens; model was warm. The 68-second node sample interval had no meaningful gameplay progression. |
 | 14 | Failed after 5 steps | The updated startup instruction worked: Qwen dismissed the visible offline-progress dialog and resumed terminal observation. Ollama then disconnected twice (`Server disconnected without sending a response`, then connection failure). No script was authored or deployed; final visible balance remained $1.262k / Hack 1. | Five inference attempts were recorded, three with responses and two transport failures. No retry was made after the endpoint failure. The isolated session ended without gameplay progress. |
 | 15 | Exhausted after 13 steps | Qwen scanned the network, authored six versions across `hack.js` and `hack_n00dles.js`, and repeatedly treated the pre-deployment `ls` output as current. The Remote API tool reported each write read-back verified and supplied RAM cost, but Qwen never called `game_run_script` or ran a Terminal command. It ended by explicitly reporting failure. Visible money remained $1.262k and hacking remained level 1. | 13 Ollama requests: 12 responses, 1 read timeout. Responses reported 101,469 prompt and 17,456 completion tokens; summed server request duration 702.5s; first model-load duration 16.1s. Trial telemetry spanned 14m57s. `/api/ps` reported about 23.0 GB VRAM allocation. Per-GPU SSH telemetry was unavailable. |
+| 16 | Incomplete after 16 steps; operator-stopped during the supervisor's single-session delay | Starting money was visibly reported as $1.262k and hacking level 1. Qwen authored and deployed `hack-n00dles.js`, then visibly ran it. Bitburner showed `hack: Cannot hack n00dles server because you do not have root access`. Qwen repeated dialog-dismiss actions six times, had two 180s inference timeouts, then authored a revised script using `ns.nuke` but did not run it. No post-run money comparison or income was verified. The final visible dialog still showed the root error. | 14 Ollama responses: 98,276 prompt and 21,825 completion tokens; 815.8s summed response time; 17.6s first load; 19m45s from objective start to final response. Two 180s request timeouts were not included in Ollama response metrics. Model allocation peaked at about 23.0 GB across four GPUs; CPU offload was not measured. |
 
 Runs 10 and 11 used `gemma4:e4b` (8B, Q4_K_M), 16,384 context, temperature 0.2, seed 7,
 and the same bounded objective. The second trial sampled GPU peaks of 3.3 GB
@@ -214,7 +215,14 @@ balance increase after the run. The guard's positive and negative cases pass;
 this model still did not meet the gameplay objective. The local inference
 endpoint later returned and enabled the isolated Qwen follow-up in Run 12. No UI action model was tested;
 that experiment remains deferred until a primary local model meets the income
-gate. Fifteen documented isolated runs have not met that gate.
+gate. Sixteen documented isolated runs have not met that gate. Run 16 exposed
+an ineffective dismissal loop; the visible runtime dialog included a semantic
+Close button, but the helper fell back to Escape when several modal buttons were
+present. The updated helper selects a unique visible Close button from the
+fresh DOM snapshot and refuses a repeated close attempt when the same dialog
+remains. The always-loaded guide and per-session prompt now call for exact
+runtime-error lookup, live API verification, and a single evidence-based retry.
+These changes have unit coverage but still need a new isolated gameplay trial.
 
 ## Reproducing a trial
 

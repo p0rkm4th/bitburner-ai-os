@@ -214,8 +214,10 @@ def gameplay_task(objective: str, progress: str, current_url: str, game_url: str
                  "deploying it again. An earlier Terminal `ls` does not disprove a later verified deployment. "
                  "A PID confirms startup only. If a runtime error appears, call game_troubleshoot with its exact text, check the named API "
                  "against the current live reference, revise your own script, and retry within the step budget. Verify actual money/output "
-                 "before claiming success. If the first observation shows a dialog, read it and call game_dismiss_dialog once; do not "
-                 "repeat an unchanged observation.")
+                 "before claiming success. For missing root access, inspect the target's visible root, skill, and port requirements; "
+                 "verify any Netscript root-access API against the live reference before revising your script. If a dialog remains after "
+                 "one game_dismiss_dialog attempt, do not call it again; report the visible blocker. If the first observation shows a "
+                 "dialog, read it and call game_dismiss_dialog once; do not repeat an unchanged observation.")
     return ("BITBURNER CORE GUIDE (compact, version-aware orientation; use live game state and definitions where version-specific):\n"
             + load_core_guide() + "\n\nSESSION TASK:\n" + task)
 
