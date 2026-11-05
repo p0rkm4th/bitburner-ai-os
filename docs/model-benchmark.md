@@ -409,6 +409,37 @@ income success; the model was not given a correction. The next controlled step
 is a fresh isolated trial after making the visible root-access mechanics and
 same-host `connect` guard clearer. Production was not used or changed.
 
+### Guided Run 22 — isolated income repeat
+
+Run 22 used a fresh copy of the same v3.0.1 seed, `qwen3.6:35b` Q4_K_M,
+explicit `think:false`, 16,384 context, temperature 0.2, seed 7, and an
+18-step / 20-minute ceiling. The model independently observed the game,
+scanned, authored and deployed `hack_n00dles.js`, visibly ran PID 1, observed
+the script output, and stopped it. A retained screenshot showed the HUD rise
+from $1.262k to $1.551k and Terminal output attributing $288.750 and 3.300
+experience to the successful hack. Hacking stayed at level 1. The code was
+model-authored; no script or correction was supplied by the operator.
+
+The session ended `failed` after 11 steps / about 5m59s: after the observed
+success, the model made two identical passive `game_observe` calls. The
+no-progress guard refused the repeats and stopped the session while the
+checkpoint said it intended to verify final money. Thus gameplay income is
+verified, but final reporting and recovery from guard termination remain
+unreliable. The two counted `game_errors` were guard refusals, not in-game
+runtime errors; this run did not exercise a Netscript debug cycle.
+
+Thirteen Ollama responses used 124,477 prompt and 2,787 completion tokens.
+Summed request time was 338.67 seconds (26.05s mean; 30.03s median), with a
+17.57s initial model load and about 37.46 completion tokens/s. There were no
+timeouts or malformed responses. Across 69 hardware samples, mean utilization
+per GPU was 27.6/15.4/21.7/19.0%, with 100% peaks on each; peak VRAM was
+7.39/4.94/6.06/5.53 GiB. CPU offload was not measured. Screenshot and raw
+traces remain in ignored local artifacts. Production was not used or changed.
+
+Run 22 repeats the Run 19/20 pattern: useful income can occur, but the model
+may fail to conclude after seeing it. This is one successful isolated sample,
+not proof of sustained autonomous play or BitNode progression.
+
 ## Reproducing a trial
 
 The isolated Compose deployment, objective, fresh-profile trial runner, and
