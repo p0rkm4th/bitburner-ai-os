@@ -203,3 +203,15 @@ credentials, and game profiles in ignored local records.
   published in `0b1db62` on `experiment/qwen-runtime-recovery`. Schedule the
   next isolated trial when the shared inference slot is clear, changing only
   this justified timeout variable.
+
+- **Next Qwen trial staged without inference:** a fresh copy of the disposable
+  seed now runs in its own Compose project and browser profile, with distinct
+  loopback API/viewer ports so it does not displace the prior isolated viewer.
+  The game reports Remote API Online; harmless write/read/RAM validation
+  returned `OK`, exact read-back, and 1.6 GB. No gameplay session or model call
+  has started. The benchmark runner accepts separate port and timeout settings;
+  Compose resolved the staged run to 180/180/210-second request/LLM/step
+  budgets. The latest runner/port change is published as `b5be825` on
+  `experiment/qwen-runtime-recovery`. At the last read-only pool check,
+  `qwen3:8b` was resident and `qwen3.6:35b` remained installed but unloaded, so
+  the staged session is waiting for an unambiguous inference slot.
