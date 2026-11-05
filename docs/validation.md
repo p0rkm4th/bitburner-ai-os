@@ -18,7 +18,7 @@ This document records measured results only. A running container alone does not 
 | Remote live viewer | Passed (tunnel path) | noVNC page and internal VNC connection respond. A workstation SSH tunnel successfully reached both the health API and noVNC page; verify live game display during an agent session remains pending. |
 | Core statistics update | Pending | The dashboard observation endpoint now returns a live rendered game UI summary and container RAM usage/limit. The model has not yet created and run a Netscript statistics display. |
 | Browser/container restart preserves progress | Passed (profile data) | After a container recreate, Chromium reopened the same persistent profile and the game showed the existing character HUD and offline-progress summary. |
-| Checkpoint durability and agent lifecycle | Passed (focused tests; latest source not deployed) | Tests cover stop, overlap prevention, pause/resume, interruption recovery, terminal-state recovery, atomic checkpoints, stagnation, bounded inference, restricted Remote API actions, guide path resolution, modal handling, terminal error reporting, removal of stale editor guidance, cosmetic redeployment detection, repeat-run protection, constrained in-game `.js` copying, RAM rejection recovery, model reference lookup, persistence of the pending script-run guard across sessions, stable pending-run signatures across changing source/UI with reset after a successful diagnostic, visible progress verification after a duplicate observation, same-host `connect` rejection with different-host connection preserved, multiline runtime-error reporting, delayed runtime-error metrics, and reporting verified money progress when the agent omits its final report. The latest source passes 118 tests in the deployment dependency image with networking disabled (2026-11-05). This post-success reporting change has not yet been deployed to production. |
+| Checkpoint durability and agent lifecycle | Passed (focused tests; latest source deployed) | Tests cover stop, overlap prevention, pause/resume, interruption recovery, terminal-state recovery, atomic checkpoints, stagnation, bounded inference, restricted Remote API actions, guide path resolution, modal handling, terminal error reporting, removal of stale editor guidance, cosmetic redeployment detection, repeat-run protection, constrained in-game `.js` copying, RAM rejection recovery, model reference lookup, persistence of the pending script-run guard across sessions, stable pending-run signatures across changing source/UI with reset after a successful diagnostic, visible progress verification after a duplicate observation, same-host `connect` rejection with different-host connection preserved, multiline runtime-error reporting, delayed runtime-error metrics, and reporting verified money progress when the agent omits its final report. Commit `e55905f` passes 118 tests in the deployment image with networking disabled and is deployed to the production VM. |
 | Auto-resume and session continuation | Production unchanged; benchmark runs isolated | Every isolated trial used `AUTO_RESUME=0` and `MAX_SESSIONS=1`; step and time budgets varied by trial and are recorded in [model-benchmark.md](model-benchmark.md). Each trial was launched explicitly and its disposable containers were removed after a terminal result. Production auto-resume and its persistent objective were not changed by these trials. |
 | Local model gameplay benchmark | Four isolated Qwen trials demonstrated verified income; end-of-session completion remains unreliable | Runs 17, 19, 20, and 22 demonstrated income; Run 18 failed before execution. Run 21b consulted the live `ns.nuke` reference and revised its own script, but confused script location with target root access, repeated blocked runs, and finished with unchanged $1.262k / Hacking 1. Run 22 independently authored, deployed, and visibly ran a successful hacking script, then repeated passive observations until the no-progress guard stopped it before final verification. Runs 19, 20, and 22 did not return a final report. Qwen3.8 remains unscored because the exact tag is not installed on the local inference endpoint. See [model-benchmark.md](model-benchmark.md). |
 | Guided Qwen Run 16 (historical) | Failed; no verified income | An isolated `qwen3.6:35b` trial authored and ran `hack-n00dles.js`, but Bitburner returned a visible no-root runtime error. The model authored a revision using `ns.nuke` but did not run it; it repeated dialog dismissal six times and hit two 180-second inference timeouts. Runs 17 and 19 later demonstrated income; Run 18 failed before execution. See [model-benchmark.md](model-benchmark.md) for the subsequent results. |
@@ -329,3 +329,24 @@ catalog; this confirms model-tag reachability only and does not verify text
 generation. The native-save backup endpoint currently reports zero archived
 exports; periodic backup capture is implemented, but a visible game-native
 export and isolated restore have not yet been verified.
+
+## Production update (2026-11-05, 23:26 UTC)
+
+Commit `e55905f` was deployed after a fresh API check showed the agent
+terminally failed at session 0 / 0 steps. A gzip-verified private archive of
+the persistent data volume was made before recreation. Its checkpoint SHA-256
+remained unchanged after deployment. The prior image remains tagged for
+rollback; the source release is staged locally and on the VM.
+
+The candidate image was rebuilt from the committed source and passed all 118
+tests on the VM with networking disabled. The agent and Remote API bridge were
+recreated together. Afterward both containers were running, `/api/health`
+reported the browser ready, noVNC returned HTTP 200, the visible game still
+reported Remote API Online, and the same persistent `/state` data mount
+remained attached (profile directory: 113,131,646 bytes). Runtime state remains
+terminally `failed` at session 0 / 0 steps, despite `AUTO_RESUME=1` and
+`MAX_SESSIONS=0`; deployment did not start gameplay or send an inference
+request. No save import, model setting change, or unrelated service change was
+made. A new bounded gameplay trial awaits the shared inference reservation's
+release and a fresh capacity check. Native save export and isolated restore
+remain unverified.
