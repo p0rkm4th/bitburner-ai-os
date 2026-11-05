@@ -56,8 +56,10 @@ def _same_script_ignoring_formatting_and_doc_comments(left: str, right: str) -> 
     return normalize(left) == normalize(right)
 
 
-def register_remote_api_tools(tools: Tools, api: RemoteApi) -> dict[str, object]:
+def register_remote_api_tools(tools: Tools, api: RemoteApi,
+                             action_state: dict | None = None) -> dict[str, object]:
     """Attach only four constrained operations to the existing Browser Use agent."""
+    action_state = action_state if action_state is not None else {}
 
     @tools.action(description=(
         "Read one existing .js Netscript file through Bitburner's official Remote API. "
@@ -83,6 +85,13 @@ def register_remote_api_tools(tools: Tools, api: RemoteApi) -> dict[str, object]
             filename = _safe_filename(filename)
             if not content.strip() or len(content) > 30000:
                 raise ValueError("Script content must be 1 to 30,000 characters")
+            ram_rejection = action_state.get("ram_rejection")
+            if (ram_rejection and ram_rejection.get("filename") == filename.casefold()
+                    and not ram_rejection.get("diagnosed")):
+                return (f"NO_PROGRESS: The last visible run of {filename} on {ram_rejection['host']} failed because it required "
+                        f"{ram_rejection['required_ram']} GB of RAM. Rewriting or redeploying it cannot free RAM on that host. "
+                        "Inspect running processes with `ps` or use the visible Active Scripts page before deciding what to do; "
+                        "no file write was made.")
             try:
                 existing = await api.call("getFile", {"filename": filename, "server": "home"})
             except RuntimeError as exc:
@@ -108,6 +117,8 @@ def register_remote_api_tools(tools: Tools, api: RemoteApi) -> dict[str, object]
             if result != "OK" or actual != content:
                 raise RuntimeError("The game did not confirm a matching script write")
             ram = await api.call("calculateRam", {"filename": filename, "server": "home"})
+            if ram_rejection and ram_rejection.get("filename") == filename.casefold():
+                action_state.pop("ram_rejection", None)
             return f"Deployed and read-back verified {filename}; calculated RAM: {ram} GB. Run it through game_run_script."
         except Exception as exc:
             return f"ERROR: Could not deploy {filename}: {type(exc).__name__}: {exc}"

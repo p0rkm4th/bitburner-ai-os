@@ -205,7 +205,8 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.page = FakePage()
         self.browser = FakeBrowserSession(self.page)
-        self.actions = register_game_tools(FakeTools())
+        self.action_state = {}
+        self.actions = register_game_tools(FakeTools(), action_state=self.action_state)
 
     async def test_observe_and_terminal_round_trip(self):
         state = await self.actions["game_observe"](self.browser)
@@ -257,6 +258,19 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         result = await self.actions["game_terminal"]("run home.js", self.browser)
         self.assertTrue(result.startswith("VISIBLE GAME ERROR (verbatim):"))
         self.assertIn("requires 81.60GB of RAM", result)
+
+    async def test_terminal_records_ram_rejection_and_process_inspection_satisfies_diagnostic_gate(self):
+        self.page.run_output = (
+            "Bitburner Terminal\n[home /]> run simple_hack.js n00dles\n"
+            "Cannot run simple_hack.js (t=1) on home. This script requires 1.70GB of RAM."
+        )
+        result = await self.actions["game_terminal"]("run simple_hack.js n00dles", self.browser)
+        self.assertIn("requires 1.70GB of RAM", result)
+        self.assertEqual(self.action_state["ram_rejection"], {
+            "filename": "simple_hack.js", "host": "home", "required_ram": "1.70", "diagnosed": False,
+        })
+        await self.actions["game_terminal"]("ps", self.browser)
+        self.assertTrue(self.action_state["ram_rejection"]["diagnosed"])
 
     async def test_terminal_reads_model_authored_text_report_visibly(self):
         self.page.files["discovery_result.txt"] = "home\nfoodnstuff\n"

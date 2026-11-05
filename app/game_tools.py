@@ -184,8 +184,10 @@ SAVE_BUTTONS = (
 )
 
 
-def register_game_tools(tools: Tools, *, include_editor: bool = True) -> dict[str, object]:
+def register_game_tools(tools: Tools, *, include_editor: bool = True,
+                        action_state: Optional[dict] = None) -> dict[str, object]:
     """Register a small deterministic tool set on the existing Browser Use controller."""
+    action_state = action_state if action_state is not None else {}
     last_observation: Optional[str] = None
     last_confirmed_run: Optional[str] = None
 
@@ -240,6 +242,8 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True) -> dict[st
             after = await _visible(browser_session)
             if after == before.dom_state.llm_representation():
                 raise RuntimeError(f"Clicked {label!r}, but the rendered game UI did not change")
+            if label.casefold() == "active scripts" and action_state.get("ram_rejection"):
+                action_state["ram_rejection"]["diagnosed"] = True
             return f"Opened visible game tab {label!r}.\n{after[-MAX_OBSERVATION:]}"
         except Exception as exc:
             return f"ERROR: Could not open Bitburner tab: {type(exc).__name__}: {exc}"
@@ -329,7 +333,22 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True) -> dict[st
         after = await _visible(browser_session)
         if after == before:
             raise RuntimeError("Enter was sent, but the visible game UI did not change. Check terminal focus and inspect the UI before retrying.")
+        ram_error = re.search(
+            r"Cannot run\s+([A-Za-z0-9_.-]+\.js)\s+\(t=\d+\)\s+on\s+([A-Za-z0-9_.-]+)\.\s+This script requires\s+([\d.]+)\s*GB of RAM",
+            after, re.IGNORECASE,
+        )
+        if ram_error:
+            action_state["ram_rejection"] = {
+                "filename": ram_error.group(1).casefold(),
+                "host": ram_error.group(2),
+                "required_ram": ram_error.group(3),
+                "diagnosed": False,
+            }
+        elif (action_state.get("ram_rejection") and
+              re.fullmatch(r"\s*(?:ps|mem\s+[A-Za-z0-9_.-]+\.js)\s*", normalized_command, re.IGNORECASE)):
+            action_state["ram_rejection"]["diagnosed"] = True
         if run_filename and CONFIRMED_RUN.search(after):
+            action_state.pop("ram_rejection", None)
             last_confirmed_run = run_filename
         return after[-MAX_OBSERVATION:]
 

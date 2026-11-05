@@ -201,21 +201,42 @@ def checkpoint_prompt_summary(checkpoint: dict) -> dict:
     }
 
 
-def create_game_tools() -> Tools:
+RAM_REJECTION_PATTERN = re.compile(
+    r"Cannot run\s+([A-Za-z0-9_.-]+\.js)\s+\(t=\d+\)\s+on\s+([A-Za-z0-9_.-]+)\.\s+This script requires\s+([\d.]+)\s*GB of RAM",
+    re.IGNORECASE,
+)
+
+
+def checkpoint_ram_rejection(checkpoint: Optional[dict]) -> Optional[dict]:
+    """Restore a visible RAM rejection as a diagnostic gate after session restart."""
+    if not checkpoint:
+        return None
+    candidates = [checkpoint.get("latest_visible_state", ""), *checkpoint.get("scripts_and_observed_results", []),
+                  *checkpoint.get("errors", [])]
+    for candidate in reversed(candidates):
+        match = RAM_REJECTION_PATTERN.search(str(candidate))
+        if match:
+            return {"filename": match.group(1).casefold(), "host": match.group(2),
+                    "required_ram": match.group(3), "diagnosed": False}
+    return None
+
+
+def create_game_tools(action_state: Optional[dict] = None) -> Tools:
     """Limit the player to in-game interactions; app startup owns initial navigation."""
+    action_state = action_state if action_state is not None else {}
     tools = Tools(exclude_actions=["evaluate", "write_file", "replace_file", "read_file", "upload_file",
                                   "search", "search_page", "save_as_pdf", "run_python", "run_bash",
                                   "navigate", "go_back", "click", "input", "select_dropdown",
                                   "dropdown_options", "find_elements", "find_text", "scroll", "switch",
                                   "close", "send_keys", "extract"])
     remote_api = remote_api_from_env()
-    register_game_tools(tools, include_editor=remote_api is None)
+    register_game_tools(tools, include_editor=remote_api is None, action_state=action_state)
     register_agent_doc_tools(tools)
     if remote_api is not None:
         # Remote API is the reliable authoring path; generic text entry can
         # otherwise send the model back into fragile editor/terminal typing.
         tools.registry.registry.actions.pop("input", None)
-        register_remote_api_tools(tools, remote_api)
+        register_remote_api_tools(tools, remote_api, action_state=action_state)
     return tools
 
 
@@ -471,9 +492,13 @@ async def run_agent(objective: str) -> None:
     if shared_browser is None:
         shared_browser = BrowserSession(browser_profile=profile)
     # These stock actions provide arbitrary code/file access; gameplay must use the UI and Netscript.
-    tools = create_game_tools()
     checkpoint_path = STATE / "checkpoints" / "latest.json"
     previous = json.loads(checkpoint_path.read_text()) if checkpoint_path.exists() else None
+    action_state = {}
+    rejection = checkpoint_ram_rejection(previous)
+    if rejection:
+        action_state["ram_rejection"] = rejection
+    tools = create_game_tools(action_state)
     checkpoint_limit = int(agent_context_settings()["checkpoint_prompt_limit"])
     progress = (f"\nPrevious checkpoint (compact summary): "
                 f"{json.dumps(checkpoint_prompt_summary(previous), ensure_ascii=False)[:checkpoint_limit]}" if previous else "")

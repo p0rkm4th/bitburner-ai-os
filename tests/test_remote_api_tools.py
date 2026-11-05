@@ -47,7 +47,8 @@ class FakeApi:
 class RemoteApiToolTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.api = FakeApi()
-        self.actions = register_remote_api_tools(FakeTools(), self.api)
+        self.action_state = {}
+        self.actions = register_remote_api_tools(FakeTools(), self.api, action_state=self.action_state)
 
     async def test_read_is_limited_to_simple_script_names_on_home(self):
         result = await self.actions["game_read_script"]("home.js")
@@ -96,6 +97,27 @@ class RemoteApiToolTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result.startswith("NO_PROGRESS:"))
         self.assertIn("no functional code changes", result)
         self.assertEqual([call[0] for call in self.api.calls], ["getFile", "calculateRam"])
+
+    async def test_ram_rejected_script_cannot_be_redeployed_before_process_diagnosis(self):
+        self.action_state["ram_rejection"] = {
+            "filename": "student.js", "host": "home", "required_ram": "1.70", "diagnosed": False,
+        }
+        result = await self.actions["game_deploy_script"](
+            "student.js", "export async function main(ns) { await ns.grow('n00dles'); }"
+        )
+        self.assertTrue(result.startswith("NO_PROGRESS:"))
+        self.assertIn("Inspect running processes with `ps`", result)
+        self.assertIn("no file write was made", result)
+        self.assertEqual(self.api.calls, [])
+
+    async def test_ram_rejected_script_may_be_revised_after_diagnosis(self):
+        self.action_state["ram_rejection"] = {
+            "filename": "student.js", "host": "home", "required_ram": "1.70", "diagnosed": True,
+        }
+        code = "export async function main(ns) { await ns.grow('n00dles'); }"
+        result = await self.actions["game_deploy_script"]("student.js", code)
+        self.assertIn("Deployed and read-back verified student.js", result)
+        self.assertNotIn("ram_rejection", self.action_state)
 
     async def test_docs_returns_only_relevant_official_definition_excerpt(self):
         result = await self.actions["game_netscript_reference"]("ns.grow")
