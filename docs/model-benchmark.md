@@ -117,11 +117,12 @@ throughput and inability to recover from a blocked dialog. Gemma 4 should not
 be selected for this harness given repeated long timeouts and zero script
 authoring.
 
-Do not switch production to a challenger based on these runs. Qwen3.8 remains
-untested because the local Ollama server needs an upgrade; that upgrade is
-outside this isolated benchmark. Revisit model selection only after correcting
-the harness/gameplay failure modes and measuring a candidate that can complete
-the same end-to-end objective. No production model setting was changed.
+Do not switch production to a challenger based on these runs. At the time of
+this initial benchmark, Qwen3.8 could not be pulled because the serving Ollama
+version was too old. The owner later reported that the Ollama servers had been
+updated; exact installed tags, current compatibility, and gameplay quality have
+not yet been reverified. Revisit model selection through a controlled isolated
+comparison. No production model setting was changed.
 
 ## Guided trial after documentation and harness changes
 
@@ -215,14 +216,46 @@ balance increase after the run. The guard's positive and negative cases pass;
 this model still did not meet the gameplay objective. The local inference
 endpoint later returned and enabled the isolated Qwen follow-up in Run 12. No UI action model was tested;
 that experiment remains deferred until a primary local model meets the income
-gate. Sixteen documented isolated runs have not met that gate. Run 16 exposed
+gate. Sixteen documented isolated runs had not met that gate before Run 17. Run 16 exposed
 an ineffective dismissal loop; the visible runtime dialog included a semantic
 Close button, but the helper fell back to Escape when several modal buttons were
 present. The updated helper selects a unique visible Close button from the
 fresh DOM snapshot and refuses a repeated close attempt when the same dialog
 remains. The always-loaded guide and per-session prompt now call for exact
 runtime-error lookup, live API verification, and a single evidence-based retry.
-These changes have unit coverage but still need a new isolated gameplay trial.
+
+### Guided Run 17 — first verified isolated income cycle
+
+One fresh, disposable profile was tested with `qwen3.6:35b` (Q4_K_M), 16,384
+context, temperature 0.2, seed 7, an 18-step limit, a 20-minute session limit,
+the compact game guide, Browser Use, and the restricted Remote API. The model
+received no code, target, or gameplay correction. It dismissed the initial
+offline-progress dialog, inspected the visible network, obtained root on
+`n00dles`, independently authored and deployed `hack-n00dles.js`, and visibly
+launched it. It first tried an invalid compound Terminal command, read the
+game's usage error, and recovered with valid separate commands. It then copied
+the script to the rooted server and launched it there. The visible balance
+changed from $1.262k to $1.583k (about $321); hacking remained level 1. The
+terminal confirmed both launches, and `ps` showed the first process, but the
+model did not produce a script `print`/income report. The positive balance
+change is the income evidence; no hacking progression is claimed. No runtime
+script error was visible at the final observation. This is one success, not a
+repeatability result.
+
+The session used all 18 model/tool steps and finished in 19m34s. All 18
+inference requests returned without timeout: 189,988 prompt tokens, 24,761
+completion tokens, 1,154.8 seconds summed request duration (64.2s mean, 52.8s
+median), and 17.6s cold load. Ollama reported approximately 23.0 GB allocated
+to the model across four GPUs; sampled GPU utilization reached 100% on each
+card. CPU offload was not measured. The detailed run artifacts are retained
+locally and ignored by Git; no internal node names, network details, saves, or
+model responses are published.
+
+This run meets the narrow gate of independently authored, visibly executed
+Netscript with a positive visible money delta. It does not prove reliable
+debugging of Netscript errors, repeated success, autonomous continuation across
+sessions, hacking-level progression, or BitNode completion. Continue bounded
+replication before calling this gameplay loop reliable.
 
 ## Reproducing a trial
 
