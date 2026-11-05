@@ -18,11 +18,15 @@ class FakeApi:
         self.files = {"home.js": "export async function main(ns) {}"}
         self.calls = []
         self.failure = None
+        self.missing_file_error = False
 
     async def call(self, method, params):
         self.calls.append((method, params))
         if self.failure and method == self.failure[0]:
             raise RuntimeError(self.failure[1])
+        if (method == "getFile" and self.missing_file_error
+                and params["filename"] not in self.files):
+            raise RuntimeError("getFile returned HTTP 500: Bitburner API error")
         if method == "pushFile":
             self.files[params["filename"]] = params["content"]
             return "OK"
@@ -60,6 +64,21 @@ class RemoteApiToolTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("1.6 GB", result)
         self.assertEqual([call[0] for call in self.api.calls], ["getFile", "pushFile", "getFile", "calculateRam"])
         self.assertTrue(all(call[1].get("server", "home") == "home" for call in self.api.calls))
+
+    async def test_deploy_creates_file_when_bridge_reports_missing_file_as_api_error(self):
+        self.api.missing_file_error = True
+        code = "export async function main(ns) { await ns.hack('n00dles'); }"
+        result = await self.actions["game_deploy_script"]("new.js", code)
+        self.assertIn("Deployed and read-back verified new.js", result)
+        self.assertEqual([call[0] for call in self.api.calls],
+                         ["getFile", "pushFile", "getFile", "calculateRam"])
+        self.assertEqual(self.api.files["new.js"], code)
+
+    async def test_deploy_does_not_write_after_other_read_error(self):
+        self.api.failure = ("getFile", "Remote API is not connected")
+        result = await self.actions["game_deploy_script"]("new.js", "export async function main(ns) {}")
+        self.assertIn("Remote API is not connected", result)
+        self.assertEqual([call[0] for call in self.api.calls], ["getFile"])
 
     async def test_duplicate_deployment_is_reported_as_no_progress_without_rewriting(self):
         code = "export async function main(ns) { await ns.sleep(1); }"

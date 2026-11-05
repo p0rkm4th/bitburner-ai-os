@@ -34,8 +34,10 @@ examples or remembered APIs match the current game version.
   error to select another supported interface.
 - Root/admin access and hacking skill are separate requirements. Port-opening
   programs followed by `NUKE.exe` grant root when the server's port requirement
-  is met. A hack attempt also needs sufficient hacking skill. Never assume a
-  server is rootable or hackable: inspect its current displayed requirements.
+  is met. `NUKE.exe` is already on `home`; zero-port servers need no opener.
+  In Terminal, connect to the target and `run NUKE.exe`, or use documented
+  `ns.nuke(host)`. Root does not waive hacking-skill requirements. Inspect the
+  server's displayed requirements before acting.
 - Root access is required to run scripts on a server. The script must also fit
   that server's available RAM.
 - A server with no root access cannot be hacked or host the player's script.
@@ -95,4 +97,5 @@ examples or remembered APIs match the current game version.
 ## Source notes
 
 Function details are version-specific; retrieve them from the connected game's
-live definitions with `game_netscript_reference`.
+live definitions with `game_netscript_reference`. General root-access behavior
+is documented in the [official hacking guide](https://github.com/bitburner-official/bitburner-src/blob/dev/src/Documentation/doc/en/basic/hacking.md).

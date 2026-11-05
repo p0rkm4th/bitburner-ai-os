@@ -74,7 +74,17 @@ def register_remote_api_tools(tools: Tools, api: RemoteApi) -> dict[str, object]
             filename = _safe_filename(filename)
             if not content.strip() or len(content) > 30000:
                 raise ValueError("Script content must be 1 to 30,000 characters")
-            existing = await api.call("getFile", {"filename": filename, "server": "home"})
+            try:
+                existing = await api.call("getFile", {"filename": filename, "server": "home"})
+            except RuntimeError as exc:
+                # The audited bridge maps Bitburner's missing-file response to
+                # HTTP 500 with this generic API message. Existing files remain
+                # readable; allow a constrained push to establish a new file,
+                # then require the usual exact read-back before reporting it.
+                # Any other read error still stops before a write.
+                if str(exc) != "getFile returned HTTP 500: Bitburner API error":
+                    raise
+                existing = None
             if existing == content:
                 ram = await api.call("calculateRam", {"filename": filename, "server": "home"})
                 return (f"NO_PROGRESS: {filename} already exists on home with these exact contents; "
