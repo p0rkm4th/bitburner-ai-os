@@ -169,7 +169,9 @@ def visible_progress(visible: str, baseline_money: Optional[str] = None,
              f"Hacking level: {hacking.group(1)}" if hacking else "Hacking level: unavailable on the current visible screen",
              f"Visible script income: ${income.group(1).strip()}/s" if income else "Visible script income: unavailable on the current screen"]
     if money and baseline_money is not None:
-        lines.append(f"Money comparison: current ${money.group(1).strip()}, baseline ${baseline_money}")
+        baseline = baseline_money.strip()
+        baseline = baseline if baseline.startswith("$") else f"${baseline}"
+        lines.append(f"Money comparison: current ${money.group(1).strip()}, baseline {baseline}")
     if hacking and baseline_hacking_level is not None:
         delta = int(hacking.group(1)) - baseline_hacking_level
         lines.append(f"Hacking-level change from baseline: {delta:+d}")

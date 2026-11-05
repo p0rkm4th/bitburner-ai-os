@@ -235,6 +235,20 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         changed = await self.actions["game_observe"](self.browser)
         self.assertIn("A different visible screen", changed)
 
+    async def test_progress_check_recovers_after_duplicate_observation_without_resetting_it(self):
+        self.page.visible = "Overview\nMoney $1.838k\nHack 1\nActive Scripts\nProduction $0.022 / sec"
+        first = await self.actions["game_observe"](self.browser)
+        blocked = await self.actions["game_observe"](self.browser)
+        self.assertIn("Money $1.838k", first)
+        self.assertTrue(blocked.startswith("NO_PROGRESS:"))
+
+        progress = await self.actions["game_progress"](self.browser, baseline_money="$1.262k",
+                                                          baseline_hacking_level=1)
+        self.assertIn("Money: $1.838k", progress)
+        self.assertIn("Visible script income: $0.022/s", progress)
+        self.assertIn("Money comparison: current $1.838k, baseline $1.262k", progress)
+        self.assertTrue((await self.actions["game_observe"](self.browser)).startswith("NO_PROGRESS:"))
+
     async def test_open_tab_reacquires_visible_label_and_verifies_transition(self):
         self.page.nav_nodes = [FakeNavNode("Create Program")]
         result = await self.actions["game_open_tab"]("Create Program", self.browser)
