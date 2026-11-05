@@ -6,6 +6,7 @@ not run concurrently. Check each returned result before acting again.
 | Tool | Input | Intended use and result |
 |---|---|---|
 | `game_observe` | none | Read a compact rendered UI snapshot and detect a visible dialog. Read-only. |
+| `game_progress` | optional `baseline_money`, `baseline_hacking_level` | Read visible money, hacking level, and script income from rendered UI text; optionally compare with a previous observation. Use after running a script and after `game_observe` returns `NO_PROGRESS`. It neither changes the game nor clears the duplicate-observation guard. |
 | `game_help` | `topic` | Retrieve one allowlisted section of this repository's concise gameplay/tool documentation. It cannot read arbitrary files. |
 | `game_troubleshoot` | `error` | Retrieve matching recovery notes for a visible game/tool error. |
 | `game_dismiss_dialog` | none | Dismiss one visible dialog using its semantic close control, a unique visible button within the modal, or Escape; then verify it is gone. Never repeats automatically. |
@@ -20,6 +21,7 @@ Examples (these are tool inputs, not gameplay strategy):
 
 ```text
 game_observe()
+game_progress(baseline_money="$1.262k", baseline_hacking_level=1)
 game_help(topic="servers")
 game_open_tab(tab="Create Program")
 game_netscript_reference(symbol="ns.grow")
@@ -48,6 +50,10 @@ an allowlisted label from the current rendered DOM and clicks that fresh visible
 button. `game_terminal` reacquires the
 current page and visible terminal input for every command. If a transition
 cannot be verified, inspect with `game_observe`; do not repeat the old action.
+After a script starts, use `game_progress` to verify money, hacking level, and
+script income. If `game_observe` returns `NO_PROGRESS`, do not repeat it
+unchanged; use `game_progress` or take a different useful action. Once the
+objective has visible evidence, report it instead of polling the same screen.
 When a recognized offline-progress or message dialog is closed automatically,
 read the returned dialog body and choose the next action; the Terminal command
 in that call was not executed. If a repeated command returns `NO_PROGRESS`,

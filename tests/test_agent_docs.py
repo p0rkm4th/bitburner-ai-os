@@ -24,7 +24,7 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         self.assertLess(len(guide), 6000)
         for fact in ("home` is the player's computer", "Root/admin access", "main(ns)",
                      "game_netscript_reference", "does not prove", "scan-analyze 2",
-                     "cat report.txt", "script-only Remote API"):
+                     "cat report.txt", "script-only Remote API", "game_progress"):
             self.assertIn(fact, guide)
         self.assertIn("`ns.nuke`", guide)
         self.assertIn("root-access error", guide)
@@ -44,6 +44,9 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         servers = await self.actions["game_help"]("servers")
         self.assertIn("Root/admin access and hacking skill are separate requirements", servers)
         self.assertNotIn("money-making script", servers.casefold())
+        observation = await self.actions["game_help"]("observe")
+        self.assertIn("game_progress", observation)
+        self.assertIn("duplicate-observation guard", observation)
         bad = await self.actions["game_help"]("/etc/passwd")
         self.assertIn("ERROR: Unknown topic", bad)
         self.assertNotIn("/etc/passwd", bad)

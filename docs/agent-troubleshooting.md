@@ -121,8 +121,11 @@ procedures, not a prescribed gameplay strategy.
 
 ## Observation, progress, and inference limits
 
-- Observe once when beginning an objective, after a meaningful transition, and
-  after execution. Repeated identical observations are not progress.
+- Use `game_observe` once when beginning an objective and after meaningful UI
+  transitions. After script execution, use `game_progress` to read current
+  money, hacking level, and visible income. If an unchanged `game_observe`
+  returns `NO_PROGRESS`, do not repeat it; use `game_progress` or take a
+  different useful action.
 - Treat game-visible changes and completed, verified actions as progress. A
   successful tool call, code generation, or repeated `done` response is not.
 - If two consecutive actions produce the same error or unchanged page, request

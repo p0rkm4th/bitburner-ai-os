@@ -7,6 +7,9 @@ precedence over remembered or outdated API details.
 
 - Read the visible game version, money, hacking level, current screen, dialogs,
   and Remote API status with `game_observe`.
+- After scripts, use `game_progress` with prior money/level to verify balance,
+  hacking, and income. On `NO_PROGRESS`, don't repeat `game_observe`; use
+  progress or another action.
 - Make one concrete, small objective. After an action, inspect its returned
   result and the changed UI before choosing the next action.
 - A successful tool call, file upload, or RAM calculation does not prove the
@@ -18,7 +21,7 @@ precedence over remembered or outdated API details.
   not a money target to hack.
 - Use the game's Terminal `scan` or `scan-analyze` output to discover reachable
   servers and see root-access, required hacking level, required open ports, and
-  available RAM. Server names and requirements depend on the save.
+  available RAM.
 - `scan` only lists directly connected hostnames and root status. Before choosing
   a hacking target or assuming a prerequisite, use the detailed scan view with
   a numeric depth and read its visible hacking-level, port, root, and RAM fields.
@@ -94,6 +97,3 @@ precedence over remembered or outdated API details.
 - Use the visible Terminal to run scripts. Then inspect the run confirmation,
   `tail` output, Active Scripts, and updated game stats. Stop a failed process
   before replacing it if it is still running.
-
-Function details are version-specific; retrieve them from the connected game's
-live definitions with `game_netscript_reference`.
