@@ -23,7 +23,8 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         guide = load_core_guide()
         self.assertLess(len(guide), 6000)
         for fact in ("home` is the player's computer", "Root/admin access", "main(ns)",
-                     "game_netscript_reference", "does not prove", "scan-analyze 2"):
+                     "game_netscript_reference", "does not prove", "scan-analyze 2",
+                     "cat report.txt", "script-only Remote API"):
             self.assertIn(fact, guide)
 
     def test_docs_root_supports_flat_container_and_source_package_layouts(self):

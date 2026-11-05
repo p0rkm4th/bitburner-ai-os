@@ -11,6 +11,9 @@ procedures, not a prescribed gameplay strategy.
   file and ask for operator repair rather than changing network settings.
 - **File not found / invalid filename:** Remote API filenames are simple
   `.js` names on `home`; remove path prefixes and inspect `ls` or `game_read_script`.
+- **Need to inspect a text report:** `game_read_script` reads Netscript `.js`
+  files only. Use the visible Terminal command `cat report.txt` for a simple
+  in-game text filename, then base the next action on the returned output.
 - **RAM calculation HTTP error:** Preserve the exact error from
   `game_deploy_script`. Query `game_netscript_reference` for each uncertain API,
   fix the model-authored code, then deploy once and verify exact read-back.

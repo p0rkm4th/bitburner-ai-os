@@ -133,6 +133,10 @@ class FakePage:
         command = self.command
         if command == "ls":
             self.visible = "Bitburner Terminal\n" + " ".join(self.files)
+        elif command.startswith("cat "):
+            filename = command[4:]
+            self.visible = (f"Bitburner Terminal\n{self.files[filename]}" if filename in self.files
+                            else f"ERROR: no file named {filename}")
         elif command.startswith("nano "):
             filename = command[5:]
             if filename in self.files:
@@ -236,6 +240,12 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         result = await self.actions["game_terminal"]("run home.js", self.browser)
         self.assertTrue(result.startswith("VISIBLE GAME ERROR (verbatim):"))
         self.assertIn("requires 81.60GB of RAM", result)
+
+    async def test_terminal_reads_model_authored_text_report_visibly(self):
+        self.page.files["discovery_result.txt"] = "home\nfoodnstuff\n"
+        result = await self.actions["game_terminal"]("cat discovery_result.txt", self.browser)
+        self.assertIn("foodnstuff", result)
+        self.assertEqual(self.page.command, "cat discovery_result.txt")
 
     async def test_visible_editor_verification_accepts_tokenized_monaco_text(self):
         source = "export async function main(ns) {\n  await ns.sleep(10);\n}"

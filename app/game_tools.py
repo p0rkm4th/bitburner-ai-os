@@ -300,7 +300,10 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True) -> dict[st
             raise RuntimeError("Enter was sent, but the visible game UI did not change. Check terminal focus and inspect the UI before retrying.")
         return after[-MAX_OBSERVATION:]
 
-    @tools.action(description="Focus the visible in-game Bitburner terminal, enter one command, press Enter, and return the rendered result.")
+    @tools.action(description=(
+        "Focus the visible in-game Bitburner terminal, enter one command, press Enter, and return the rendered result. "
+        "Use `cat filename.txt` to inspect a simple in-game text report that the script-only Remote API cannot read."
+    ))
     async def game_terminal(command: str, browser_session: BrowserSession) -> str:
         try:
             result = await send_terminal(command, browser_session)

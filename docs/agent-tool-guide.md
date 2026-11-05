@@ -25,6 +25,7 @@ game_open_tab(tab="Create Program")
 game_netscript_reference(symbol="ns.grow")
 game_read_script(filename="home.js")
 game_terminal(command="mem home.js")
+game_terminal(command="cat discovery_result.txt")
 game_terminal(command="scan-analyze 2")
 game_run_script(filename="home.js", args=[])
 game_troubleshoot(error="Cannot hack this server yet")
@@ -47,6 +48,13 @@ For network inspection, use `scan` without arguments. `scan-analyze` requires a
 positive numeric depth, such as `scan-analyze 2`; passing a hostname is invalid.
 When a terminal command returns an error, inspect that exact output and consult
 `game_troubleshoot` before selecting a different diagnostic action.
+
+`game_read_script` is deliberately limited to `.js` Netscript files. To inspect
+text output a script wrote to the in-game home directory, use the visible game
+Terminal with `cat filename.txt`; read the returned text and diagnose from that
+evidence. Keep the filename simple and in the current in-game directory. Do not
+try Remote API file reads for arbitrary game files or repeat the same request
+after an unsupported-extension error.
 
 ## Official references
 

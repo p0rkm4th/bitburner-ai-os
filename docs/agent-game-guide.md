@@ -77,6 +77,9 @@ examples or remembered APIs match the current game version.
 
 - The Remote API tools read and write simple `.js` filenames on `home` only.
   Do not add path prefixes to their filename arguments.
+- `game_read_script` reads `.js` files only. For a text report written by a
+  script, use `game_terminal` with the visible Terminal command `cat report.txt`;
+  inspect the returned text instead of retrying the script-only Remote API.
 - In the visible Terminal, use `ls` to inspect files, `mem <file.js>` to inspect
   RAM, `run <file.js>` to start a script, `ps` to inspect running processes, and
   `tail <file.js>` to inspect script output. Confirm exact syntax with the
