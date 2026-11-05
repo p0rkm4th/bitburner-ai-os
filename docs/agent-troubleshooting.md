@@ -15,8 +15,9 @@ procedures, not a prescribed gameplay strategy.
   write is stale. When `game_deploy_script` says it read back the exact content
   and calculated RAM, run that exact filename through `game_run_script` and
   inspect the live result. Do not repeatedly rewrite or change filenames to
-  refresh an old listing; after two verified writes without a run, the adapter
-  blocks further deployments until visible execution is attempted.
+  refresh an old listing; after one verified write without a run, the adapter
+  blocks another deployment until visible execution is attempted. A later
+  revision is allowed after the run's actual output provides evidence to debug.
 - **Need to inspect a text report:** `game_read_script` reads Netscript `.js`
   files only. Use the visible Terminal command `cat report.txt` for a simple
   in-game text filename, then base the next action on the returned output.

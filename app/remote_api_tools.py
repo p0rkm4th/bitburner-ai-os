@@ -13,7 +13,7 @@ from browser_use import Tools
 FILENAME = re.compile(r"^[A-Za-z0-9_.-]+\.js$")
 IDENTIFIER = re.compile(r"^(?:ns\.)?([A-Za-z_$][A-Za-z0-9_$]{0,79})(?:\([^()\r\n]{0,160}\))?$")
 ALLOWED_METHODS = {"getFile", "pushFile", "calculateRam", "getDefinitionFile"}
-MAX_DEPLOYMENTS_WITHOUT_RUN = 2
+MAX_DEPLOYMENTS_WITHOUT_RUN = 1
 
 
 class RemoteApi:
