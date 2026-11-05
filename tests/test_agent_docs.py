@@ -82,6 +82,11 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Do not navigate or reload", task)
         self.assertIn("checkpoint summary", task)
 
+    def test_core_guide_distinguishes_current_server_from_script_arguments(self):
+        guide = load_core_guide()
+        self.assertIn("on the currently connected", guide)
+        self.assertIn("script arguments, not a destination server", guide)
+
     def test_system_prompt_is_short_and_requires_verified_progress(self):
         self.assertLess(len(BITBURNER_SYSTEM_PROMPT), 2000)
         self.assertIn("one consequential action per step", BITBURNER_SYSTEM_PROMPT)

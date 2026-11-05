@@ -40,12 +40,10 @@ examples or remembered APIs match the current game version.
   server's displayed requirements before acting.
 - Root access is required to run scripts on a server. The script must also fit
   that server's available RAM.
-- A server with no root access cannot be hacked or host the player's script.
-  Read the displayed requirements and identify which prerequisite is missing
-  before acting. Port-opening `.exe` files are in-game programs, not Netscript
-  functions; consult visible Terminal help and official documentation for
-  their current use. Do not search for them with the Netscript API lookup.
-
+- Terminal `run <file.js> [args...]` starts the file on the currently connected
+  server; trailing values are script arguments, not a destination server. To
+  execute on another host, copy the file with `scp <file.js> <host>` while on
+  `home`, connect to that host, then run the file there.
 ## Money, security, and progression
 
 - `hack` attempts to steal some of a target's available money and increases its
