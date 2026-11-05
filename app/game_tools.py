@@ -175,12 +175,18 @@ SAVE_BUTTONS = (
 
 def register_game_tools(tools: Tools, *, include_editor: bool = True) -> dict[str, object]:
     """Register a small deterministic tool set on the existing Browser Use controller."""
+    last_observation: Optional[str] = None
 
     @tools.action(description="Return a compact observation of the visible Bitburner UI, including dialogs and visible game state. Does not change the game.")
     async def game_observe(browser_session: BrowserSession) -> str:
+        nonlocal last_observation
         try:
             page = await _page(browser_session)
             visible = await _visible(browser_session)
+            if last_observation == visible:
+                return ("NO_PROGRESS: This rendered observation is identical to the previous one; no input was sent. "
+                        "Choose one different action based on the visible state, or report the blocker instead of observing again.")
+            last_observation = visible
             modal = await _modal(page, visible)
             prefix = f"Visible dialog: {modal}\n" if modal else "Visible dialog: none\n"
             return prefix + visible[-MAX_OBSERVATION:]

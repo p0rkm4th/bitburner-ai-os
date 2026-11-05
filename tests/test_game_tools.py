@@ -205,6 +205,15 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         result = await self.actions["game_terminal"]("ls", self.browser)
         self.assertIn("home.js", result)
 
+    async def test_identical_observation_is_reported_as_no_progress(self):
+        first = await self.actions["game_observe"](self.browser)
+        repeated = await self.actions["game_observe"](self.browser)
+        self.assertIn("Visible dialog: none", first)
+        self.assertTrue(repeated.startswith("NO_PROGRESS:"))
+        self.page.visible = "Bitburner Terminal\nA different visible screen"
+        changed = await self.actions["game_observe"](self.browser)
+        self.assertIn("A different visible screen", changed)
+
     async def test_open_tab_reacquires_visible_label_and_verifies_transition(self):
         self.page.nav_nodes = [FakeNavNode("Create Program")]
         result = await self.actions["game_open_tab"]("Create Program", self.browser)
