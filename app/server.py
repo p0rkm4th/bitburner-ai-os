@@ -18,9 +18,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 try:  # Package import for tests, flat import for the deployment image.
+    from .agent_docs import load_core_guide, register_agent_doc_tools
+    from .agent_prompt import BITBURNER_SYSTEM_PROMPT
     from .game_tools import register_game_tools
     from .remote_api_tools import register_remote_api_tools, remote_api_from_env
 except ImportError:
+    from agent_docs import load_core_guide, register_agent_doc_tools
+    from agent_prompt import BITBURNER_SYSTEM_PROMPT
     from game_tools import register_game_tools
     from remote_api_tools import register_remote_api_tools, remote_api_from_env
 
@@ -139,6 +143,18 @@ def browser_task(objective: str, progress: str, current_url: str, game_url: str)
     return f"{prefix} {objective}{progress}"
 
 
+def gameplay_task(objective: str, progress: str, current_url: str, game_url: str,
+                  *, remote_authoring: bool) -> str:
+    """Build the same compact, guide-backed instruction on every resumed session."""
+    task = browser_task(objective, progress, current_url, game_url)
+    if remote_authoring:
+        task += (" Use game_read_script/game_deploy_script for model-authored script work, "
+                 "game_netscript_reference for exact live APIs, game_open_tab for visible game pages, game_terminal/game_run_script "
+                 "for visible execution, and game_observe/game_progress for verification.")
+    return ("BITBURNER CORE GUIDE (compact, version-aware orientation; use live game state and definitions where version-specific):\n"
+            + load_core_guide() + "\n\nSESSION TASK:\n" + task)
+
+
 def checkpoint_prompt_summary(checkpoint: dict) -> dict:
     """Pass only compact, useful progress context to the next model session."""
     remote_authoring = bool(os.getenv("BITBURNER_REMOTE_API_URL") and
@@ -179,36 +195,26 @@ def checkpoint_prompt_summary(checkpoint: dict) -> dict:
         "latest_visible_state": latest_visible,
         "scripts_and_observed_results": scripts,
         "errors": clean_items(checkpoint.get("errors", [])),
+        "tool_results": checkpoint.get("tool_results", [])[-4:],
+        "tool_metrics": checkpoint.get("tool_metrics", {}),
         "next_intended_action": next_action,
     }
-
-
-def describe_keyboard_action(tools: Tools) -> bool:
-    """Make the installed Browser Use keyboard action unambiguous to the model."""
-    action = tools.registry.registry.actions.get("send_keys")
-    if not action:
-        return False
-    description = (
-        "Send keyboard keys to the currently focused visible page element. "
-        "Use keys=\"Enter\" to submit a focused Bitburner terminal command. "
-        "This performs a real keypress; clicking the input does not submit it."
-    )
-    if isinstance(action, dict):
-        action["description"] = description
-    else:
-        tools.registry.registry.actions["send_keys"] = action.model_copy(update={"description": description})
-    return True
 
 
 def create_game_tools() -> Tools:
     """Limit the player to in-game interactions; app startup owns initial navigation."""
     tools = Tools(exclude_actions=["evaluate", "write_file", "replace_file", "read_file", "upload_file",
                                   "search", "search_page", "save_as_pdf", "run_python", "run_bash",
-                                  "navigate", "go_back"])
-    describe_keyboard_action(tools)
+                                  "navigate", "go_back", "click", "input", "select_dropdown",
+                                  "dropdown_options", "find_elements", "find_text", "scroll", "switch",
+                                  "close", "send_keys", "extract"])
     remote_api = remote_api_from_env()
     register_game_tools(tools, include_editor=remote_api is None)
+    register_agent_doc_tools(tools)
     if remote_api is not None:
+        # Remote API is the reliable authoring path; generic text entry can
+        # otherwise send the model back into fragile editor/terminal typing.
+        tools.registry.registry.actions.pop("input", None)
         register_remote_api_tools(tools, remote_api)
     return tools
 
@@ -218,6 +224,15 @@ def inference_timeout_settings() -> dict[str, int]:
     llm_timeout = max(60, min(180, int(os.getenv("LLM_TIMEOUT", "150"))))
     step_timeout = max(llm_timeout + 15, min(240, int(os.getenv("STEP_TIMEOUT", "180"))))
     return {"llm_timeout": llm_timeout, "step_timeout": step_timeout}
+
+
+def agent_context_settings() -> dict[str, int | bool]:
+    """Keep short action histories so visual traces do not consume the local context window."""
+    # Browser Use validates this setting as None or strictly greater than 5.
+    history = max(6, min(8, int(os.getenv("MAX_HISTORY_ITEMS", "6"))))
+    checkpoint_limit = max(800, min(3000, int(os.getenv("CHECKPOINT_PROMPT_LIMIT", "1400"))))
+    return {"max_history_items": history, "checkpoint_prompt_limit": checkpoint_limit,
+            "message_compaction": True}
 
 
 def bitnode1_completion_confirmed(report: str, visible: str) -> bool:
@@ -263,13 +278,102 @@ def stagnation_count(previous: dict, current: dict) -> int:
     return count
 
 
+def summarize_action_results(actions: list[dict], results: list[object]) -> list[dict[str, str]]:
+    """Normalize Browser Use tool replies without retaining authored code or long output."""
+    summaries = []
+    for index, action in enumerate(actions):
+        name = next(iter(action), "unknown") if isinstance(action, dict) else "unknown"
+        result = results[index] if index < len(results) else None
+        error = str(getattr(result, "error", "") or "").strip()
+        content = str(getattr(result, "extracted_content", "") or "").strip()
+        if error:
+            state, message = "failed", error
+        elif content.startswith("NO_PROGRESS:"):
+            state, message = "game_error", content.splitlines()[0]
+        elif content.startswith("ERROR:"):
+            state, message = "failed", content.splitlines()[0]
+        elif name == "game_run_script" and re.search(
+                r"runtime error|script crashed|does not have a main function|requires .*? RAM|not enough RAM", content, re.I):
+            state, message = "game_error", next((line.strip() for line in content.splitlines()
+                                                   if re.search(r"runtime error|script crashed|does not have a main function|requires .*? RAM|not enough RAM", line, re.I)),
+                                                  "Visible script runtime error")
+        elif name == "game_terminal" and re.search(
+                r"(?im)^\s*(?:visible game error|incorrect usage\b|runtime error\b|error:|unknown command\b|command .+ not found\b|cannot run .*requires .*? RAM|not enough RAM|.*(?:does not have root access|cannot hack this server yet).*)", content):
+            state = "game_error"
+            lines = [line.strip() for line in content.splitlines() if line.strip()]
+            message = next((lines[index + 1] if line.casefold().startswith("visible game error") and index + 1 < len(lines)
+                            else line for index, line in enumerate(lines)
+                            if re.search(r"(?i)^\s*(?:visible game error|incorrect usage\b|runtime error\b|error:|unknown command\b|command .+ not found\b|cannot run .*requires .*? RAM|not enough RAM|.*(?:does not have root access|cannot hack this server yet).*)", line)),
+                           "Visible Terminal command error")
+        else:
+            state, message = "returned", "Tool returned a visible result"
+        summaries.append({"tool": name, "state": state, "message": message[:320]})
+    # Preserve framework errors even if a malformed response has fewer action records.
+    for result in results[len(actions):]:
+        error = str(getattr(result, "error", "") or getattr(result, "extracted_content", "") or "").strip()
+        if error:
+            summaries.append({"tool": "unmapped", "state": "failed", "message": error[:320]})
+    return summaries[-8:]
+
+
+def failed_action_repeat_count(previous_signature: str, previous_count: int,
+                               current_signature: str) -> int:
+    """Count consecutive identical failed action/state signatures; empty means reset."""
+    if not current_signature:
+        return 0
+    return previous_count + 1 if current_signature == previous_signature else 1
+
+
 class StartRequest(BaseModel):
     objective: str = Field(min_length=3, max_length=2000)
 
 
 def get_model() -> ChatOllama:
     base = os.environ["OLLAMA_BASE_URL"].rstrip("/")
-    return ChatOllama(model=os.environ["OLLAMA_MODEL"], host=base, timeout=float(os.getenv("OLLAMA_TIMEOUT", "180")))
+    model = os.environ["OLLAMA_MODEL"]
+    timeout = float(os.getenv("OLLAMA_TIMEOUT", "180"))
+    if os.getenv("OLLAMA_METRICS_PATH"):
+        options = {"num_ctx": int(os.getenv("OLLAMA_NUM_CTX", "16384")),
+                   "temperature": float(os.getenv("OLLAMA_TEMPERATURE", "0.2")),
+                   "seed": int(os.getenv("OLLAMA_SEED", "7")),
+                   "keep_alive": os.getenv("OLLAMA_KEEP_ALIVE", "30m")}
+        return MeasuredChatOllama(model=model, host=base, timeout=timeout, ollama_options=options)
+    return ChatOllama(model=model, host=base, timeout=timeout)
+
+
+class MeasuredOllamaClient:
+    """Record Ollama response counters and timings without retaining prompts or outputs."""
+    FIELDS = ("model", "prompt_eval_count", "eval_count", "total_duration",
+              "load_duration", "prompt_eval_duration", "eval_duration", "done_reason")
+
+    def __init__(self, client, path: str):
+        self.client = client
+        self.path = Path(path)
+
+    async def chat(self, **kwargs):
+        started = time.monotonic()
+        try:
+            response = await self.client.chat(**kwargs)
+            row = {name: getattr(response, name, None) for name in self.FIELDS}
+            row["elapsed_seconds"] = round(time.monotonic() - started, 3)
+            self._append(row)
+            return response
+        except Exception as exc:
+            self._append({"model": kwargs.get("model"), "elapsed_seconds": round(time.monotonic() - started, 3),
+                          "error": f"{type(exc).__name__}: {exc}"[:400]})
+            raise
+
+    def _append(self, row: dict) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        row["time"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        with self.path.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+class MeasuredChatOllama(ChatOllama):
+    """Optional Ollama wrapper used only for isolated benchmark runs."""
+    def get_client(self):
+        return MeasuredOllamaClient(super().get_client(), os.environ["OLLAMA_METRICS_PATH"])
 
 
 def get_browser_profile() -> BrowserProfile:
@@ -359,7 +463,7 @@ async def run_agent(objective: str) -> None:
     tools = create_game_tools()
     checkpoint_path = STATE / "checkpoints" / "latest.json"
     previous = json.loads(checkpoint_path.read_text()) if checkpoint_path.exists() else None
-    checkpoint_limit = max(800, min(4000, int(os.getenv("CHECKPOINT_PROMPT_LIMIT", "1600"))))
+    checkpoint_limit = int(agent_context_settings()["checkpoint_prompt_limit"])
     progress = (f"\nPrevious checkpoint (compact summary): "
                 f"{json.dumps(checkpoint_prompt_summary(previous), ensure_ascii=False)[:checkpoint_limit]}" if previous else "")
     game_url = os.getenv("GAME_URL", "https://bitburner-official.github.io/")
@@ -369,7 +473,8 @@ async def run_agent(objective: str) -> None:
             current_url = (await shared_browser.get_browser_state_summary(include_screenshot=False)).url
         except Exception:
             pass
-    task = browser_task(objective, progress, current_url, game_url)
+    task = gameplay_task(objective, progress, current_url, game_url,
+                         remote_authoring=remote_api_from_env() is not None)
     last_activity = time.monotonic()
     prior = json.loads(checkpoint_path.read_text()) if checkpoint_path.exists() else {}
     accomplishments = list(prior.get("accomplishments", []))[-8:]
@@ -379,6 +484,10 @@ async def run_agent(objective: str) -> None:
     last_output = {}
     last_actions = []
     successful_actions = 0
+    previous_failure_signature = ""
+    repeated_failure_count = 0
+    tool_metrics = {"calls": 0, "failed": 0, "game_errors": 0}
+    status["tool_metrics"] = tool_metrics
 
     async def on_step_start(current: Agent) -> None:
         # The inactivity clock advances only after a completed step, never merely
@@ -387,10 +496,12 @@ async def run_agent(objective: str) -> None:
 
     async def on_step_end(current: Agent) -> None:
         nonlocal last_activity, visible, last_output, last_actions, subobjective, successful_actions
+        nonlocal previous_failure_signature, repeated_failure_count
         last_activity = time.monotonic()
         status["steps"] += 1
         actions = []
         output = {}
+        latest = None
         try:
             latest = current.history.history[-1]
             output = latest.model_output.model_dump(exclude_none=True, mode="json")
@@ -399,9 +510,36 @@ async def run_agent(objective: str) -> None:
             pass
         last_output = output
         last_actions = actions
-        successful_actions += len(actions)
         subobjective = str(output.get("next_goal") or subobjective)[:700]
         visible = await visible_snapshot(shared_browser)
+        tool_results = summarize_action_results(actions, list(getattr(latest, "result", []) or [])) if latest else []
+        tool_metrics["calls"] += len(actions)
+        tool_metrics["failed"] += sum(item["state"] == "failed" for item in tool_results)
+        tool_metrics["game_errors"] += sum(item["state"] == "game_error" for item in tool_results)
+        successful_actions += sum(item["state"] == "returned" for item in tool_results)
+        for item in tool_results:
+            if item["state"] in ("failed", "game_error"):
+                message = f"{item['tool']}: {item['message']}"
+                if not errors or errors[-1] != message:
+                    errors.append(message[:700])
+                    del errors[:-8]
+            record("tool", f"{item['tool']} {item['state']}: {item['message'][:180]}")
+        failed_results = [item for item in tool_results if item["state"] in ("failed", "game_error")]
+        if failed_results and actions:
+            state_for_repeat = re.sub(r"\[\d+\]", "[]", visible)
+            action_for_repeat = json.dumps(actions, sort_keys=True, ensure_ascii=False)
+            failure_for_repeat = "|".join(item["tool"] + ":" + item["message"] for item in failed_results)
+            repeat_signature = hashlib.sha256((action_for_repeat + "\n" + state_for_repeat + "\n" + failure_for_repeat).encode()).hexdigest()
+            repeated_failure_count = failed_action_repeat_count(
+                previous_failure_signature, repeated_failure_count, repeat_signature)
+            previous_failure_signature = repeat_signature
+            if repeated_failure_count >= 2:
+                status["error"] = "The same failed tool action was repeated with no visible state change; session stopped to prevent an unproductive loop."
+                errors.append(status["error"])
+                current.stop()
+        else:
+            previous_failure_signature = ""
+            repeated_failure_count = 0
         evaluation = str(output.get("evaluation_previous_goal") or "")
         if evaluation and any(word in evaluation.casefold() for word in ("failed", "failure", "error", "unsuccessful")):
             errors.append(evaluation[:700])
@@ -416,6 +554,7 @@ async def run_agent(objective: str) -> None:
                          "objective": objective, "subobjective": subobjective,
                          "accomplishments": accomplishments, "latest_visible_state": visible,
                          "scripts_and_observed_results": visible_script_evidence(visible), "errors": errors,
+                         "tool_results": tool_results, "tool_metrics": dict(tool_metrics),
                          "unresolved_problems": errors[-4:], "next_intended_action": subobjective,
                          "session": status.get("session", 1), "steps": status["steps"],
                          "state": "active", "action": json.dumps(actions, ensure_ascii=False)[:1000],
@@ -432,8 +571,11 @@ async def run_agent(objective: str) -> None:
 
     agent = Agent(task=task, llm=get_model(), browser_profile=profile, browser_session=shared_browser, tools=tools,
                   use_vision=True, use_judge=False, max_failures=int(os.getenv("MAX_FAILURES", "2")),
-                  max_actions_per_step=4, enable_signal_handler=False,
-                  max_history_items=max(4, min(12, int(os.getenv("MAX_HISTORY_ITEMS", "6")))),
+                  override_system_message=BITBURNER_SYSTEM_PROMPT,
+                  max_actions_per_step=1, enable_planning=False, loop_detection_enabled=True,
+                  loop_detection_window=8, enable_signal_handler=False,
+                  max_history_items=int(agent_context_settings()["max_history_items"]),
+                  message_compaction=True,
                   **inference_timeout_settings(),
                   save_conversation_path=STATE / "logs" / "conversation.json")
     try:
@@ -468,6 +610,10 @@ async def run_agent(objective: str) -> None:
                       "subobjective": subobjective,
                       "accomplishments": accomplishments, "latest_visible_state": await visible_snapshot(shared_browser),
                       "scripts_and_observed_results": visible_script_evidence(await visible_snapshot(shared_browser)), "errors": errors,
+                      "tool_results": summarize_action_results(
+                          [last_actions[-1]] if last_actions else [],
+                          list(getattr(history.history[-1], "result", []) or []) if history.history else []),
+                      "tool_metrics": dict(tool_metrics),
                       "unresolved_problems": errors[-4:], "next_intended_action": final_result or subobjective,
                       "session": status.get("session", 1), "steps": len(history.history),
                       "state": "active", "result": final_result,
@@ -488,6 +634,7 @@ async def run_agent(objective: str) -> None:
                              "accomplishments": accomplishments, "latest_visible_state": await visible_snapshot(shared_browser),
                              "scripts_and_observed_results": visible_script_evidence(await visible_snapshot(shared_browser)), "errors": errors[-8:],
                              "unresolved_problems": errors[-4:], "next_intended_action": subobjective,
+                             "tool_metrics": dict(tool_metrics),
                              "session": status.get("session", 1), "steps": status["steps"], "state": "active"})
         except Exception:
             log.exception("Could not persist failure checkpoint")

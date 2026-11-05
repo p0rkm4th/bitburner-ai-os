@@ -2,7 +2,7 @@
 import unittest
 from types import SimpleNamespace
 
-from app.game_tools import _visible_content_matches, register_game_tools
+from app.game_tools import _visible_content_matches, find_visible_tab_node, register_game_tools, visible_progress
 
 
 class FakeElement:
@@ -11,7 +11,9 @@ class FakeElement:
         self.kind = kind
 
     async def get_bounding_box(self):
-        if self.kind == "modal" and not self.page.modal:
+        if self.kind in {"modal", "modal_close"} and not self.page.modal:
+            return None
+        if self.kind == "presentation" and not self.page.presentation_only:
             return None
         if self.kind in {"editor", "editor_input", "save"} and not self.page.editor:
             return None
@@ -20,7 +22,8 @@ class FakeElement:
         return SimpleNamespace(x=1, y=1, width=200, height=24)
 
     async def get_basic_info(self):
-        return SimpleNamespace(attributes={"role": "dialog"})
+        role = "presentation" if self.kind in {"presentation", "mui_root"} else "dialog"
+        return SimpleNamespace(attributes={"role": role})
 
     async def focus(self):
         self.page.focused = self.kind
@@ -39,8 +42,17 @@ class FakeElement:
         return None
 
     async def click(self):
+        if self.kind == "modal_close":
+            self.page.close_clicks += 1
+            if self.page.modal_button_count == 1:
+                self.page.modal = False
+                self.page.mui_modal = False
+                self.page.presentation_only = False
+                self.page.visible = "Bitburner Terminal\nDialog dismissed"
         if self.kind == "save":
             self.page.saved_text = self.page.editor_text
+        if self.kind == "nav":
+            self.page.visible = f"{self.page.nav_label} page opened"
 
 
 class FakePage:
@@ -48,20 +60,52 @@ class FakePage:
         self.url = "https://bitburner-official.github.io/"
         self.editor = False
         self.modal = False
+        self.presentation_only = False
+        self.mui_modal = False
+        self.modal_button_count = 1
+        self.close_clicks = 0
         self.command = ""
         self.editor_text = ""
         self.saved_text = ""
         self.focused = None
+        self.terminal_visible = True
         self.run_output = None
         self.visible = "Bitburner Terminal"
         self.files = {"home.js": "export async function main(ns) {}"}
+        self.nav_label = "Create Program"
+        self.nav_nodes = []
 
     async def get_url(self):
         return self.url
 
+    async def get_element(self, backend_node_id):
+        return FakeElement(self, "nav")
+
     async def get_elements_by_css_selector(self, selector):
-        if selector in ('[role="dialog"]', '[aria-modal="true"]', '.MuiDialog-root', '.MuiModal-root'):
+        if selector == '[role="dialog"]' or selector == '.MuiDialog-root':
+            return [FakeElement(self, "modal")] if self.modal and not self.mui_modal else []
+        if selector == '.MuiModal-root':
+            if self.mui_modal:
+                return [FakeElement(self, "mui_root")]
             return [FakeElement(self, "modal")] if self.modal else []
+        if selector == '[aria-modal="true"]':
+            if self.modal and not self.mui_modal:
+                return [FakeElement(self, "modal")]
+            return [FakeElement(self, "presentation")] if self.presentation_only else []
+        if selector in ('[aria-modal="true"] button, [aria-modal="true"] [role="button"]',
+                        '[aria-modal="true"] button, [aria-modal="true"] [role="button"], .MuiModal-root button[class*="closeButton"]',
+                        '[aria-modal="true"] button', '[aria-modal="true"] [role="button"]',
+                        '[role="dialog"] button', '[role="dialog"] [role="button"]',
+                        '.MuiModal-root button[class*="closeButton"]'):
+            if self.mui_modal and selector in ('[aria-modal="true"] button, [aria-modal="true"] [role="button"]',
+                                                '[aria-modal="true"] button, [aria-modal="true"] [role="button"], .MuiModal-root button[class*="closeButton"]',
+                                                '.MuiModal-root button[class*="closeButton"]'):
+                return [FakeElement(self, "modal_close")]
+            if self.modal:
+                return [FakeElement(self, "modal_close") for _ in range(self.modal_button_count)]
+            return []
+        if selector == '.MuiModal-root button[class*="closeButton"]' and self.mui_modal:
+            return [FakeElement(self, "modal_close")]
         if selector in (".monaco-editor", '[role="textbox"][aria-label*="editor" i]'):
             return [FakeElement(self, "editor")] if self.editor else []
         if selector in (".monaco-editor textarea.inputarea", ".monaco-editor textarea", 'textarea[aria-label*="editor" i]'):
@@ -69,12 +113,20 @@ class FakePage:
         if selector in ('button[aria-label*="Ctrl + S" i]', 'button[aria-label*="save" i]', 'button[title*="save" i]', 'button[data-testid*="save" i]'):
             return [FakeElement(self, "save")] if self.editor else []
         if selector in ("#terminal-input", 'input[aria-label*="terminal" i]', 'input[placeholder*="command" i]', 'textarea[aria-label*="terminal" i]'):
-            return [FakeElement(self, "terminal")] if not self.editor else []
+            return [FakeElement(self, "terminal")] if self.terminal_visible and not self.editor else []
         return []
 
     async def press(self, key):
         if key.casefold() in ("control+s", "ctrl+s") and self.editor:
             self.saved_text = self.editor_text
+            return
+        if key.casefold() == "escape" and self.modal:
+            self.modal = False
+            self.visible = "Bitburner Terminal\nDialog dismissed"
+            return
+        if key.casefold() == "alt+t":
+            self.terminal_visible = True
+            self.visible = "Bitburner Terminal\nterminal-input"
             return
         if key != "Enter" or self.focused != "terminal":
             return
@@ -91,6 +143,8 @@ class FakePage:
                 self.visible = f"ERROR: no script named {filename}"
         elif command.startswith("run "):
             self.visible = self.run_output or f"Bitburner Terminal\n{command}\nRunning script home.js with PID 4; $1.25/s"
+        elif command.startswith("scan-analyze ") and command != "scan-analyze 2":
+            self.visible = f"Bitburner Terminal\n{command}\nIncorrect usage of scan-analyze command. depth argument must be positive numeric"
         else:
             self.visible = f"Bitburner Terminal\n{command}\nCommand accepted"
 
@@ -99,6 +153,8 @@ class FakeSnapshot:
     def __init__(self, text):
         self.dom_state = self
         self.text = text
+        self.selector_map = {i + 1: node for i, node in enumerate(getattr(text, "nav_nodes", []))}
+        self.text = text.visible if hasattr(text, "visible") else text
 
     def llm_representation(self):
         return self.text
@@ -112,7 +168,18 @@ class FakeBrowserSession:
         return self.page
 
     async def get_browser_state_summary(self, include_screenshot=False):
-        return FakeSnapshot(self.page.visible)
+        return FakeSnapshot(self.page)
+
+
+class FakeNavNode:
+    def __init__(self, label, backend_node_id=1, visible=True, role="button"):
+        self.label = label
+        self.backend_node_id = backend_node_id
+        self.is_visible = visible
+        self.attributes = {"role": role}
+
+    def get_all_children_text(self):
+        return self.label
 
 
 class FakeTools:
@@ -134,6 +201,42 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         result = await self.actions["game_terminal"]("ls", self.browser)
         self.assertIn("home.js", result)
 
+    async def test_open_tab_reacquires_visible_label_and_verifies_transition(self):
+        self.page.nav_nodes = [FakeNavNode("Create Program")]
+        result = await self.actions["game_open_tab"]("Create Program", self.browser)
+        self.assertIn("Opened visible game tab 'Create Program'", result)
+        self.assertEqual(self.page.visible, "Create Program page opened")
+
+    async def test_open_tab_rejects_unknown_or_ambiguous_navigation_targets(self):
+        unknown = await self.actions["game_open_tab"]("Arbitrary URL", self.browser)
+        self.assertIn("allowlisted", unknown)
+        self.page.nav_nodes = [FakeNavNode("Stats", 1), FakeNavNode("Stats", 2)]
+        ambiguous = await self.actions["game_open_tab"]("Stats", self.browser)
+        self.assertIn("exactly one fresh visible navigation button", ambiguous)
+
+    async def test_tab_label_matching_ignores_hidden_and_non_button_nodes(self):
+        nodes = [FakeNavNode("Create Program", 1, visible=False), FakeNavNode("Create Program", 2, role="link"),
+                 FakeNavNode("Stats", 3)]
+        state = SimpleNamespace(selector_map={i: node for i, node in enumerate(nodes)})
+        self.assertEqual(find_visible_tab_node(state, "Stats").backend_node_id, 3)
+        self.assertIsNone(find_visible_tab_node(state, "Create Program"))
+
+    async def test_terminal_reopens_by_shortcut_and_refreshes_the_visible_input(self):
+        self.page.terminal_visible = False
+        result = await self.actions["game_terminal"]("ls", self.browser)
+        self.assertIn("home.js", result)
+        self.assertTrue(self.page.terminal_visible)
+        self.assertEqual(self.page.command, "ls")
+
+    async def test_terminal_preserves_and_marks_visible_ram_error(self):
+        self.page.run_output = (
+            "Bitburner Terminal\n[home /]> run home.js\n"
+            "Cannot run home.js (t=1) on home. This script requires 81.60GB of RAM."
+        )
+        result = await self.actions["game_terminal"]("run home.js", self.browser)
+        self.assertTrue(result.startswith("VISIBLE GAME ERROR (verbatim):"))
+        self.assertIn("requires 81.60GB of RAM", result)
+
     async def test_visible_editor_verification_accepts_tokenized_monaco_text(self):
         source = "export async function main(ns) {\n  await ns.sleep(10);\n}"
         tokenized = "[10] export\n[11] async\n[12] function\n[13] main\n[14] (ns)\n[15] {\n[16] await\n[17] ns.sleep(10);\n[18] }"
@@ -145,6 +248,42 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         result = await self.actions["game_terminal"]("ls", self.browser)
         self.assertIn("visible dialog", result)
         self.assertIn("dismiss it with its visible UI control", result)
+
+    async def test_presentation_shell_is_not_mistaken_for_an_open_dialog(self):
+        self.page.presentation_only = True
+        state = await self.actions["game_observe"](self.browser)
+        self.assertIn("Visible dialog: none", state)
+        result = await self.actions["game_terminal"]("ls", self.browser)
+        self.assertIn("home.js", result)
+
+    async def test_dialog_dismissal_uses_escape_once_and_verifies_transition(self):
+        self.page.modal = True
+        result = await self.actions["game_dismiss_dialog"](self.browser)
+        self.assertIn("dismissed and verified absent", result)
+        self.assertEqual(self.page.close_clicks, 1)
+        self.assertFalse(self.page.modal)
+
+    async def test_bitburner_mui_presentation_dialog_uses_its_unique_close_button(self):
+        self.page.modal = True
+        self.page.mui_modal = True
+        self.page.presentation_only = True
+        self.page.visible = "Offline for 1 hour. Your scripts generated $0.000"
+        result = await self.actions["game_dismiss_dialog"](self.browser)
+        self.assertIn("dismissed and verified absent", result)
+        self.assertEqual(self.page.close_clicks, 1)
+        self.assertFalse(self.page.modal)
+
+    async def test_dialog_still_visible_is_reported_without_repeat(self):
+        self.page.modal = True
+        self.page.modal_button_count = 2
+        original_press = self.page.press
+        async def ignore_escape(key):
+            if key != "Escape":
+                await original_press(key)
+        self.page.press = ignore_escape
+        result = await self.actions["game_dismiss_dialog"](self.browser)
+        self.assertIn("remains after one close attempt", result)
+        self.assertTrue(self.page.modal)
 
     async def test_existing_editor_edit_save_and_run_cycle(self):
         opened = await self.actions["game_open_editor"]("home.js", self.browser)
@@ -173,6 +312,25 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         result = await self.actions["game_run_script"]("home.js", self.browser, [])
         self.assertIn("RUNTIME ERROR", result)
         self.assertIn("hacknumthreads is not a function", result)
+
+    async def test_terminal_rejects_chaining_downloads_and_deletion(self):
+        for command in ("ls; run home.js", "wget https://example.invalid/x.js", "rm home.js"):
+            result = await self.actions["game_terminal"](command, self.browser)
+            self.assertIn("no chaining, downloads, or deletion", result)
+
+    async def test_terminal_visible_usage_error_is_preserved_for_diagnosis(self):
+        result = await self.actions["game_terminal"]("scan-analyze n00dles", self.browser)
+        self.assertIn("Incorrect usage of scan-analyze", result)
+
+    async def test_progress_is_parsed_from_visible_text_only(self):
+        text = "Money: $1.262k\nHack: 1\nScript income: $2.50/s"
+        result = visible_progress(text, "$1.262k", 1)
+        self.assertIn("Money: $1.262k", result)
+        self.assertIn("Hacking level: 1", result)
+        self.assertIn("Visible script income: $2.50/s", result)
+        self.assertIn("Hacking-level change from baseline: +0", result)
+        missing = visible_progress("Terminal is open")
+        self.assertIn("unavailable on the current visible screen", missing)
 
 
 if __name__ == "__main__":

@@ -110,22 +110,31 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("result", summary)
         self.assertLessEqual(len(summary["latest_visible_state"]), 1400)
 
-    async def test_keyboard_action_explains_terminal_submission(self):
-        tools = server.create_game_tools()
-        action = tools.registry.registry.actions["send_keys"]
-        self.assertIn('keys="Enter"', action.description)
-        self.assertIn("clicking the input does not submit", action.description)
-        for blocked in ("navigate", "go_back", "evaluate", "run_bash", "run_python", "write_file"):
-            self.assertNotIn(blocked, tools.registry.registry.actions)
-        for game_action in ("game_observe", "game_terminal", "game_open_editor",
-                            "game_edit_script", "game_run_script"):
-            self.assertIn(game_action, tools.registry.registry.actions)
+    async def test_gameplay_registry_removes_stale_index_actions(self):
+        with patch.object(server, "remote_api_from_env", return_value=object()):
+            tools = server.create_game_tools()
+        actions = tools.registry.registry.actions
+        for blocked in ("navigate", "go_back", "evaluate", "run_bash", "run_python", "write_file",
+                        "click", "input", "send_keys", "select_dropdown", "find_elements", "scroll"):
+            self.assertNotIn(blocked, actions)
+        for game_action in ("game_observe", "game_progress", "game_dismiss_dialog", "game_open_tab", "game_terminal",
+                            "game_run_script", "game_help", "game_troubleshoot", "game_read_script",
+                            "game_deploy_script", "game_netscript_reference"):
+            self.assertIn(game_action, actions)
+        self.assertNotIn("game_open_editor", actions)
+        self.assertNotIn("game_edit_script", actions)
         expected = {
             "game_observe": set(),
+            "game_progress": {"baseline_money", "baseline_hacking_level"},
+            "game_dismiss_dialog": set(),
+            "game_open_tab": {"tab"},
             "game_terminal": {"command"},
-            "game_open_editor": {"filename"},
-            "game_edit_script": {"filename", "content"},
             "game_run_script": {"filename", "args"},
+            "game_help": {"topic"},
+            "game_troubleshoot": {"error"},
+            "game_read_script": {"filename"},
+            "game_deploy_script": {"filename", "content"},
+            "game_netscript_reference": {"symbol"},
         }
         for name, fields in expected.items():
             schema = tools.registry.registry.actions[name].param_model.model_json_schema()
@@ -138,8 +147,9 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         actions = tools.registry.registry.actions
         self.assertNotIn("game_open_editor", actions)
         self.assertNotIn("game_edit_script", actions)
+        self.assertNotIn("input", actions)
         for name in ("game_read_script", "game_deploy_script", "game_netscript_reference",
-                     "game_run_script", "game_terminal", "game_observe"):
+                     "game_run_script", "game_terminal", "game_open_tab", "game_observe"):
             self.assertIn(name, actions)
 
     async def test_remote_api_checkpoint_discards_stale_editor_instructions(self):
@@ -160,6 +170,29 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn(stale.casefold(), rendered.casefold())
         self.assertIn("game_deploy_script", summary["next_intended_action"])
         self.assertIn("Remote API Online", summary["accomplishments"])
+
+    async def test_identical_failed_action_is_bounded_and_new_action_resets(self):
+        signature = "same-action-and-visible-error"
+        self.assertEqual(server.failed_action_repeat_count("", 0, signature), 1)
+        self.assertEqual(server.failed_action_repeat_count(signature, 1, signature), 2)
+        self.assertEqual(server.failed_action_repeat_count(signature, 2, "different-action"), 1)
+        self.assertEqual(server.failed_action_repeat_count(signature, 2, ""), 0)
+
+    async def test_terminal_ram_error_and_duplicate_deploy_are_counted_as_game_errors(self):
+        from types import SimpleNamespace
+        terminal = server.summarize_action_results(
+            [{"game_terminal": {"command": "run home.js"}}],
+            [SimpleNamespace(error=None, extracted_content=(
+                "VISIBLE GAME ERROR (verbatim):\nCannot run home.js on home. "
+                "This script requires 81.60GB of RAM."))],
+        )
+        duplicate = server.summarize_action_results(
+            [{"game_deploy_script": {"filename": "home.js"}}],
+            [SimpleNamespace(error=None, extracted_content="NO_PROGRESS: home.js already exists")],
+        )
+        self.assertEqual(terminal[0]["state"], "game_error")
+        self.assertIn("81.60GB of RAM", terminal[0]["message"])
+        self.assertEqual(duplicate[0]["state"], "game_error")
 
     async def test_slow_local_inference_timeouts_remain_bounded(self):
         with patch.dict(os.environ, {"LLM_TIMEOUT": "170", "STEP_TIMEOUT": "190"}):

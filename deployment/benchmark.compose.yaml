@@ -1,0 +1,78 @@
+services:
+  bitburner-agent:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    image: bitburner-agent:benchmark
+    init: true
+    restart: "no"
+    user: "${BENCH_UID:-10001}:${BENCH_GID:-10001}"
+    env_file: ../config/.env
+    environment:
+      STATE_DIR: /state
+      HOME: /state/home
+      GAME_URL: https://bitburner-official.github.io/
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:?Set the private local Ollama endpoint}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:?Set the exact installed Ollama tag}
+      OLLAMA_METRICS_PATH: /state/logs/ollama-metrics.jsonl
+      OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-16384}
+      OLLAMA_TEMPERATURE: ${OLLAMA_TEMPERATURE:-0.2}
+      OLLAMA_SEED: ${OLLAMA_SEED:-7}
+      INFERENCE_NODE: ${INFERENCE_NODE:?Set a private node label}
+      MAX_STEPS: ${MAX_STEPS:-24}
+      MAX_HISTORY_ITEMS: 6
+      CHECKPOINT_PROMPT_LIMIT: 1400
+      LLM_TIMEOUT: 180
+      STEP_TIMEOUT: 210
+      MAX_FAILURES: 1
+      IDLE_TIMEOUT: 900
+      MAX_SESSION_SECONDS: ${MAX_SESSION_SECONDS:-1800}
+      MAX_SESSIONS: 1
+      MAX_RETRIES: 0
+      NO_PROGRESS_SESSIONS: 1
+      AUTO_RESUME: 0
+      VNC_INTERACTIVE: ${VNC_INTERACTIVE:-0}
+      BITBURNER_REMOTE_API_URL: http://127.0.0.1:3001
+      ALLOWED_DOMAINS: bitburner-official.github.io
+    ports:
+      - "127.0.0.1:8180:8080"
+      - "127.0.0.1:6180:6080"
+    volumes:
+      - ${BENCH_STATE_DIR:?Set a disposable benchmark state directory}:/state
+      - ./objective.md:/config/objective.md:ro
+    cpus: 2.0
+    mem_limit: 3g
+    shm_size: 1gb
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  bitburner-mcp:
+    build:
+      context: ..
+      dockerfile: integrations/bitburner-mcp-server/Dockerfile
+    image: bitburner-mcp-server:benchmark
+    init: true
+    restart: "no"
+    network_mode: service:bitburner-agent
+    depends_on:
+      bitburner-agent:
+        condition: service_started
+    environment:
+      BITBURNER_REMOTE_API_TOKEN: ${BITBURNER_REMOTE_API_TOKEN:?Set the private bridge token}
+      BB_API_HOST: 127.0.0.1
+      BB_API_PORT: 3001
+      BB_WS_HOST: 127.0.0.1
+      BB_WS_PORT: 12525
+      BB_DASHBOARD_HOST: 127.0.0.1
+      BB_DASHBOARD_PORT: 3002
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    cpus: 0.5
+    mem_limit: 384m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL

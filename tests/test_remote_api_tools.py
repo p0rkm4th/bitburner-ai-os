@@ -58,8 +58,17 @@ class RemoteApiToolTests(unittest.IsolatedAsyncioTestCase):
         result = await self.actions["game_deploy_script"]("student.js", code)
         self.assertIn("read-back verified student.js", result)
         self.assertIn("1.6 GB", result)
-        self.assertEqual([call[0] for call in self.api.calls], ["pushFile", "getFile", "calculateRam"])
+        self.assertEqual([call[0] for call in self.api.calls], ["getFile", "pushFile", "getFile", "calculateRam"])
         self.assertTrue(all(call[1].get("server", "home") == "home" for call in self.api.calls))
+
+    async def test_duplicate_deployment_is_reported_as_no_progress_without_rewriting(self):
+        code = "export async function main(ns) { await ns.sleep(1); }"
+        self.api.files["student.js"] = code
+        result = await self.actions["game_deploy_script"]("student.js", code)
+        self.assertTrue(result.startswith("NO_PROGRESS:"))
+        self.assertIn("calculated RAM: 1.6 GB", result)
+        self.assertIn("Run it through the visible Terminal", result)
+        self.assertEqual([call[0] for call in self.api.calls], ["getFile", "calculateRam"])
 
     async def test_docs_returns_only_relevant_official_definition_excerpt(self):
         result = await self.actions["game_netscript_reference"]("ns.grow")

@@ -1,0 +1,95 @@
+# Bitburner core guide for the agent
+
+Use this short guide as orientation. The running game and its live type
+definitions are authoritative when a detail differs. Do not assume old wiki
+examples or remembered APIs match the current game version.
+
+## Observe before acting
+
+- Read the visible game version, money, hacking level, current screen, dialogs,
+  and Remote API status with `game_observe`.
+- Make one concrete, small objective. After an action, inspect its returned
+  result and the changed UI before choosing the next action.
+- A successful tool call, file upload, or RAM calculation does not prove the
+  in-game action worked. Confirm it in the visible game.
+
+## Servers and hacking
+
+- `home` is the player's computer. It stores scripts and provides RAM; it is
+  not a money target to hack.
+- Use the game's Terminal `scan` or `scan-analyze` output to discover reachable
+  servers and see root-access, required hacking level, required open ports, and
+  available RAM. Server names and requirements depend on the save.
+- `scan` only lists directly connected hostnames and root status. Before choosing
+  a hacking target or assuming a prerequisite, use the detailed scan view with
+  a numeric depth and read its visible hacking-level, port, root, and RAM fields.
+  A hostname-only scan does not establish that a server is hackable or ready to
+  host scripts.
+- `scan` takes no arguments. `scan-analyze` takes a positive numeric depth, for
+  example `scan-analyze 2`; it does not take a hostname. Read the full visible
+  error before correcting a command.
+- Do not invent Terminal commands such as `serverinfo <host>`. Use a command
+  shown by current Terminal help/documentation or inspect a relevant page via
+  `game_open_tab`. If a command is rejected, stop and use its exact visible
+  error to select another supported interface.
+- Root/admin access and hacking skill are separate requirements. Port-opening
+  programs followed by `NUKE.exe` grant root when the server's port requirement
+  is met. A hack attempt also needs sufficient hacking skill. Never assume a
+  server is rootable or hackable: inspect its current displayed requirements.
+- Root access is required to run scripts on a server. The script must also fit
+  that server's available RAM.
+- A server with no root access cannot be hacked or host the player's script.
+  Read the displayed requirements and identify which prerequisite is missing
+  before acting. Port-opening `.exe` files are in-game programs, not Netscript
+  functions; consult visible Terminal help and official documentation for
+  their current use. Do not search for them with the Netscript API lookup.
+
+## Money, security, and progression
+
+- `hack` attempts to steal some of a target's available money and increases its
+  security. Success chance, amount, and time depend on player skill and the
+  target's state.
+- `grow` increases target money and also raises security. `weaken` reduces
+  security toward its minimum. These operations take time and must target a
+  valid server with the required access.
+- Use the current API reference for signatures, return values, and options.
+  Observe the target and verify visible script output, active processes, money,
+  and hacking level after execution.
+- Bitburner also has non-hacking progression systems, including work, crimes,
+  Hacknet, factions, augmentations, and BitNodes. Learn them through the game
+  and official documentation; choose independently which objective to pursue.
+
+## Netscript basics
+
+- Netscript is JavaScript with game APIs. A runnable script exports an async
+  `main(ns)` entry point. Use `await` for time-based Netscript operations and
+  waits; a tight infinite loop can stall the game.
+- Each API call has a RAM cost. Added APIs can raise script RAM requirements;
+  the deployment tool asks the live game to calculate RAM before execution.
+  Resolve unknown-function and RAM errors before repeating a run.
+- Query `game_netscript_reference` for the exact signature and surrounding
+  documentation from the connected game's definitions. Do not use removed
+  helpers such as `nFormat`; check the live definitions for current alternatives.
+- A Netscript `main(ns)` is different from a terminal command. Use
+  `game_terminal` for commands and `game_run_script` to start a saved script.
+
+## File and execution conventions
+
+- The Remote API tools read and write simple `.js` filenames on `home` only.
+  Do not add path prefixes to their filename arguments.
+- In the visible Terminal, use `ls` to inspect files, `mem <file.js>` to inspect
+  RAM, `run <file.js>` to start a script, `ps` to inspect running processes, and
+  `tail <file.js>` to inspect script output. Confirm exact syntax with the
+  in-game `help` command or official docs if a command behaves differently.
+- Use `game_open_tab` for an allowlisted visible game page and `game_terminal`
+  for one supported Terminal command. Terminal `help` documents commands and
+  programs, not Netscript APIs. A rejected help topic is evidence to use an
+  official Documentation page, not to repeat variants of the same query.
+- Use the visible Terminal to run scripts. Then inspect the run confirmation,
+  `tail` output, Active Scripts, and updated game stats. Stop a failed process
+  before replacing it if it is still running.
+
+## Source notes
+
+Function details are version-specific; retrieve them from the connected game's
+live definitions with `game_netscript_reference`.

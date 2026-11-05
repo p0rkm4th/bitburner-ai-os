@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
  && rm -rf /var/lib/apt/lists/* \
  && useradd --create-home --uid 10001 --shell /usr/sbin/nologin agent
 COPY app/ /app/
+COPY docs/agent-game-guide.md docs/agent-tool-guide.md docs/agent-troubleshooting.md /app/docs/
 COPY deployment/entrypoint.sh /app/entrypoint.sh
 RUN mkdir -p /state/profile /state/checkpoints /state/logs /state/screenshots /state/saves \
  && install -d -o root -g root -m 1777 /tmp/.X11-unix \

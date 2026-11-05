@@ -21,15 +21,16 @@ Use the dashboard controls to start, pause, resume, or emergency-stop bounded se
 
 ## Game-specific Browser Use actions
 
-The agent has five additional actions on the same Browser Use controller:
+The agent has game-specific actions on the same Browser Use controller:
 
-- `game_observe` returns a compact rendered UI observation and reports visible dialogs.
-- `game_terminal(command)` enters one single-line command in the visible terminal and presses Enter.
-- `game_open_editor(filename)` confirms an existing `.js` filename in visible `ls` output, then opens it with the game's `nano` command.
-- `game_edit_script(filename, content)` enters model-authored text in the visible editor, checks the rendered contents, and saves using an accessible Save control.
+- `game_observe` and `game_progress` read only the rendered game interface.
+- `game_dismiss_dialog` tries one semantic close or Escape action and verifies the dialog disappears.
+- `game_terminal(command)` uses the documented Alt+T shortcut when needed, reacquires the visible input, submits one safe single-line command, and returns the rendered result.
 - `game_run_script(filename, args)` runs through the in-game terminal and returns its visible result.
+- `game_help(topic)` and `game_troubleshoot(error)` return allowlisted local documentation; `game_netscript_reference(symbol)` reads the connected game's version-specific definitions.
+- `game_read_script(filename)` and `game_deploy_script(filename, content)` use the restricted Remote API when configured. Deployment verifies read-back and game-calculated RAM.
 
-If a modal dialog covers the game, the action stops and identifies that it must be dismissed in the visible UI first. If a selector or UI transition cannot be confirmed, the action returns an error; inspect with `game_observe` instead of retrying blindly. The helpers automate repetitive input only. The model must inspect, choose the strategy, write and debug Netscript, and confirm game progress itself.
+Generic index-based clicks, arbitrary text entry, browser navigation, and evaluation are removed from the model's tool registry. If a dialog remains after one dismissal attempt or a UI transition cannot be confirmed, inspect with `game_observe` and report the blocker instead of retrying blindly. The model still chooses strategy, authors and debugs Netscript, and confirms progress itself.
 
 ## Restricted Remote API bridge
 

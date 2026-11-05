@@ -12,8 +12,12 @@ from browser_use import BrowserSession, Tools
 
 
 GAME_HOST = "bitburner-official.github.io"
-MAX_OBSERVATION = 5200
+MAX_OBSERVATION = 2800
 SCRIPT_NAME = re.compile(r"^[A-Za-z0-9_.-]+\.js$")
+GAME_TABS = {
+    "terminal", "script editor", "active scripts", "create program", "stats",
+    "hacknet", "city", "travel", "milestones", "documentation",
+}
 
 
 async def _page(browser_session: BrowserSession):
@@ -31,7 +35,12 @@ async def _visible(browser_session: BrowserSession) -> str:
     return snapshot.dom_state.llm_representation()
 
 
-async def _modal(page) -> Optional[str]:
+def _known_offline_dialog(visible: str) -> bool:
+    text = visible.casefold()
+    return "offline for" in text and "your scripts generated" in text
+
+
+async def _modal(page, visible: str = "") -> Optional[str]:
     """Detect visible modal surfaces and stop before clicking covered controls."""
     selectors = ('[role="dialog"]', '[aria-modal="true"]', '.MuiDialog-root', '.MuiModal-root')
     for selector in selectors:
@@ -40,13 +49,34 @@ async def _modal(page) -> Optional[str]:
             if box and _box_dimension(box, "width") > 0 and _box_dimension(box, "height") > 0:
                 info = await element.get_basic_info()
                 attrs = getattr(info, "attributes", None) or (info.get("attributes", {}) if isinstance(info, dict) else {})
-                label = attrs.get("aria-label") or attrs.get("role") or selector
+                role = str(attrs.get("role", "")).casefold()
+                if attrs.get("aria-hidden") == "true":
+                    continue
+                # The game can retain an empty aria-modal presentation shell
+                # after closing a popup. Count it only while it still contains
+                # a visible interactive control.
+                if role == "presentation":
+                    if selector == ".MuiModal-root" and not _known_offline_dialog(visible):
+                        continue
+                    controls = await page.get_elements_by_css_selector(
+                        '[aria-modal="true"] button, [aria-modal="true"] [role="button"], '
+                        '.MuiModal-root button[class*="closeButton"]'
+                    )
+                    visible_controls = []
+                    for control in controls:
+                        control_box = await control.get_bounding_box()
+                        if control_box and _box_dimension(control_box, "width") > 0 and _box_dimension(control_box, "height") > 0:
+                            visible_controls.append(control)
+                    if not visible_controls:
+                        continue
+                label = attrs.get("aria-label") or role or selector
                 return str(label)[:100]
     return None
 
 
-async def _need_clear_surface(page) -> None:
-    modal = await _modal(page)
+async def _need_clear_surface(page, browser_session: BrowserSession) -> None:
+    visible = await _visible(browser_session)
+    modal = await _modal(page, visible)
     if modal:
         raise RuntimeError(
             f"A visible dialog ({modal}) is covering the game. Inspect and dismiss it with its visible UI control, then retry."
@@ -78,12 +108,57 @@ def _visible_content_matches(content: str, visible: str) -> bool:
     return bool(expected) and expected in rendered
 
 
+def find_visible_tab_node(dom_state, tab: str):
+    """Find one freshly observed visible navigation button by its rendered label."""
+    matches = []
+    for node in getattr(dom_state, "selector_map", {}).values():
+        attrs = getattr(node, "attributes", {}) or {}
+        if str(attrs.get("role", "")).casefold() != "button" or not getattr(node, "is_visible", False):
+            continue
+        label = " ".join(str(node.get_all_children_text()).split()).casefold()
+        if label == tab.casefold():
+            matches.append(node)
+    return matches[0] if len(matches) == 1 else None
+
+
+def visible_progress(visible: str, baseline_money: Optional[str] = None,
+                     baseline_hacking_level: Optional[int] = None) -> str:
+    """Extract only game stats rendered in the visible DOM; never inspect game objects."""
+    money = re.search(r"\bMoney\b[^$\n]{0,40}\$\s*([\d,.]+\s*[kmbt]?)", visible, re.IGNORECASE)
+    hacking = re.search(r"\b(?:Hack|Hacking(?:\s+Level)?)\b\s*:?\s*(\d+)\b", visible, re.IGNORECASE)
+    income = re.search(r"\b(?:script\s+)?(?:income|profit|production)\b[^$\n]{0,40}\$\s*([\d,.]+\s*[kmbt]?)\s*(?:/\s*s|per\s+second)",
+                       visible, re.IGNORECASE)
+    lines = ["Visible gameplay stats (DOM text only):",
+             f"Money: ${money.group(1).strip()}" if money else "Money: unavailable on the current visible screen",
+             f"Hacking level: {hacking.group(1)}" if hacking else "Hacking level: unavailable on the current visible screen",
+             f"Visible script income: ${income.group(1).strip()}/s" if income else "Visible script income: unavailable on the current screen"]
+    if money and baseline_money is not None:
+        lines.append(f"Money comparison: current ${money.group(1).strip()}, baseline ${baseline_money}")
+    if hacking and baseline_hacking_level is not None:
+        delta = int(hacking.group(1)) - baseline_hacking_level
+        lines.append(f"Hacking-level change from baseline: {delta:+d}")
+    lines.append("Use the returned rendered UI text to inspect Active Scripts and script output; no hidden game state was read.")
+    return "\n".join(lines)
+
+
 TERMINAL_INPUTS = (
     "#terminal-input",
     'input[aria-label*="terminal" i]',
     'input[placeholder*="command" i]',
     'textarea[aria-label*="terminal" i]',
 )
+SEMANTIC_CLOSE_CONTROLS = (
+    '.MuiModal-root button[class*="closeButton"]',
+    '[role="dialog"] button[aria-label*="close" i]',
+    '[aria-modal="true"] button[aria-label*="close" i]',
+    '[role="dialog"] [role="button"][aria-label*="dismiss" i]',
+    '[aria-modal="true"] [role="button"][aria-label*="dismiss" i]',
+    '[role="dialog"] button[title*="close" i]',
+    '[aria-modal="true"] button[title*="close" i]',
+)
+MODAL_BUTTONS = ('[aria-modal="true"] button', '[aria-modal="true"] [role="button"]',
+                 '[role="dialog"] button', '[role="dialog"] [role="button"]',
+                 '.MuiModal-root button[class*="closeButton"]')
 EDITOR_INPUTS = (
     ".monaco-editor textarea.inputarea",
     ".monaco-editor textarea",
@@ -106,20 +181,115 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True) -> dict[st
         try:
             page = await _page(browser_session)
             visible = await _visible(browser_session)
-            modal = await _modal(page)
+            modal = await _modal(page, visible)
             prefix = f"Visible dialog: {modal}\n" if modal else "Visible dialog: none\n"
             return prefix + visible[-MAX_OBSERVATION:]
         except Exception as exc:
             return f"ERROR: Could not observe Bitburner UI: {type(exc).__name__}: {exc}"
 
-    async def send_terminal(command: str, browser_session: BrowserSession) -> str:
-        if not command.strip() or any(ch in command for ch in "\r\n\x00"):
-            raise ValueError("Enter one non-empty terminal command on a single line")
+    @tools.action(description=(
+        "Report money, hacking level, and visible script income from the rendered game UI only. "
+        "Optionally compare money text and hacking level with a previous observation; no hidden game state is read."
+    ))
+    async def game_progress(browser_session: BrowserSession, baseline_money: Optional[str] = None,
+                            baseline_hacking_level: Optional[int] = None) -> str:
+        try:
+            await _page(browser_session)
+            visible = await _visible(browser_session)
+            return visible_progress(visible, baseline_money, baseline_hacking_level) + "\n\n" + visible[-1800:]
+        except Exception as exc:
+            return f"ERROR: Could not verify visible gameplay progress: {type(exc).__name__}: {exc}"
+
+    @tools.action(description=(
+        "Open one allowlisted Bitburner navigation tab by matching its freshly observed visible button label. "
+        "Allowed: Terminal, Script Editor, Active Scripts, Create Program, Stats, Hacknet, City, Travel, "
+        "Milestones, Documentation. Does not use stored element indexes."
+    ))
+    async def game_open_tab(tab: str, browser_session: BrowserSession) -> str:
+        try:
+            label = " ".join(tab.split())
+            if label.casefold() not in GAME_TABS:
+                raise ValueError("Unknown game tab. Use one of the allowlisted visible tab names in the tool description.")
+            page = await _page(browser_session)
+            await _need_clear_surface(page, browser_session)
+            before = await browser_session.get_browser_state_summary(include_screenshot=False)
+            node = find_visible_tab_node(before.dom_state, label)
+            if node is None:
+                raise RuntimeError(f"Could not identify exactly one fresh visible navigation button labelled {label!r}")
+            element = await page.get_element(node.backend_node_id)
+            await element.click()
+            await asyncio.sleep(0.15)
+            after = await _visible(browser_session)
+            if after == before.dom_state.llm_representation():
+                raise RuntimeError(f"Clicked {label!r}, but the rendered game UI did not change")
+            return f"Opened visible game tab {label!r}.\n{after[-MAX_OBSERVATION:]}"
+        except Exception as exc:
+            return f"ERROR: Could not open Bitburner tab: {type(exc).__name__}: {exc}"
+
+    @tools.action(description=(
+        "Dismiss one visible in-game dialog using its accessible close control, a unique visible button inside the modal, or Escape, then verify it is gone. "
+        "If it remains, report the blocker; do not retry blindly."
+    ))
+    async def game_dismiss_dialog(browser_session: BrowserSession) -> str:
+        try:
+            page = await _page(browser_session)
+            before_state = await _visible(browser_session)
+            modal = await _modal(page, before_state)
+            if not modal:
+                return "No visible dialog was detected; no input was sent."
+            close = await _visible_element(page, SEMANTIC_CLOSE_CONTROLS)
+            if close is not None:
+                await close.click()
+            else:
+                modal_buttons = []
+                for selector in MODAL_BUTTONS:
+                    found = []
+                    for button in await page.get_elements_by_css_selector(selector):
+                        box = await button.get_bounding_box()
+                        if box and _box_dimension(box, "width") > 0 and _box_dimension(box, "height") > 0:
+                            found.append(button)
+                    if found:
+                        modal_buttons = found
+                        break
+                if len(modal_buttons) == 1:
+                    # The game's offline summary uses an unlabeled X button.
+                    # A unique button inside the visible modal is a safe,
+                    # deterministic control; ambiguous dialogs use Escape.
+                    await modal_buttons[0].click()
+                else:
+                    await page.press("Escape")
+            await asyncio.sleep(0.15)
+            state = await _visible(browser_session)
+            remaining = await _modal(page, state)
+            if remaining:
+                return (f"ERROR: Dialog ({remaining}) remains after one close attempt. "
+                        "Inspect the visible UI and report the blocker; no further input was sent.\n" +
+                        state[-MAX_OBSERVATION:])
+            return "Dialog dismissed and verified absent.\n" + state[-MAX_OBSERVATION:]
+        except Exception as exc:
+            return f"ERROR: Could not dismiss visible dialog: {type(exc).__name__}: {exc}"
+
+    async def _ensure_terminal(page, browser_session: BrowserSession):
+        field = await _visible_element(page, TERMINAL_INPUTS)
+        if field is not None:
+            return page, field
+        # Alt+T is the documented in-game Terminal shortcut. Reacquire the page
+        # and input after navigation so no stale element handle is reused.
+        await page.press("Alt+t")
+        await asyncio.sleep(0.15)
         page = await _page(browser_session)
-        await _need_clear_surface(page)
         field = await _visible_element(page, TERMINAL_INPUTS)
         if field is None:
-            raise RuntimeError("Terminal input is not visible. Open the in-game Terminal using its visible navigation control, then retry.")
+            raise RuntimeError("Terminal input is still not visible after the documented Alt+T shortcut; inspect the game UI")
+        return page, field
+
+    async def send_terminal(command: str, browser_session: BrowserSession) -> str:
+        if (not command.strip() or len(command) > 500 or
+                any(ch in command for ch in "\r\n\x00;") or command.strip().startswith(("wget ", "scp ", "rm "))):
+            raise ValueError("Enter one permitted, non-empty game Terminal command on a single line (no chaining, downloads, or deletion)")
+        page = await _page(browser_session)
+        await _need_clear_surface(page, browser_session)
+        page, field = await _ensure_terminal(page, browser_session)
         before = await _visible(browser_session)
         await field.focus()
         await field.fill(command)
@@ -133,7 +303,17 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True) -> dict[st
     @tools.action(description="Focus the visible in-game Bitburner terminal, enter one command, press Enter, and return the rendered result.")
     async def game_terminal(command: str, browser_session: BrowserSession) -> str:
         try:
-            return await send_terminal(command, browser_session)
+            result = await send_terminal(command, browser_session)
+            # Preserve the game's exact rendered error while making it
+            # unambiguous to the model that this was a failed game action.
+            error_patterns = (
+                r"(?im)^\s*(?:Cannot run .*?requires .*? RAM|not enough RAM|insufficient RAM)",
+                r"(?im)^\s*(?:Incorrect usage|Command .+ not found|ERROR:|Runtime error:|Cannot .+)",
+                r"(?im)^\s*.*(?:does not have root access|cannot hack this server yet|requires root access).*$",
+            )
+            if any(re.search(pattern, result) for pattern in error_patterns):
+                return "VISIBLE GAME ERROR (verbatim):\n" + result
+            return result
         except Exception as exc:
             return f"ERROR: Terminal command was not verified: {type(exc).__name__}: {exc}"
 
@@ -163,7 +343,7 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True) -> dict[st
             if not content.strip() or len(content) > 30000:
                 raise ValueError("Script content must contain 1 to 30,000 characters")
             page = await _page(browser_session)
-            await _need_clear_surface(page)
+            await _need_clear_surface(page, browser_session)
             editor = await _visible_element(page, EDITOR_SURFACES)
             state = await _visible(browser_session)
             if editor is None or filename not in state:
@@ -204,8 +384,8 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True) -> dict[st
             if not SCRIPT_NAME.fullmatch(filename):
                 raise ValueError("Filename must be a simple in-game .js script name, such as home.js")
             args = args or []
-            if len(args) > 16 or any(any(ch in arg for ch in "\r\n\x00") for arg in args):
-                raise ValueError("Use at most 16 single-line script arguments")
+            if len(args) > 16 or any(len(arg) > 100 or not re.fullmatch(r"[A-Za-z0-9_.-]*", arg) for arg in args):
+                raise ValueError("Use at most 16 short script arguments containing letters, numbers, dots, underscores, or hyphens")
             command = "run " + shlex.quote(filename)
             if args:
                 command += " " + " ".join(shlex.quote(arg) for arg in args)
@@ -219,6 +399,9 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True) -> dict[st
 
     actions = {
         "game_observe": game_observe,
+        "game_progress": game_progress,
+        "game_dismiss_dialog": game_dismiss_dialog,
+        "game_open_tab": game_open_tab,
         "game_terminal": game_terminal,
         "game_open_editor": game_open_editor,
         "game_edit_script": game_edit_script,

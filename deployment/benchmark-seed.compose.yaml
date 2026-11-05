@@ -1,0 +1,49 @@
+services:
+  bitburner-agent:
+    image: bitburner-agent:benchmark
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    user: "${BENCH_UID:-10001}:${BENCH_GID:-10001}"
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["Xvfb :99 -screen 0 1440x900x24 -nolisten tcp & exec python /app/configure-benchmark-seed.py"]
+    environment:
+      DISPLAY: :99
+      HOME: /state/home
+      BROWSER_USE_CLOUD_SYNC: "false"
+      ANONYMIZED_TELEMETRY: "false"
+    volumes:
+      - ${BENCH_STATE_DIR:?Set a new private seed state directory}:/state
+      - ../scripts/configure-benchmark-seed.py:/app/configure-benchmark-seed.py:ro
+    shm_size: 1gb
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  bitburner-mcp:
+    image: bitburner-mcp-server:benchmark
+    build:
+      context: ..
+      dockerfile: integrations/bitburner-mcp-server/Dockerfile
+    restart: "no"
+    network_mode: service:bitburner-agent
+    depends_on:
+      bitburner-agent:
+        condition: service_started
+    environment:
+      BITBURNER_REMOTE_API_TOKEN: ${BITBURNER_REMOTE_API_TOKEN:?Set the private bridge token}
+      BB_API_HOST: 127.0.0.1
+      BB_API_PORT: 3001
+      BB_WS_HOST: 127.0.0.1
+      BB_WS_PORT: 12525
+      BB_DASHBOARD_HOST: 127.0.0.1
+      BB_DASHBOARD_PORT: 3002
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL

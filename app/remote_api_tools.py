@@ -74,6 +74,13 @@ def register_remote_api_tools(tools: Tools, api: RemoteApi) -> dict[str, object]
             filename = _safe_filename(filename)
             if not content.strip() or len(content) > 30000:
                 raise ValueError("Script content must be 1 to 30,000 characters")
+            existing = await api.call("getFile", {"filename": filename, "server": "home"})
+            if existing == content:
+                ram = await api.call("calculateRam", {"filename": filename, "server": "home"})
+                return (f"NO_PROGRESS: {filename} already exists on home with these exact contents; "
+                        f"read-back verified, calculated RAM: {ram} GB, and no write was made. "
+                        "Do not redeploy identical contents. Run it through the visible Terminal or "
+                        "diagnose the actual execution error.")
             result = await api.call("pushFile", {
                 "filename": filename, "content": content, "server": "home"
             })
