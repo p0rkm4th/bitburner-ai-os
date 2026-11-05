@@ -245,11 +245,13 @@ repeatability result.
 The session used all 18 model/tool steps and finished in 19m34s. All 18
 inference requests returned without timeout: 189,988 prompt tokens, 24,761
 completion tokens, 1,154.8 seconds summed request duration (64.2s mean, 52.8s
-median), and 17.6s cold load. Ollama reported approximately 23.0 GB allocated
-to the model across four GPUs; sampled GPU utilization reached 100% on each
-card. CPU offload was not measured. The detailed run artifacts are retained
-locally and ignored by Git; no internal node names, network details, saves, or
-model responses are published.
+median), and 17.6s cold load. Aggregate Ollama evaluation throughput was 36.9
+output tokens/s and prompt processing throughput was 411 tokens/s. Ollama
+reported approximately 23.0 GB allocated to the model across four GPUs;
+sampled GPU utilization reached 100% on each card. CPU offload was not
+measured. The detailed run artifacts are retained locally and ignored by Git;
+no internal node names, network details, saves, or model responses are
+published.
 
 This run meets the narrow gate of independently authored, visibly executed
 Netscript with a positive visible money delta. It does not prove reliable
