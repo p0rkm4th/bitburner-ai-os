@@ -116,7 +116,7 @@ credentials, and game profiles in ignored local records.
 
 | Approach | Setup/non-inference | Gameplay trials | Verified progress | Errors / inference / resources | Decision |
 |---|---|---:|---|---|---|
-| Existing Browser Use + restricted Remote API | Isolated Remote API Online; harmless write/read/RAM round trip verified | Historical runs plus one new bounded Qwen run | Model-authored `hack.js` deployed and started; no balance or hacking change; $0.000/sec observed | 12 requests: 8 completions, 4 empty provider errors; 67.3k prompt / 6.4k completion tokens; 13m44s; about 23.3 GB VRAM resident; GPU utilization unavailable | Diagnose provider failures and script runtime behavior before another trial |
+| Existing Browser Use + restricted Remote API | Isolated Remote API Online; harmless write/read/RAM round trip verified; second isolated profile staged | Historical runs plus one bounded Qwen run; retry not started | Model-authored `hack.js` deployed and started; no balance or hacking change; $0.000/sec observed | Prior run: 12 requests, 8 completions, 4 read timeouts; 67.3k prompt / 6.4k completion tokens; 13m44s. Current Qwen model is resident, but active-request status is unavailable | Keep retry staged until the shared inference slot can be verified clear |
 | Agent Zero | Isolated current upstream container starts; 5 MCP tools discovered; no inference endpoint or game attached | 0 | None | ~902 MiB idle / 5 GiB limit, 0.17% CPU; focused pytest unavailable in image; tool surface not yet behaviorally equivalent | Setup passed; prepare same-capability browser MCP adapter before inference A/B |
 | Deterministic UI helpers + optional Laya/JEV | Offline trace inventory/replay completed; no model weights downloaded and no live test | 0 model-assisted | None | 265 Browser Use chunks reviewed; 78 indexed clicks across 11 sessions; 3 same-index repetitions, but no confirmed stale-index target in available snapshots; several traces had irrelevant “Add to Cart” objective | Retain deterministic helpers; Laya/JEV not justified by current traces |
 
@@ -198,11 +198,10 @@ credentials, and game profiles in ignored local records.
   confirms `OLLAMA_TIMEOUT=180`, `LLM_TIMEOUT=180`, `STEP_TIMEOUT=210`; all 93
   tests pass. This is a measured harness correction, not yet a gameplay
   success. No repeat generation was launched because the shared endpoint's
-  resident model had changed and its current use was unclear. The installed
-  `qwen3.6:35b` tag was still available but unloaded. The timeout fix is
-  published in `0b1db62` on `experiment/qwen-runtime-recovery`. Schedule the
-  next isolated trial when the shared inference slot is clear, changing only
-  this justified timeout variable.
+  current use could not be distinguished from simple model residency. The
+  timeout fix is published in `0b1db62` on `experiment/qwen-runtime-recovery`.
+  Schedule the next isolated trial when the shared inference slot is clear,
+  changing only this justified timeout variable.
 
 - **Next Qwen trial staged without inference:** a fresh copy of the disposable
   seed now runs in its own Compose project and browser profile, with distinct
@@ -213,5 +212,9 @@ credentials, and game profiles in ignored local records.
   Compose resolved the staged run to 180/180/210-second request/LLM/step
   budgets. The latest runner/port change is published as `b5be825` on
   `experiment/qwen-runtime-recovery`. At the last read-only pool check,
-  `qwen3:8b` was resident and `qwen3.6:35b` remained installed but unloaded, so
-  the staged session is waiting for an unambiguous inference slot.
+  `qwen3.6:35b` was resident at about 23.6 GB VRAM. The endpoint's `/metrics`
+  route returns 404, and no GPU telemetry SSH target is configured for this
+  endpoint, so residency does not prove the queue is idle. The staged session
+  is waiting for an unambiguous inference slot; no generation request has been
+  sent. Both isolated browser agents report zero active model steps, while the
+  production spectator remains separate and untouched.
