@@ -17,9 +17,9 @@ This document records measured results only. A running container alone does not 
 | Remote live viewer | Passed (tunnel path) | noVNC page and internal VNC connection respond. A workstation SSH tunnel successfully reached both the health API and noVNC page; verify live game display during an agent session remains pending. |
 | Core statistics update | Pending | The dashboard observation endpoint now returns a live rendered game UI summary and container RAM usage/limit. The model has not yet created and run a Netscript statistics display. |
 | Browser/container restart preserves progress | Passed (profile data) | After a container recreate, Chromium reopened the same persistent profile and the game showed the existing character HUD and offline-progress summary. |
-| Checkpoint durability and agent lifecycle | Passed (focused tests) | Tests cover stop, overlap prevention, pause/resume, interruption recovery, terminal-state recovery, atomic checkpoints, stagnation, bounded inference, restricted Remote API actions, guide path resolution, modal handling, terminal error reporting, removal of stale editor guidance, cosmetic redeployment detection, repeat-run protection, constrained in-game `.js` copying, RAM rejection recovery, and model reference lookup. The current suite passes 86 tests in a network-disabled container using the deployment image's dependencies. |
-| Auto-resume and session continuation | Production unchanged; benchmark runs isolated | The benchmark Compose configuration used `AUTO_RESUME=0`, `MAX_SESSIONS=1`, `MAX_STEPS=24`, and `MAX_SESSION_SECONDS=1800`; every trial was launched explicitly and its disposable containers were removed after a terminal result. Production auto-resume and its persistent objective were not changed by this benchmark. |
-| Local model gameplay benchmark | 9 isolated scored trials completed; 0/9 successful | Three trials each for `qwen3.6:35b`, `devstral-small-2:24b-instruct-2512-q4_K_M`, and `gemma4:12b`. No model verified a money-making script; visible starting/final money remained about $1.262k and hacking stayed level 1. Full conditions, per-trial results, hardware data, and recommendation are in [model-benchmark.md](model-benchmark.md). Qwen3.8 was not scored because the existing Ollama endpoint rejected its pull with HTTP 412; its version was not upgraded. |
+| Checkpoint durability and agent lifecycle | Passed (focused tests) | Tests cover stop, overlap prevention, pause/resume, interruption recovery, terminal-state recovery, atomic checkpoints, stagnation, bounded inference, restricted Remote API actions, guide path resolution, modal handling, terminal error reporting, removal of stale editor guidance, cosmetic redeployment detection, repeat-run protection, constrained in-game `.js` copying, RAM rejection recovery, and model reference lookup. The suite passed 87 tests after the latest recovery-guidance changes in a network-disabled container using the deployment image's dependencies. |
+| Auto-resume and session continuation | Production unchanged; benchmark runs isolated | Every isolated trial used `AUTO_RESUME=0` and `MAX_SESSIONS=1`; step and time budgets varied by trial and are recorded in [model-benchmark.md](model-benchmark.md). Each trial was launched explicitly and its disposable containers were removed after a terminal result. Production auto-resume and its persistent objective were not changed by these trials. |
+| Local model gameplay benchmark | 13 isolated scored trials; 0 verified-income successes | Nine earlier scored trials, two post-outage Gemma follow-ups, and two post-restart Qwen follow-ups did not meet the money-generation acceptance test. One Qwen run visibly started a model-authored script but hit a removed-function runtime error; the next repeated observations of an offline-progress dialog until the loop guard stopped it. See [model-benchmark.md](model-benchmark.md). Qwen3.8 was not scored because an earlier pull returned HTTP 412. |
 | Guided local gameplay after documentation and harness changes | Failed; no verified income | Seven isolated `qwen3.6:35b` runs were recorded. The latest authored and deployed `crimes.js`, but visible execution failed because it required 81.60 GB RAM; the model repeated deployment variants without resolving the error. Balance remained about $1.262k, hacking stayed level 1, and verified income was $0. See [model-benchmark.md](model-benchmark.md) for all runs. |
 | Deterministic visible UI helpers | Passed (disposable integration check) | A fresh semantic label opened Create Program, dismissed a known offline dialog once, and returned actual visible Terminal `ls` output in a copied test profile. Unit tests cover ambiguous targets, runtime-error dialogs, and visible transitions. |
 | Tiny local UI-action model | Not run; not integrated | Laya and Fast Browser Use were reviewed for license, capabilities, runtime, and fit. No weights or dependencies were installed. A model was already loaded on shared local inference during this work, so no competing request was started. Neither candidate has Bitburner live-page results; see [ui-action-model-evaluation.md](ui-action-model-evaluation.md). |
@@ -93,7 +93,7 @@ recent failure was repeated inference/tool failure, and the latest checkpoint
 also records a script RAM-limit error. The session count and progress were not
 reset.
 
-Inference reachability is currently the immediate blocker. The configured
+At the time of this check, inference reachability was the immediate blocker. The configured
 `qwen3.6:35b` Ollama route returned HTTP 502 from the agent API; a read-only
 `/api/tags` request from inside the VM container failed with `No route to host`,
 and a workstation request timed out. A fresh workstation check also failed to
@@ -119,12 +119,12 @@ model-authored `simple_hack.js` deployment and visible `run` attempts, but the
 latest session stopped after a RAM-limit error; a successful run and
 session-attributed income were not confirmed.
 
-The native save-backup API currently reports zero archived exports. The
+The native save-backup API reported zero archived exports at this check. The
 persistent browser profile and prior pre-deploy archives remain intact, but a
 game-native export/isolated restore test is still outstanding. No new production
-session was started. Resume testing when the configured inference route returns
-or a compatible, idle local endpoint can be used by an isolated profile; keep
-the production model and profile unchanged meanwhile.
+session was started. The configured node was subsequently restarted and used
+for an isolated Qwen trial; this does not establish that the production VM's
+inference route was rechecked or that production gameplay resumed.
 
 ## Isolated seed and completion-gate correction (2026-11-05)
 
@@ -159,6 +159,68 @@ VRAM allocation; GPU samples peaked at 3.3 GB and 2.1 GB on the two devices,
 with utilization samples up to 100%. CPU offload was not independently
 measured. Trial state, prompts, and scripts remain in ignored local records.
 
-The initial trial-profile setup problem is corrected. The inference outage and
-model gameplay failures remain unresolved. The UI-action-model experiment stays
-deferred until a local primary model completes the money-generation objective.
+The initial trial-profile setup problem is corrected. The isolated income
+objective remains unmet. The UI-action-model experiment stays deferred until a
+local primary model completes the money-generation objective.
+
+## Post-restart Qwen trial (2026-11-05)
+
+After the owner restarted Tartarus, repeated checks found SSH and the Ollama
+endpoint responding. The model catalog listed `qwen3.6:35b`; `/api/show`
+reported completion, vision, tools, and thinking capabilities. Before the run,
+`/api/ps` showed no loaded model and read-only telemetry showed four idle Quadro
+P4000 GPUs. A disposable copy of the saved seed showed Remote API Online before
+inference. No production profile or service was used.
+
+Run 12 ended exhausted after 10 Browser Use history steps (10-step cap; 15-
+minute session cap). On Bitburner v3.0.1, Qwen queried `ns.hack`, authored and
+deployed `hack-n00dles.js`, then visibly ran it; Terminal confirmed PID 1. The
+HUD at that confirmation still showed $1.262k and Hack 1. The later runtime
+dialog said `formatNumber: Function removed in 3.0.0. Please use
+ns.format.number() instead.` The model reported the task incomplete. No income
+or hacking progression was verified.
+
+There were 10 inference requests, with 77,964 prompt and 1,314 completion
+tokens reported across responses with token counts. Summed reported request
+duration was 508.3 seconds; the cold first load took 49.2 seconds. Telemetry
+spanned 11m46s. Ollama reported 23.3 GB VRAM allocation. Each P4000 reached
+100% sampled utilization; per-card sampled memory peaks were 7,165 / 5,267 /
+5,799 / 5,867 MiB. CPU offload was not measured. At the post-run sample, the
+model was still loaded after benchmark-container cleanup; after the later Run
+14 cleanup, `/api/ps` was empty.
+
+The error itself names the replacement API, but the model did not call
+`game_troubleshoot`, query its live definition, or repair and rerun within its
+step budget. A version-specific troubleshooting note and session instruction
+now require that recovery sequence without providing gameplay code. The final
+after-error HUD was not separately captured; the last visible post-run HUD
+remained $1.262k / Hack 1. Production was not rechecked or changed after the
+inference node restart.
+
+A second isolated Qwen run used the same seed and model with a 16-step and
+30-minute cap. Remote API Online was verified, but the copied game profile
+opened on a visible offline-progress dialog. Qwen called `game_observe` three
+times; the deterministic no-progress/repeated-failure guard stopped the session
+after 3 steps. It did not author or deploy a script. This exposed a startup
+instruction gap rather than an inference or Remote API outage. The session
+prompt now directs the model to read and dismiss an initial dialog once, and
+the on-demand troubleshooting note explains how to handle the normal
+offline-progress dialog.
+
+The next isolated retry (Qwen3.6:35b, same disposable seed, 16-step and
+30-minute caps) confirmed that correction: Qwen dismissed the offline-progress
+dialog, then proceeded to terminal observation. The run failed at step 5 when
+two Ollama requests failed with `Server disconnected without sending a
+response` and then `Failed to connect to Ollama`. Three earlier inference
+requests had returned successfully. The session ended without authoring or
+deploying Netscript; the final visible state remained $1.262k / Hack 1. The
+captured UI showed Remote API Online. The isolated runner removed its
+containers; production was not involved.
+
+Afterward, read-only HTTP checks to Tartarus returned Ollama version 0.40.14
+and an empty `/api/ps` model list. An SSH process/service-manager check could
+not authenticate from this session, so the cause and service-process
+provenance of the transient disconnect remain undetermined. No service restart,
+inference retry, or production recheck was performed. Across fourteen
+documented isolated runs, none has met the acceptance criterion of verified
+AI-authored income.

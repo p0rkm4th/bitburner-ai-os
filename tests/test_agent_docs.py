@@ -57,6 +57,13 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         unknown = await self.actions["game_troubleshoot"]("Command serverinfo not found.")
         self.assertIn("Unknown Terminal command", unknown)
 
+    async def test_removed_function_recovery_uses_observed_live_game_error(self):
+        result = await self.actions["game_troubleshoot"](
+            "formatNumber: Function removed in 3.0.0; use ns.format.number()")
+        self.assertIn("Bitburner v3.0.x", result)
+        self.assertIn("game_netscript_reference", result)
+        self.assertIn("visible `run` PID confirms", result)
+
     async def test_ram_troubleshooting_mentions_process_inspection_and_home_file_scope(self):
         result = await self.actions["game_troubleshoot"](
             "Cannot run hack_n00dles.js on home: requires 1.70GB RAM")
@@ -79,6 +86,11 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("BITBURNER CORE GUIDE", task)
         self.assertIn("SESSION TASK", task)
         self.assertIn("game_netscript_reference", task)
+        self.assertIn("call game_troubleshoot with its exact text", task)
+        self.assertIn("a PID confirms startup only", task)
+        self.assertIn("Verify actual money/output", task)
+        self.assertIn("call game_dismiss_dialog once", task)
+        self.assertIn("do not repeat an unchanged observation", task)
         self.assertIn("Do not navigate or reload", task)
         self.assertIn("checkpoint summary", task)
 

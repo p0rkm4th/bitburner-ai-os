@@ -207,7 +207,11 @@ def gameplay_task(objective: str, progress: str, current_url: str, game_url: str
     if remote_authoring:
         task += (" Use game_read_script/game_deploy_script for model-authored script work, "
                  "game_netscript_reference for exact live APIs, game_open_tab for visible game pages, game_terminal/game_run_script "
-                 "for visible execution, and game_observe/game_progress for verification.")
+                 "for visible execution, and game_observe/game_progress for verification. After each script run, inspect the visible result; "
+                 "a PID confirms startup only. If a runtime error appears, call game_troubleshoot with its exact text, check the named API "
+                 "against the current live reference, revise your own script, and retry within the step budget. Verify actual money/output "
+                 "before claiming success. If the first observation shows a dialog, read it and call game_dismiss_dialog once; do not "
+                 "repeat an unchanged observation.")
     return ("BITBURNER CORE GUIDE (compact, version-aware orientation; use live game state and definitions where version-specific):\n"
             + load_core_guide() + "\n\nSESSION TASK:\n" + task)
 

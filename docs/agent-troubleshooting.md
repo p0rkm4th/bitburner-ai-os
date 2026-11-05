@@ -24,6 +24,13 @@ procedures, not a prescribed gameplay strategy.
 - **Function removed / undefined:** Query the live definition for the current
   game version. Do not restore old names such as `nFormat` from memory. Debug
   using the actual runtime message, then update and redeploy the script.
+- **Bitburner v3.0.x reports `formatNumber` removed:** In the observed v3.0.1
+  game, the runtime dialog said: `formatNumber: Function removed in 3.0.0.
+  Please use ns.format.number() instead.` Treat the running game's message as
+  authoritative, query `game_netscript_reference` for `ns.format.number`, and
+  revise only the affected model-authored call. A visible `run` PID confirms
+  startup, not successful completion; observe for runtime errors and verify
+  money/output after the repair.
 - **`Cannot hack this server yet`:** Recheck the server hostname, root status,
   required hacking skill, open-port requirement, and money/security state using
   visible Terminal output and official API docs. `home` is the player's own
@@ -79,6 +86,10 @@ procedures, not a prescribed gameplay strategy.
   If it reports an actionable failure or the dialog remains, stop and report
   the blocker. Do not keep clicking old indexes, reload the page, or run a
   terminal command through a covered dialog.
+- **Fresh profile shows an offline-progress dialog:** Read its visible game
+  earnings and milestones, then dismiss it once with `game_dismiss_dialog`.
+  Remote API Online does not mean the dialog is absent. Do not repeat
+  `game_observe` while the same dialog remains; act on its visible contents.
 - **Terminal not visible:** `game_terminal` uses the documented Terminal
   shortcut, refreshes the page, and verifies the current input before typing.
   If the input still is not visible, inspect and report; do not guess an index.
