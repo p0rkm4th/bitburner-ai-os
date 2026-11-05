@@ -89,6 +89,14 @@ class RemoteApiToolTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Run it through the visible Terminal", result)
         self.assertEqual([call[0] for call in self.api.calls], ["getFile", "calculateRam"])
 
+    async def test_duplicate_with_only_whitespace_and_doc_comment_changes_is_no_progress(self):
+        self.api.files["student.js"] = 'export async function main(ns) { while (true) { await ns.hack("n00dles"); } }'
+        variant = '/** @param {NS} ns */\nexport async function main(ns) {\n  while (true) {\n    await ns.hack("n00dles");\n  }\n}'
+        result = await self.actions["game_deploy_script"]("student.js", variant)
+        self.assertTrue(result.startswith("NO_PROGRESS:"))
+        self.assertIn("no functional code changes", result)
+        self.assertEqual([call[0] for call in self.api.calls], ["getFile", "calculateRam"])
+
     async def test_docs_returns_only_relevant_official_definition_excerpt(self):
         result = await self.actions["game_netscript_reference"]("ns.grow")
         self.assertIn("Exact signature for ns.grow: grow(host?: string, opts?: BasicHGWOptions): Promise<number>;", result)

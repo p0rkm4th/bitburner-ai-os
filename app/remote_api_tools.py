@@ -47,6 +47,15 @@ def _safe_filename(filename: str) -> str:
     return filename
 
 
+def _same_script_ignoring_formatting_and_doc_comments(left: str, right: str) -> bool:
+    """Catch cosmetic re-authoring loops without treating code changes as duplicates."""
+    def normalize(source: str) -> str:
+        source = re.sub(r"/\*\*.*?\*/", "", source, flags=re.DOTALL)
+        return re.sub(r"\s+", "", source)
+
+    return normalize(left) == normalize(right)
+
+
 def register_remote_api_tools(tools: Tools, api: RemoteApi) -> dict[str, object]:
     """Attach only four constrained operations to the existing Browser Use agent."""
 
@@ -85,10 +94,11 @@ def register_remote_api_tools(tools: Tools, api: RemoteApi) -> dict[str, object]
                 if str(exc) != "getFile returned HTTP 500: Bitburner API error":
                     raise
                 existing = None
-            if existing == content:
+            if isinstance(existing, str) and _same_script_ignoring_formatting_and_doc_comments(existing, content):
                 ram = await api.call("calculateRam", {"filename": filename, "server": "home"})
-                return (f"NO_PROGRESS: {filename} already exists on home with these exact contents; "
-                        f"read-back verified, calculated RAM: {ram} GB, and no write was made. "
+                return (f"NO_PROGRESS: {filename} already exists on home with equivalent code; "
+                        f"read-back verified with no functional code changes, calculated RAM: {ram} GB, "
+                        "and no write was made. "
                         "Do not redeploy identical contents. Run it through the visible Terminal or "
                         "diagnose the actual execution error.")
             result = await api.call("pushFile", {
