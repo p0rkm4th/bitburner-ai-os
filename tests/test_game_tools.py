@@ -151,6 +151,8 @@ class FakePage:
             self.visible = self.run_output or f"Bitburner Terminal\n{command}\nRunning script home.js with PID 4; $1.25/s"
         elif command == "ps":
             self.visible = "Bitburner Terminal\nps\nPID Filename\n4 home.js"
+        elif command.startswith("scp "):
+            self.visible = f"Bitburner Terminal\n{command}\nFile copied to {command.split()[-1]}"
         elif command.startswith("scan-analyze ") and command != "scan-analyze 2":
             self.visible = f"Bitburner Terminal\n{command}\nIncorrect usage of scan-analyze command. depth argument must be positive numeric"
         else:
@@ -351,6 +353,13 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         for command in ("ls; run home.js", "wget https://example.invalid/x.js", "rm home.js"):
             result = await self.actions["game_terminal"](command, self.browser)
             self.assertIn("no chaining, downloads, or deletion", result)
+
+    async def test_terminal_allows_only_documented_in_game_script_copy(self):
+        copied = await self.actions["game_terminal"]("scp hack_n00dles.js n00dles", self.browser)
+        self.assertIn("File copied to n00dles", copied)
+        for command in ("scp home:/hack.js .", "scp ../../hack.js n00dles", "scp hack.js n00dles && run hack.js"):
+            result = await self.actions["game_terminal"](command, self.browser)
+            self.assertIn("documented in-game copy syntax", result)
 
     async def test_terminal_visible_usage_error_is_preserved_for_diagnosis(self):
         result = await self.actions["game_terminal"]("scan-analyze n00dles", self.browser)

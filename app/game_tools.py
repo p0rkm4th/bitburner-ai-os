@@ -110,6 +110,7 @@ def _visible_content_matches(content: str, visible: str) -> bool:
 
 RUN_COMMAND = re.compile(r"^\s*run\s+([A-Za-z0-9_.-]+\.js)(?:\s+.*)?$", re.IGNORECASE)
 CONFIRMED_RUN = re.compile(r"running script.*\bpid\s*[:#]?\s*[1-9]\d*", re.IGNORECASE)
+IN_GAME_SCP = re.compile(r"^scp\s+[A-Za-z0-9_.-]+\.js\s+[A-Za-z0-9_.-]+$", re.IGNORECASE)
 
 
 def find_visible_tab_node(dom_state, tab: str):
@@ -296,9 +297,12 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True) -> dict[st
 
     async def send_terminal(command: str, browser_session: BrowserSession) -> str:
         nonlocal last_confirmed_run
+        normalized_command = command.strip()
         if (not command.strip() or len(command) > 500 or
-                any(ch in command for ch in "\r\n\x00;") or command.strip().startswith(("wget ", "scp ", "rm "))):
+                any(ch in command for ch in "\r\n\x00;") or normalized_command.casefold().startswith(("wget ", "rm "))):
             raise ValueError("Enter one permitted, non-empty game Terminal command on a single line (no chaining, downloads, or deletion)")
+        if normalized_command.casefold().startswith("scp ") and not IN_GAME_SCP.fullmatch(normalized_command):
+            raise ValueError("Use the documented in-game copy syntax `scp filename.js server` with a simple .js filename and server name")
         run_match = RUN_COMMAND.fullmatch(command)
         run_filename = run_match.group(1).casefold() if run_match else None
         if run_filename and run_filename == last_confirmed_run:
@@ -325,6 +329,7 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True) -> dict[st
 
     @tools.action(description=(
         "Focus the visible in-game Bitburner terminal, enter one command, press Enter, and return the rendered result. "
+        "Use `scp filename.js server` only for the documented in-game copy operation; it cannot access the host filesystem. "
         "Use `cat filename.txt` to inspect a simple in-game text report that the script-only Remote API cannot read."
     ))
     async def game_terminal(command: str, browser_session: BrowserSession) -> str:

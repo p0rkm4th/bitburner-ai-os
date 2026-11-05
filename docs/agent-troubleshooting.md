@@ -60,7 +60,10 @@ procedures, not a prescribed gameplay strategy.
   If a failed or duplicate process is consuming RAM, use documented Terminal
   controls only after confirming its PID and that stopping it will not discard
   useful progress. Remote API files live on `home`; connecting to a server does
-  not copy them there.
+  not copy them there. Use the documented in-game `scp filename.js server`
+  command while on `home` to copy a script to that server, then connect before
+  running it. See the [official getting-started
+  guide](https://github.com/bitburner-official/bitburner-src/blob/dev/src/Documentation/doc/en/help/getting_started.md).
 
 ## Browser and modal errors
 

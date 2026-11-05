@@ -27,6 +27,7 @@ game_read_script(filename="home.js")
 game_terminal(command="mem home.js")
 game_terminal(command="cat discovery_result.txt")
 game_terminal(command="scan-analyze 2")
+game_terminal(command="scp hack_n00dles.js n00dles")
 game_run_script(filename="home.js", args=[])
 game_troubleshoot(error="Cannot hack this server yet")
 ```
@@ -35,7 +36,10 @@ When `game_deploy_script` is available, do not open the editor or type code in
 the browser. The live Remote API provides script authoring; the visible game
 Terminal still provides execution and confirmation. The tool only accepts a
 simple script filename and does not expose saves, arbitrary game state,
-deletion, or arbitrary Remote API method names.
+deletion, or arbitrary Remote API method names. Bitburner's documented
+in-game `scp filename.js server` command copies a simple `.js` file from `home`
+to a named server; it remains an in-game Terminal action, not host-shell access.
+See the [official getting-started guide](https://github.com/bitburner-official/bitburner-src/blob/dev/src/Documentation/doc/en/help/getting_started.md).
 
 Generic index-based browser clicks, text entry, and browser evaluation are not
 gameplay tools. `game_open_tab` is the sole game navigation action: it resolves
