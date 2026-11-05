@@ -324,6 +324,17 @@ def failed_action_repeat_count(previous_signature: str, previous_count: int,
     return previous_count + 1 if current_signature == previous_signature else 1
 
 
+def failed_result_signature(actions: list[dict], visible: str, failures: list[dict]) -> str:
+    """Identify consecutive identical failed tool or structured-model responses."""
+    if not failures:
+        return ""
+    state = re.sub(r"\[\d+\]", "[]", visible)
+    action_json = json.dumps(actions, sort_keys=True, ensure_ascii=False)
+    failure_text = "|".join(str(item.get("tool", "unknown")) + ":" +
+                            str(item.get("message", "")) for item in failures)
+    return hashlib.sha256((action_json + "\n" + state + "\n" + failure_text).encode()).hexdigest()
+
+
 class StartRequest(BaseModel):
     objective: str = Field(min_length=3, max_length=2000)
 
@@ -525,16 +536,17 @@ async def run_agent(objective: str) -> None:
                     del errors[:-8]
             record("tool", f"{item['tool']} {item['state']}: {item['message'][:180]}")
         failed_results = [item for item in tool_results if item["state"] in ("failed", "game_error")]
-        if failed_results and actions:
-            state_for_repeat = re.sub(r"\[\d+\]", "[]", visible)
-            action_for_repeat = json.dumps(actions, sort_keys=True, ensure_ascii=False)
-            failure_for_repeat = "|".join(item["tool"] + ":" + item["message"] for item in failed_results)
-            repeat_signature = hashlib.sha256((action_for_repeat + "\n" + state_for_repeat + "\n" + failure_for_repeat).encode()).hexdigest()
+        if failed_results:
+            # Framework failures such as empty/malformed structured model output
+            # have no action bundle. Count them by the unchanged visible state
+            # and exact failure so they receive the same bounded recovery as a
+            # repeated failed UI tool call.
+            repeat_signature = failed_result_signature(actions, visible, failed_results)
             repeated_failure_count = failed_action_repeat_count(
                 previous_failure_signature, repeated_failure_count, repeat_signature)
             previous_failure_signature = repeat_signature
             if repeated_failure_count >= 2:
-                status["error"] = "The same failed tool action was repeated with no visible state change; session stopped to prevent an unproductive loop."
+                status["error"] = "The same failed model/tool result repeated with no visible state change; session stopped to prevent an unproductive loop."
                 errors.append(status["error"])
                 current.stop()
         else:

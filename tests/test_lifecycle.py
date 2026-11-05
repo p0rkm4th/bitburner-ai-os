@@ -178,6 +178,18 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(server.failed_action_repeat_count(signature, 2, "different-action"), 1)
         self.assertEqual(server.failed_action_repeat_count(signature, 2, ""), 0)
 
+    async def test_empty_model_response_failures_have_a_repeatable_signature(self):
+        failure = [{"tool": "unmapped", "state": "failed", "message": "LLM call timed out"}]
+        first = server.failed_result_signature([], "[12] Offline dialog", failure)
+        repeated = server.failed_result_signature([], "[99] Offline dialog", failure)
+        changed_error = server.failed_result_signature([], "[99] Offline dialog",
+                                                        [{**failure[0], "message": "Malformed JSON"}])
+        changed_ui = server.failed_result_signature([], "Terminal ready", failure)
+        self.assertEqual(first, repeated)
+        self.assertNotEqual(repeated, changed_error)
+        self.assertNotEqual(repeated, changed_ui)
+        self.assertEqual(server.failed_result_signature([], "Terminal ready", []), "")
+
     async def test_terminal_ram_error_and_duplicate_deploy_are_counted_as_game_errors(self):
         from types import SimpleNamespace
         terminal = server.summarize_action_results(
