@@ -17,11 +17,11 @@ This document records measured results only. A running container alone does not 
 | Remote live viewer | Passed (tunnel path) | noVNC page and internal VNC connection respond. A workstation SSH tunnel successfully reached both the health API and noVNC page; verify live game display during an agent session remains pending. |
 | Core statistics update | Pending | The dashboard observation endpoint now returns a live rendered game UI summary and container RAM usage/limit. The model has not yet created and run a Netscript statistics display. |
 | Browser/container restart preserves progress | Passed (profile data) | After a container recreate, Chromium reopened the same persistent profile and the game showed the existing character HUD and offline-progress summary. |
-| Checkpoint durability and agent lifecycle | Passed (focused tests) | Tests cover stop, overlap prevention, pause/resume, interruption recovery, terminal-state recovery, atomic checkpoints, stagnation, bounded inference, restricted Remote API actions, guide path resolution, presentation-shell filtering, terminal error reporting, removal of stale editor guidance, cosmetic redeployment detection, repeated-run detection requiring a diagnostic command, constrained in-game `.js` copying, preserving unlock information from message dialogs, ignoring an empty MUI presentation shell that contains a visible button, distinguishing a current server from script arguments, recording RAM rejections, requiring process diagnosis before redeployment, and restoring that guard from checkpoints. The current suite passes 73 tests in a network-disabled container using the deployment image's dependencies. |
+| Checkpoint durability and agent lifecycle | Passed (focused tests) | Tests cover stop, overlap prevention, pause/resume, interruption recovery, terminal-state recovery, atomic checkpoints, stagnation, bounded inference, restricted Remote API actions, guide path resolution, modal handling, terminal error reporting, removal of stale editor guidance, cosmetic redeployment detection, repeat-run protection, constrained in-game `.js` copying, RAM rejection recovery, and model reference lookup. The current suite passes 81 tests in a network-disabled container using the deployment image's dependencies. |
 | Auto-resume and session continuation | Production unchanged; benchmark runs isolated | The benchmark Compose configuration used `AUTO_RESUME=0`, `MAX_SESSIONS=1`, `MAX_STEPS=24`, and `MAX_SESSION_SECONDS=1800`; every trial was launched explicitly and its disposable containers were removed after a terminal result. Production auto-resume and its persistent objective were not changed by this benchmark. |
 | Local model gameplay benchmark | 9 isolated scored trials completed; 0/9 successful | Three trials each for `qwen3.6:35b`, `devstral-small-2:24b-instruct-2512-q4_K_M`, and `gemma4:12b`. No model verified a money-making script; visible starting/final money remained about $1.262k and hacking stayed level 1. Full conditions, per-trial results, hardware data, and recommendation are in [model-benchmark.md](model-benchmark.md). Qwen3.8 was not scored because the existing Ollama endpoint rejected its pull with HTTP 412; its version was not upgraded. |
 | Guided local gameplay after documentation and harness changes | Failed; no verified income | Seven isolated `qwen3.6:35b` runs were recorded. The latest authored and deployed `crimes.js`, but visible execution failed because it required 81.60 GB RAM; the model repeated deployment variants without resolving the error. Balance remained about $1.262k, hacking stayed level 1, and verified income was $0. See [model-benchmark.md](model-benchmark.md) for all runs. |
-| Deterministic visible UI helpers | Passed (disposable integration check) | A fresh semantic label opened the Create Program tab in a copied test profile using the shared Browser Use session. The check made no gameplay change. Unit tests cover ambiguous targets, modal handling, and visible transitions. |
+| Deterministic visible UI helpers | Passed (disposable integration check) | A fresh semantic label opened Create Program, dismissed a known offline dialog once, and returned actual visible Terminal `ls` output in a copied test profile. Unit tests cover ambiguous targets, runtime-error dialogs, and visible transitions. |
 | Tiny local UI-action model | Not run; not integrated | Laya and Fast Browser Use were reviewed for license, capabilities, runtime, and fit. No weights or dependencies were installed. A model was already loaded on shared local inference during this work, so no competing request was started. Neither candidate has Bitburner live-page results; see [ui-action-model-evaluation.md](ui-action-model-evaluation.md). |
 | VM backup/snapshot and scheduled backup | Partial | A Proxmox rollback snapshot exists and the VM is included in the existing scheduled backup. The native game-save archive worker is implemented, but no actual exported save has yet been validated or restored. |
 | Management exposure and isolation | Passed (configuration) | UFW defaults to deny inbound and allows SSH only from the management LAN. Dashboard and VNC bind to guest loopback, container drops all capabilities and sets `no-new-privileges`; tunnel access uses SSH. |
@@ -45,3 +45,40 @@ Session 7 ended in terminal failure after repeated inference timeouts while atte
 The failed state persisted across container startup. A new session was manually started from the saved objective. Session 1 dismissed the offline earnings popup, scanned the visible network, and model-authored/deployed `hack_n00dles.js` through the restricted Remote API. Its first visible run attempt failed because home lacked the script's required 1.70 GB of free RAM. The model then repeated near-equivalent deployments and timed out three times at 150 seconds. Its final `done` action claimed it had run successfully, but the live Terminal still showed only the RAM error and no positive PID or successful output. The HUD showed $64.466k / hacking 49, but no session-specific money change was measured; this is not evidence that the new script earned income. Session 2 hit a false-positive modal block: the agent reported a visible `presentation` dialog, while the read-only rendered observation showed ordinary game UI and no dialog text. The helper was corrected to ignore presentation-role shells except when visible content matches a known game modal. All 68 tests passed in the network-disabled deployment image, and the fix was deployed as `4229ebf` after backing up the current profile/checkpoints/logs. The VM retained the 117 MB profile, Remote API Online, and the paused state; session 3 resumed from the saved objective. In this session the offline popup was dismissed and a visible `ls` Terminal command succeeded, confirming the false modal block is cleared. Qwen then received the official `ns.hack` reference and read `simple_hack.js`, but it has not confirmed a successful run or income; its latest intended action is to run that script.
 
 The current source troubleshooting guide now explains the game's 1.6 GB minimum script RAM, that API usage adds cost, and why shortening code that uses the same APIs may not reduce the requirement. It directs the agent to inspect active processes and available rooted servers before rewriting or relocating scripts, based on the [official scripts documentation](https://github.com/bitburner-official/bitburner-src/blob/dev/src/Documentation/doc/en/basic/scripts.md). The compact always-loaded guide also now says `run file.js [args]` executes on the currently connected server; arguments do not select a destination. This addresses the latest visible failure, where `run simple_hack.js n00dles` still attempted execution on `home` and failed with the same 1.70 GB RAM error. Commit `10a77ba` was deployed after a verified backup of the current profile/checkpoints/logs. Services are healthy, Remote API is Online, and the profile remains 117 MB. Session 4 was paused at step 6 while repeating code after the visible RAM rejection. The new harness guard records the rejected file/host and blocks redeployment of that same file until `ps`, `mem`, or the visible Active Scripts page has been inspected; its state is restored from the checkpoint after interruption. The full suite passes 73 tests in the deployment image with networking disabled. The guard is validated locally and awaits deployment. A successful run and attributed income are still unverified.
+
+## Isolated reliability follow-up (2026-11-05)
+
+The source now recognizes missing script reads, accepts signature-shaped live
+Netscript lookups, clears the repeat-run gate only after a verified changed
+script deployment, and dismisses a visible runtime-error dialog once before a
+later Terminal action. The benchmark runner has configurable step, time, and
+context budgets. The deployment-image suite passes 81 tests, and the disposable
+browser integration check handled the known offline dialog, opened a semantic
+game tab, and returned the actual visible `ls` result.
+
+Six sequential isolated `gemma4:e4b` runs were made on fresh copies of the same
+game seed. No run verified money generation. Runs 04–07 stopped on repeated
+missing-file reads or malformed API lookups (75–224 seconds of inference each).
+Run 08 authored code and corrected an entry-point error, then failed to reach a
+verified run (378.5 seconds of inference). Run 09 used 10 steps and 414.3
+seconds of inference, authored and deployed a script, but the game still showed
+`RUNTIME ERROR: ... does not have a main function`; no final HUD comparison or
+income was recorded. Detailed metrics and the live observations are retained in
+ignored local trial records. These were primary-model-only trials, not an
+action-model comparison. Laya weights were not downloaded, Fast Browser Use
+was not installed, and neither was run against the game. The user-facing
+evaluation and recommendation are in [ui-action-model-evaluation.md](ui-action-model-evaluation.md).
+
+At the latest read-only production check, the agent service had a terminal
+`failed` state with no active session, the browser was ready, and the in-game
+Remote API showed Online. The production profile and model configuration were
+left intact. The isolated trials do not meet the income acceptance criterion;
+autonomous gameplay remains unverified.
+
+The tested reliability changes were then deployed at that failed-session
+boundary. A fresh pre-deploy profile/checkpoint/log archive and source archive
+both passed gzip integrity checks. After recreation, the agent and bridge
+containers were healthy, Bitburner still showed Remote API Online, and the
+persistent profile remained present (101 MB). The runtime state stayed
+`failed` with zero active steps, so deployment did not resume gameplay. The
+production model setting was not changed.

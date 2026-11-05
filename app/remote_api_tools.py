@@ -11,7 +11,7 @@ from browser_use import Tools
 
 
 FILENAME = re.compile(r"^[A-Za-z0-9_.-]+\.js$")
-IDENTIFIER = re.compile(r"^(?:ns\.)?([A-Za-z_$][A-Za-z0-9_$]{0,79})$")
+IDENTIFIER = re.compile(r"^(?:ns\.)?([A-Za-z_$][A-Za-z0-9_$]{0,79})(?:\([^()\r\n]{0,160}\))?$")
 ALLOWED_METHODS = {"getFile", "pushFile", "calculateRam", "getDefinitionFile"}
 
 
@@ -63,12 +63,21 @@ def register_remote_api_tools(tools: Tools, api: RemoteApi,
 
     @tools.action(description=(
         "Read one existing .js Netscript file through Bitburner's official Remote API. "
-        "Target is fixed to home. This does not inspect saves or other game state."
+        "Target is fixed to home. Use only filenames confirmed by visible Terminal `ls`; if it shows no .js files, do not guess a filename to read. This does not inspect saves or other game state."
     ))
     async def game_read_script(filename: str) -> str:
         try:
             filename = _safe_filename(filename)
-            content = await api.call("getFile", {"filename": filename, "server": "home"})
+            try:
+                content = await api.call("getFile", {"filename": filename, "server": "home"})
+            except RuntimeError as exc:
+                # The audited bridge maps Bitburner's missing-file response to
+                # this exact generic error. Make the expected first read of a
+                # new filename actionable without masking any other API error.
+                if str(exc) == "getFile returned HTTP 500: Bitburner API error":
+                    return (f"NO_PROGRESS: No existing script named {filename} was found on home. Do not repeat this read. "
+                            "List current files with the visible Terminal `ls`; choose a listed script to inspect, or author a new script with game_deploy_script.")
+                raise
             if not isinstance(content, str):
                 raise RuntimeError("The game did not return script text")
             return content[:30000]
@@ -88,6 +97,10 @@ def register_remote_api_tools(tools: Tools, api: RemoteApi,
             ram_rejection = action_state.get("ram_rejection")
             if (ram_rejection and ram_rejection.get("filename") == filename.casefold()
                     and not ram_rejection.get("diagnosed")):
+                if ram_rejection.get("host") == "unknown":
+                    return (f"NO_PROGRESS: The previous visible run of {filename} failed because of a RAM limit, "
+                            "but its host and exact requirement were not preserved. Inspect running processes with `ps` "
+                            "or use the visible Active Scripts page before deciding what to do; no file write was made.")
                 return (f"NO_PROGRESS: The last visible run of {filename} on {ram_rejection['host']} failed because it required "
                         f"{ram_rejection['required_ram']} GB of RAM. Rewriting or redeploying it cannot free RAM on that host. "
                         "Inspect running processes with `ps` or use the visible Active Scripts page before deciding what to do; "
@@ -117,6 +130,10 @@ def register_remote_api_tools(tools: Tools, api: RemoteApi,
             if result != "OK" or actual != content:
                 raise RuntimeError("The game did not confirm a matching script write")
             ram = await api.call("calculateRam", {"filename": filename, "server": "home"})
+            # A verified code change is meaningful progress and permits a new
+            # visible run attempt after an earlier runtime error. Cosmetic or
+            # duplicate deployments return above without clearing this guard.
+            action_state.pop("last_terminal_command", None)
             if ram_rejection and ram_rejection.get("filename") == filename.casefold():
                 action_state.pop("ram_rejection", None)
             return f"Deployed and read-back verified {filename}; calculated RAM: {ram} GB. Run it through game_run_script."
@@ -125,14 +142,14 @@ def register_remote_api_tools(tools: Tools, api: RemoteApi,
 
     @tools.action(description=(
         "Read a small excerpt for one Netscript symbol from the official type definitions "
-        "served by this Bitburner version. This is documentation only; it does not inspect game state."
+        "served by this Bitburner version. Query a bare name or a signature-like form such as `ns.grow` or `ns.grow(host, opts)`. This is documentation only; it does not inspect game state."
     ))
     async def game_netscript_reference(symbol: str) -> str:
         try:
             requested = symbol.strip()
             match = IDENTIFIER.fullmatch(requested)
             if not match:
-                raise ValueError("Query one Netscript identifier, such as ns.grow, grow, or getHackingLevel")
+                raise ValueError("Query one Netscript function name, such as ns.grow, grow, ns.grow(host, opts), or getHackingLevel")
             name = match.group(1)
             definition = await api.call("getDefinitionFile", {})
             if not isinstance(definition, str):

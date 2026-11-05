@@ -92,6 +92,7 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("one consequential action per step", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("never claim progress without visible evidence", BITBURNER_SYSTEM_PROMPT.casefold())
         self.assertIn("at most one corrected diagnostic attempt", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("If no `.js` file is listed, do not guess a filename", BITBURNER_SYSTEM_PROMPT)
 
     def test_checkpoint_carries_tool_failures_but_not_long_outputs(self):
         summary = checkpoint_prompt_summary({

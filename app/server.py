@@ -223,6 +223,16 @@ def checkpoint_ram_rejection(checkpoint: Optional[dict]) -> Optional[dict]:
         if match:
             return {"filename": match.group(1).casefold(), "host": match.group(2),
                     "required_ram": match.group(3), "diagnosed": False}
+    generic_ram_failure = any(
+        re.search(r"command failed because of RAM limits|script failed because of RAM limits", str(item), re.I)
+        for item in checkpoint.get("errors", [])
+    )
+    if generic_ram_failure:
+        for candidate in (checkpoint.get("next_intended_action", ""), checkpoint.get("subobjective", "")):
+            filename = re.search(r"([A-Za-z0-9_.-]+\.js)", str(candidate), re.I)
+            if filename:
+                return {"filename": filename.group(1).casefold(), "host": "unknown",
+                        "required_ram": "unknown", "diagnosed": False}
     return None
 
 

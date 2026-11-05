@@ -250,6 +250,36 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(self.page.terminal_visible)
         self.assertEqual(self.page.command, "ls")
 
+    async def test_terminal_dismisses_known_game_dialog_before_action_and_reports_body(self):
+        self.page.modal = True
+        self.page.mui_modal = True
+        self.page.presentation_only = True
+        self.page.visible = "Offline for 1 hour. Your scripts generated $0.000"
+        result = await self.actions["game_terminal"]("help", self.browser)
+        self.assertTrue(result.startswith("NO_PROGRESS:"))
+        self.assertIn("Offline for 1 hour", result)
+        self.assertIn("requested action was not performed", result)
+        self.assertEqual(self.page.close_clicks, 1)
+        self.assertEqual(self.page.executed_commands, [])
+
+    async def test_terminal_dismisses_visible_runtime_error_once_before_next_command(self):
+        self.page.modal = True
+        self.page.visible = "RUNTIME ERROR\nscript crashed\nScript: home.js\nPID: 1"
+        result = await self.actions["game_terminal"]("ps", self.browser)
+        self.assertTrue(result.startswith("NO_PROGRESS:"))
+        self.assertIn("RUNTIME ERROR", result)
+        self.assertIn("requested action was not performed", result)
+        self.assertFalse(self.page.modal)
+        self.assertEqual(self.page.executed_commands, [])
+
+    async def test_terminal_rejects_same_command_repeat_without_sending_it(self):
+        first = await self.actions["game_terminal"]("help", self.browser)
+        second = await self.actions["game_terminal"]("help", self.browser)
+        self.assertIn("Command accepted", first)
+        self.assertTrue(second.startswith("NO_PROGRESS:"))
+        self.assertIn("repeat was not sent", second)
+        self.assertEqual(self.page.executed_commands, ["help"])
+
     async def test_terminal_preserves_and_marks_visible_ram_error(self):
         self.page.run_output = (
             "Bitburner Terminal\n[home /]> run home.js\n"

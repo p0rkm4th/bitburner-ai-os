@@ -38,7 +38,8 @@ async def _visible(browser_session: BrowserSession) -> str:
 def _known_game_modal(visible: str) -> bool:
     text = visible.casefold()
     return (("offline for" in text and "your scripts generated" in text)
-            or ("message received from" in text and "message was saved" in text))
+            or ("message received from" in text and "message was saved" in text)
+            or ("runtime error" in text and "script:" in text and "pid:" in text))
 
 
 async def _modal(page, visible: str = "") -> Optional[str]:
@@ -184,6 +185,58 @@ SAVE_BUTTONS = (
 )
 
 
+async def _dismiss_dialog_once(browser_session: BrowserSession) -> str:
+    """Dismiss one visible dialog using a fresh, visible control and verify the transition."""
+    page = await _page(browser_session)
+    before_state = await _visible(browser_session)
+    modal = await _modal(page, before_state)
+    if not modal:
+        return "No visible dialog was detected; no input was sent."
+    close = await _visible_element(page, SEMANTIC_CLOSE_CONTROLS)
+    if close is not None:
+        await close.click()
+    else:
+        modal_buttons = []
+        for selector in MODAL_BUTTONS:
+            found = []
+            for button in await page.get_elements_by_css_selector(selector):
+                box = await button.get_bounding_box()
+                if box and _box_dimension(box, "width") > 0 and _box_dimension(box, "height") > 0:
+                    found.append(button)
+            if found:
+                modal_buttons = found
+                break
+        if len(modal_buttons) == 1:
+            await modal_buttons[0].click()
+        else:
+            await page.press("Escape")
+    await asyncio.sleep(0.15)
+    state = await _visible(browser_session)
+    remaining = await _modal(page, state)
+    if remaining:
+        return (f"ERROR: Dialog ({remaining}) remains after one close attempt. "
+                "Inspect the visible UI and report the blocker; no further input was sent.\n" +
+                state[-MAX_OBSERVATION:])
+    return "Dialog dismissed and verified absent.\n" + state[-MAX_OBSERVATION:]
+
+
+async def _clear_known_modal_before_action(browser_session: BrowserSession, action: str) -> Optional[str]:
+    """Close only recognized game notices; return their visible text without doing the requested action."""
+    page = await _page(browser_session)
+    visible = await _visible(browser_session)
+    modal = await _modal(page, visible)
+    if not modal:
+        return None
+    if not _known_game_modal(visible):
+        raise RuntimeError(f"A visible dialog ({modal}) is covering the game. Inspect and dismiss it with its visible UI control, then retry.")
+    body = visible[-MAX_OBSERVATION:]
+    result = await _dismiss_dialog_once(browser_session)
+    if not result.startswith("Dialog dismissed and verified absent"):
+        raise RuntimeError(result)
+    return (f"NO_PROGRESS: A recognized Bitburner dialog was dismissed before {action}; the requested action was not performed. "
+            "Read the visible dialog text, then choose the next action.\nDialog content:\n" + body + "\n" + result)
+
+
 def register_game_tools(tools: Tools, *, include_editor: bool = True,
                         action_state: Optional[dict] = None) -> dict[str, object]:
     """Register a small deterministic tool set on the existing Browser Use controller."""
@@ -231,7 +284,9 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
             if label.casefold() not in GAME_TABS:
                 raise ValueError("Unknown game tab. Use one of the allowlisted visible tab names in the tool description.")
             page = await _page(browser_session)
-            await _need_clear_surface(page, browser_session)
+            blocked = await _clear_known_modal_before_action(browser_session, f"opening {label!r}")
+            if blocked:
+                return blocked
             before = await browser_session.get_browser_state_summary(include_screenshot=False)
             node = find_visible_tab_node(before.dom_state, label)
             if node is None:
@@ -254,40 +309,7 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
     ))
     async def game_dismiss_dialog(browser_session: BrowserSession) -> str:
         try:
-            page = await _page(browser_session)
-            before_state = await _visible(browser_session)
-            modal = await _modal(page, before_state)
-            if not modal:
-                return "No visible dialog was detected; no input was sent."
-            close = await _visible_element(page, SEMANTIC_CLOSE_CONTROLS)
-            if close is not None:
-                await close.click()
-            else:
-                modal_buttons = []
-                for selector in MODAL_BUTTONS:
-                    found = []
-                    for button in await page.get_elements_by_css_selector(selector):
-                        box = await button.get_bounding_box()
-                        if box and _box_dimension(box, "width") > 0 and _box_dimension(box, "height") > 0:
-                            found.append(button)
-                    if found:
-                        modal_buttons = found
-                        break
-                if len(modal_buttons) == 1:
-                    # The game's offline summary uses an unlabeled X button.
-                    # A unique button inside the visible modal is a safe,
-                    # deterministic control; ambiguous dialogs use Escape.
-                    await modal_buttons[0].click()
-                else:
-                    await page.press("Escape")
-            await asyncio.sleep(0.15)
-            state = await _visible(browser_session)
-            remaining = await _modal(page, state)
-            if remaining:
-                return (f"ERROR: Dialog ({remaining}) remains after one close attempt. "
-                        "Inspect the visible UI and report the blocker; no further input was sent.\n" +
-                        state[-MAX_OBSERVATION:])
-            return "Dialog dismissed and verified absent.\n" + state[-MAX_OBSERVATION:]
+            return await _dismiss_dialog_once(browser_session)
         except Exception as exc:
             return f"ERROR: Could not dismiss visible dialog: {type(exc).__name__}: {exc}"
 
@@ -315,15 +337,16 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
             raise ValueError("Use the documented in-game copy syntax `scp filename.js server` with a simple .js filename and server name")
         run_match = RUN_COMMAND.fullmatch(command)
         run_filename = run_match.group(1).casefold() if run_match else None
+        page = await _page(browser_session)
+        blocked = await _clear_known_modal_before_action(browser_session, f"running terminal command {normalized_command!r}")
+        if blocked:
+            return blocked
         if run_filename and run_filename == last_confirmed_run:
             return (f"NO_PROGRESS: {run_match.group(1)} already received a visible positive PID. "
                     "Do not run it again yet. Inspect `ps`, `tail`, Active Scripts, or the visible error and act on that evidence.")
-        if not run_filename:
-            # A diagnostic or other terminal command provides a fresh check
-            # before the agent may deliberately launch the same script again.
-            last_confirmed_run = None
-        page = await _page(browser_session)
-        await _need_clear_surface(page, browser_session)
+        if normalized_command.casefold() == action_state.get("last_terminal_command"):
+            return (f"NO_PROGRESS: The same Terminal command ({normalized_command}) was already executed with no intervening "
+                    "Terminal action. Choose a different diagnostic or gameplay action; this repeat was not sent.")
         page, field = await _ensure_terminal(page, browser_session)
         before = await _visible(browser_session)
         await field.focus()
@@ -333,6 +356,11 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         after = await _visible(browser_session)
         if after == before:
             raise RuntimeError("Enter was sent, but the visible game UI did not change. Check terminal focus and inspect the UI before retrying.")
+        action_state["last_terminal_command"] = normalized_command.casefold()
+        if not run_filename:
+            # A successfully executed diagnostic command permits a later
+            # deliberate relaunch after the positive PID check.
+            last_confirmed_run = None
         ram_error = re.search(
             r"Cannot run\s+([A-Za-z0-9_.-]+\.js)\s+\(t=\d+\)\s+on\s+([A-Za-z0-9_.-]+)\.\s+This script requires\s+([\d.]+)\s*GB of RAM",
             after, re.IGNORECASE,
@@ -354,6 +382,8 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
 
     @tools.action(description=(
         "Focus the visible in-game Bitburner terminal, enter one command, press Enter, and return the rendered result. "
+        "Recognized offline-progress, message, and script runtime-error dialogs are dismissed once before acting; in that case the command is not sent and their visible text is returned. "
+        "An identical consecutive Terminal command is rejected as NO_PROGRESS. "
         "Use `scp filename.js server` only for the documented in-game copy operation; it cannot access the host filesystem. "
         "Use `cat filename.txt` to inspect a simple in-game text report that the script-only Remote API cannot read."
     ))
@@ -446,6 +476,8 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
             if args:
                 command += " " + " ".join(shlex.quote(arg) for arg in args)
             state = await send_terminal(command, browser_session)
+            if state.startswith("NO_PROGRESS:"):
+                return state
             result = state.casefold()
             if filename.casefold() not in result or not re.search(r"running script|pid\s*[:#]?\s*\d+|error|ram", result):
                 raise RuntimeError(f"No visible run confirmation or game error for {filename}; inspect UI before retrying\n{state[-1200:]}")

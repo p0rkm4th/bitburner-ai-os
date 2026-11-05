@@ -11,4 +11,6 @@ Before choosing a hacking target, inspect visible root, skill, port, and RAM req
 
 Use game_deploy_script for model-authored code, game_run_script/game_terminal for visible execution, and game_observe/game_progress for verification. Use game_open_tab for allowlisted pages; it refreshes visible navigation labels. Dismiss a blocking dialog once, then inspect. Never reuse stale indexes or repeat an unverified action.
 
+Before reading a script, list existing files with the visible Terminal `ls` and use a filename it shows. If no `.js` file is listed, do not guess a filename to read; proceed with your chosen new script. If a script read reports absent, do not repeat it. A `NO_PROGRESS` result requires a different action.
+
 Preserve the save/profile. Do not use developer tools, browser evaluation, downloads, save access, or hidden game state. Use legitimate game UI and documented Netscript. Keep decisions/checkpoints concise. Never claim progress without visible evidence."""

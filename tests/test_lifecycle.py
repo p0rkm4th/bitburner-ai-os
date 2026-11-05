@@ -53,6 +53,16 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
             "filename": "simple_hack.js", "host": "home", "required_ram": "1.70", "diagnosed": False,
         })
 
+    def test_checkpoint_recovers_generic_ram_error_with_unverified_host(self):
+        result = server.checkpoint_ram_rejection({
+            "latest_visible_state": "Offline earnings dialog",
+            "errors": ["The command failed because of RAM limits."],
+            "subobjective": "Inspect simple_hack.js using cat simple_hack.js.",
+        })
+        self.assertEqual(result, {
+            "filename": "simple_hack.js", "host": "unknown", "required_ram": "unknown", "diagnosed": False,
+        })
+
     async def test_stop_awaits_actual_agent_run_and_supervisor(self):
         old_agent, old_child, old_runner = server.agent, server.agent_run_task, server.runner
         fake = FakeAgent()

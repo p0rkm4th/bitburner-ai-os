@@ -1,7 +1,7 @@
 """Exercise deterministic visible UI helpers against a disposable game profile.
 
-Run inside the deployment image with a fresh copy of the clean benchmark profile
-mounted at /state/profile. This test makes no gameplay changes beyond navigation.
+Run inside the deployment image with a fresh copy of a benchmark profile mounted
+at /state/profile. It tests one-shot modal recovery and semantic navigation only.
 """
 import asyncio
 import os
@@ -14,7 +14,7 @@ from app.game_tools import register_game_tools
 async def main() -> None:
     profile = BrowserProfile(
         user_data_dir=os.getenv("STATE_DIR", "/state") + "/profile",
-        headless=True,
+        headless=False,
         allowed_domains=["bitburner-official.github.io"],
         enable_default_extensions=False,
         keep_alive=False,
@@ -30,13 +30,21 @@ async def main() -> None:
         if observed.startswith("ERROR:"):
             raise RuntimeError(observed)
         if "Offline for" in observed and "Your scripts generated" in observed:
-            dismissed = await actions["game_dismiss_dialog"](browser_session=browser)
-            if dismissed.startswith("ERROR:"):
-                raise RuntimeError(dismissed)
+            dismissed = await actions["game_terminal"](command="help", browser_session=browser)
+            if (not dismissed.startswith("NO_PROGRESS:")
+                    or "requested action was not performed" not in dismissed
+                    or "Offline for" not in dismissed):
+                raise RuntimeError(f"Terminal did not safely clear and report the offline dialog: {dismissed}")
+            observed = await actions["game_observe"](browser_session=browser)
+            if "Visible dialog: none" not in observed:
+                raise RuntimeError(f"Offline dialog remained after one dismissal: {observed}")
         opened = await actions["game_open_tab"](tab="Create Program", browser_session=browser)
         if opened.startswith("ERROR:") or "Opened visible game tab 'Create Program'" not in opened:
             raise RuntimeError(opened)
-        print("Visible UI helper integration passed: modal state handled and Create Program opened by fresh semantic label.")
+        listing = await actions["game_terminal"](command="ls", browser_session=browser)
+        if listing.startswith(("ERROR:", "NO_PROGRESS:")):
+            raise RuntimeError(f"Visible Terminal ls could not be verified: {listing}")
+        print("Visible UI helper integration passed: modal state handled, Create Program opened by fresh semantic label, and Terminal ls returned:\n" + listing[-1600:])
     finally:
         await browser.stop()
 
