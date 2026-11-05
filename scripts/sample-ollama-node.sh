@@ -4,7 +4,7 @@ set -euo pipefail
 : "${GPU_SSH_TARGET:?Set a private SSH target for GPU telemetry}"
 : "${METRICS_OUT:?Set a private output file}"
 interval="${SAMPLE_INTERVAL:-5}"
-ssh_args=(-o BatchMode=yes -o ConnectTimeout=4)
+ssh_args=(-o BatchMode=yes -o ConnectTimeout=4 -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes)
 if [[ -n "${GPU_SSH_KEY:-}" ]]; then ssh_args+=(-i "$GPU_SSH_KEY"); fi
 mkdir -p "$(dirname "$METRICS_OUT")"
 while :; do

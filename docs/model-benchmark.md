@@ -336,6 +336,39 @@ refusal and that its script earned money. It does not establish that the agent
 can consistently finish a session, provide a concise result, recover from
 Netscript runtime errors, or continue autonomously across sessions.
 
+### Guided Run 20 — explicit `think:false`
+
+Run 20 used a fresh copy of the same v3.0.1 seed and objective, with the same
+Qwen3.6:35b Q4_K_M model, Browser Use and restricted Remote API tools, 16,384
+context, temperature 0.2, seed 7, and an 18-step / 20-minute ceiling. The only
+intended inference change from the model default was explicit `think:false`.
+The model independently authored, deployed, and visibly ran
+`hack-n00dles.js`. The initial HUD showed $1.262k and Hacking 1; a retained
+screenshot 3m59s after task start showed the active script and $1.551k, and a
+later screenshot showed $1.838k and Hacking 1. The visible Active Scripts panel
+reported $576.303 production at $0.022/sec. This verifies about $576 of
+observable income from a model-authored program; no hacking-level increase was
+observed.
+
+The supervisor marked the run `failed` after 13 steps / 7m15s because the model
+repeated passive observations until the no-progress guard stopped it. Its
+checkpoint had already recorded the objective as complete, and the screenshots
+showed income, but it did not return a final report. No runtime error occurred,
+so no code-debug cycle was needed. Fifteen completed responses used 143,053
+prompt and 3,047 completion tokens; summed Ollama response time was 419.91s
+(27.99s mean, 31.21s median). No timeout or malformed response was recorded.
+Historical per-GPU samples for this run were empty because the sampler's SSH
+command did not force the documented identity and strict host-key options;
+GPU allocation and utilization for this trial are therefore unavailable. The
+sampler was corrected and a later read-only smoke sample recorded four GPU
+rows, but that does not reconstruct Run 20 hardware use.
+
+Run 20 demonstrates income generation under `think:false`, while also exposing
+a completion/reporting failure after success. It is one sample, not evidence
+that `think:false` is a better setting: Run 19 and Run 20 both earned money,
+but neither completed with a final report, and the benchmark has not repeated
+either condition enough to rank them.
+
 ## Reproducing a trial
 
 The isolated Compose deployment, objective, fresh-profile trial runner, and
