@@ -188,6 +188,30 @@ were sequential. Details and screenshots are retained only in ignored local
 trial records. This follow-up did not use an action model and does not establish
 that the documentation or fixes can complete autonomous gameplay.
 
+## Post-outage seed and completion-gate follow-up (2026-11-05)
+
+The first attempt was setup-only: the seed source pointed at a parent directory
+with a nested `profile/`, so the benchmark copied the wrong Chromium user-data
+root. It correctly stopped before inference when Bitburner did not show Remote
+API Online. A new disposable seed was configured and saved through the visible
+game Options UI, then verified Online after browser-session recreation.
+
+| Run | Result | Tool and game evidence | Inference |
+|---|---|---|---|
+| 10 | Exhausted after 6 Browser Use history steps | Empty filename read; unsupported API calls; malformed structured response. It reported that its deployed script had not been run. No income verified. | 7 requests; 258.6s summed time; 41,678 prompt / 1,683 completion tokens; first load 5.02s. |
+| 11 | Exhausted after 11 history entries (10 action steps) | Repeated speculative deployments; Bitburner displayed a `main function` runtime error. No verified script run or balance increase. | 11 requests; 418.2s summed time; 49,501 prompt / 2,927 completion tokens; first load 0.54s (warm model). |
+
+Both used `gemma4:e4b` (8B, Q4_K_M), 16,384 context, temperature 0.2, seed 7,
+and the same bounded objective. The second trial sampled GPU peaks of 3.3 GB
+and 2.1 GB, with utilization up to 100%. CPU offload was not measured. A
+tested completion guard now rejects successful `done` claims for money tasks
+unless the model has a visible positive script-run confirmation and a visible
+balance increase after the run. The guard's positive and negative cases pass;
+this model still did not meet the gameplay objective. The primary-model outage
+prevents a fair follow-up with `qwen3.6:35b`. No UI action model was tested;
+that experiment remains deferred until a primary local model meets the income
+gate.
+
 ## Reproducing a trial
 
 The isolated Compose deployment, objective, fresh-profile trial runner, and

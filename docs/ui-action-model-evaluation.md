@@ -12,7 +12,7 @@ run against the Bitburner DOM; the optional adapter remains unimplemented.
 The current low-complexity path is the deterministic visible-UI helper set in
 `app/game_tools.py`. It resolves fresh visible labels, rejects ambiguous or
 missing targets, checks modal state, executes through the shared Browser Use
-session, and verifies the rendered transition. The 81-test suite covers
+session, and verifies the rendered transition. The 86-test suite covers
 stale/ambiguous targets, blocked dialogs, terminal results, and navigation. A
 live integration check on a disposable profile dismissed the offline popup,
 opened Create Program by its fresh semantic label, and returned visible
@@ -35,7 +35,7 @@ These are upstream claims and requirements, not local performance measurements.
 | Workflow | Evidence | Outcome |
 |---|---|---|
 | Primary model only | Production trace: Qwen authored and visibly ran a Netscript loop. The game reported $3.764 of offline script earnings; HUD later showed $25.516k and Hacking 17. The trace was not isolated or controlled. | Real income and progress, but repeated run attempts exhausted home RAM; the agent has not reliably diagnosed or cleaned up active processes. Calls timed out at 150 seconds. |
-| Deterministic UI helpers | 81 automated tests pass. A disposable-profile integration check handled a dialog, opened a semantic tab, and returned actual `ls` output. | Functional and low-cost; no controlled A/B replay and no measured end-to-end latency reduction. |
+| Deterministic UI helpers | 86 automated tests pass. A disposable-profile integration check handled a dialog, opened a semantic tab, and returned actual `ls` output. | Functional and low-cost; no controlled A/B replay and no measured end-to-end latency reduction. |
 | Tiny model assisted | Neither Laya weights nor Fast Browser Use were installed or run. | No action-model task-success, latency, resource, or income measurements. No evidence supports integration. |
 
 The production trace is not a model benchmark: its profile and starting state
@@ -132,7 +132,7 @@ invent a filename when none is listed. Reference lookups accept
 signature-shaped queries such as `ns.sleep(number)`. A verified changed script
 deployment clears the consecutive-Terminal-command guard, and a visible game
 runtime-error dialog is dismissed once before the next Terminal action while
-its text is retained. The 81-test suite passes. These safeguards reduced
+its text is retained. The 86-test suite passes. These safeguards reduced
 unproductive repetitions in some traces, but did not produce a working
 money-making script. The primary gameplay gate remains unmet, so do not
 integrate or production-test a learned action model yet.

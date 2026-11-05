@@ -14,6 +14,9 @@ from typing import Optional
 
 import httpx
 from browser_use import Agent, BrowserProfile, BrowserSession, ChatOllama, Tools
+from browser_use.agent.views import ActionResult
+from browser_use.filesystem.file_system import FileSystem
+from browser_use.tools.views import DoneAction
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
@@ -123,6 +126,60 @@ def startup_resume_allowed(auto_resume: str, runtime_state: Optional[str], objec
 
 def watchdog_expired(state: str, idle_seconds: float, idle_limit: float) -> bool:
     return state != "paused" and idle_seconds >= idle_limit
+
+
+VISIBLE_MONEY = re.compile(r"\bMoney\b[^$]{0,60}\$\s*([\d,.]+)\s*([kmbt]?)", re.IGNORECASE)
+MONEY_SUFFIXES = {"": 1, "k": 1_000, "m": 1_000_000, "b": 1_000_000_000, "t": 1_000_000_000_000}
+
+
+def visible_money_amount(visible: str) -> Optional[float]:
+    match = VISIBLE_MONEY.search(visible)
+    if not match:
+        return None
+    try:
+        return float(match.group(1).replace(",", "")) * MONEY_SUFFIXES[match.group(2).casefold()]
+    except (ValueError, KeyError):
+        return None
+
+
+def money_completion_block(objective: str, success: bool, action_state: dict,
+                           visible: str) -> Optional[str]:
+    """Require observable execution and increased in-game money before a success claim."""
+    if not success or not re.search(r"\b(money|income|earnings|profit)\b", objective, re.IGNORECASE):
+        return None
+    if not action_state.get("confirmed_script_run"):
+        return "No visible successful Netscript run has been confirmed. Use the visible game terminal to run your authored script and inspect its result before claiming success."
+    baseline = action_state.get("money_at_script_run")
+    if baseline is None:
+        baseline = action_state.get("initial_visible_money")
+    current = visible_money_amount(visible)
+    if baseline is None or current is None:
+        return "Visible money could not be compared with the session baseline. Use game_progress to observe the current balance and verify the result before claiming success."
+    if current <= baseline:
+        return (f"The game-visible balance has not increased from the session baseline (${baseline:,.0f}; current ${current:,.0f}). "
+                "Inspect the script output and game_progress, debug using the returned evidence, and retry within the session budget.")
+    return None
+
+
+def register_completion_guard(tools: Tools, objective: str, action_state: dict) -> None:
+    """Replace Browser Use's unconditional `done` with a visible-evidence gate."""
+    default_done = tools.registry.registry.actions["done"].function
+
+    @tools.action(
+        description=("Finish the task only after checking the user's objective. For money or income objectives, "
+                     "success requires a visibly confirmed script run and an increased visible game balance."),
+        param_model=DoneAction,
+    )
+    async def done(params: DoneAction, browser_session: BrowserSession,
+                   file_system: FileSystem) -> ActionResult | str:
+        visible_now = await visible_snapshot(browser_session)
+        if action_state.get("initial_visible_money") is None:
+            action_state["initial_visible_money"] = visible_money_amount(visible_now)
+        block = money_completion_block(objective, params.success, action_state, visible_now)
+        if block:
+            return ActionResult(is_done=False, success=False,
+                                extracted_content="Success not accepted: " + block)
+        return await default_done(params=params, file_system=file_system)
 
 
 def runtime_session_number(value) -> int:
@@ -514,6 +571,8 @@ async def run_agent(objective: str) -> None:
     if rejection:
         action_state["ram_rejection"] = rejection
     tools = create_game_tools(action_state)
+    register_completion_guard(tools, objective, action_state)
+
     checkpoint_limit = int(agent_context_settings()["checkpoint_prompt_limit"])
     progress = (f"\nPrevious checkpoint (compact summary): "
                 f"{json.dumps(checkpoint_prompt_summary(previous), ensure_ascii=False)[:checkpoint_limit]}" if previous else "")
@@ -563,6 +622,12 @@ async def run_agent(objective: str) -> None:
         last_actions = actions
         subobjective = str(output.get("next_goal") or subobjective)[:700]
         visible = await visible_snapshot(shared_browser)
+        visible_money = visible_money_amount(visible)
+        if action_state.get("initial_visible_money") is None and visible_money is not None:
+            action_state["initial_visible_money"] = visible_money
+        if (action_state.get("confirmed_script_run") and
+                action_state.get("money_at_script_run") is None and visible_money is not None):
+            action_state["money_at_script_run"] = visible_money
         tool_results = summarize_action_results(actions, list(getattr(latest, "result", []) or [])) if latest else []
         tool_metrics["calls"] += len(actions)
         tool_metrics["failed"] += sum(item["state"] == "failed" for item in tool_results)

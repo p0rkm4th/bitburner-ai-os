@@ -378,6 +378,7 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         if run_filename and CONFIRMED_RUN.search(after):
             action_state.pop("ram_rejection", None)
             last_confirmed_run = run_filename
+            action_state["confirmed_script_run"] = run_filename
         return after[-MAX_OBSERVATION:]
 
     @tools.action(description=(

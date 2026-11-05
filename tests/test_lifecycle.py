@@ -32,6 +32,54 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         server.pause_event.set()
         server.status.update(state="running", objective="test", session=1, error="")
 
+    def test_visible_money_parser_handles_suffixes_without_hidden_state(self):
+        self.assertEqual(server.visible_money_amount("Money\n$1.262k"), 1262)
+        self.assertEqual(server.visible_money_amount("Money $2.5m"), 2_500_000)
+        self.assertIsNone(server.visible_money_amount("No balance shown"))
+
+    def test_money_success_requires_confirmed_script_and_visible_gain(self):
+        objective = "Create and run a script that earns money"
+        state = {"initial_visible_money": 1262}
+        self.assertIn("run", server.money_completion_block(objective, True, state, "Money $1.5k"))
+        state.update(confirmed_script_run="earn.js", money_at_script_run=1500)
+        self.assertIn("has not increased", server.money_completion_block(objective, True, state, "Money $1.5k"))
+        self.assertIsNone(server.money_completion_block(objective, True, state, "Money $1.6k"))
+
+    def test_money_gate_allows_explicit_incomplete_report_and_non_money_objectives(self):
+        self.assertIsNone(server.money_completion_block(
+            "Create a money-making script", False, {}, "Money $0"))
+        self.assertIsNone(server.money_completion_block(
+            "Inspect the visible hacking level", True, {}, "Money $0"))
+
+    async def test_registered_done_action_rejects_unverified_money_success(self):
+        tools = server.create_game_tools({})
+        state = {"initial_visible_money": 1262}
+        server.register_completion_guard(tools, "Create and run a script that earns money", state)
+        action = tools.registry.registry.actions["done"]
+        self.assertIn("increased visible game balance", action.description)
+        with patch.object(server, "visible_snapshot", return_value="Money $1.262k"):
+            result = await action.function(
+                params=server.DoneAction(text="I wrote it but did not run it", success=True),
+                browser_session=object(), file_system=object(),
+            )
+        self.assertFalse(result.is_done)
+        self.assertFalse(result.success)
+        self.assertIn("No visible successful Netscript run", result.extracted_content)
+
+    async def test_registered_done_action_accepts_visible_money_gain_after_script_run(self):
+        tools = server.create_game_tools({})
+        state = {"initial_visible_money": 1262, "confirmed_script_run": "earn.js",
+                 "money_at_script_run": 1262}
+        server.register_completion_guard(tools, "Create and run a script that earns money", state)
+        action = tools.registry.registry.actions["done"]
+        with patch.object(server, "visible_snapshot", return_value="Money $1.3k"):
+            result = await action.function(
+                params=server.DoneAction(text="The script ran and balance increased", success=True),
+                browser_session=object(), file_system=object(),
+            )
+        self.assertTrue(result.is_done)
+        self.assertTrue(result.success)
+
     def test_checkpoint_restores_ram_rejection_diagnostic_gate(self):
         result = server.checkpoint_ram_rejection({
             "latest_visible_state": "Cannot run simple_hack.js (t=1) on home. This script requires 1.70GB of RAM.",
