@@ -269,3 +269,13 @@ remained Online, and persisted runtime state remained terminally `failed` with
 zero active steps; startup did not resume gameplay. The new deployment image
 and deployed source file were verified by digest. No model generation request
 was made during this deployment.
+
+At 15:29 UTC, a follow-up deployment added durable storage for the pending
+script-run guard. The 90-test suite passed in the candidate image with
+networking disabled. Before recreation, a second gzip-verified archive covered
+the active profile, checkpoints, logs, screenshots, and save archives. The
+agent and bridge restarted together; afterward the browser was ready on the
+same 110 MB profile, Remote API remained Online, and runtime remained `failed`
+with zero active steps. The running module reported a one-write limit and the
+checkpoint restore helper was present. No inference request or gameplay action
+was made.
