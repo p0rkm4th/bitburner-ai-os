@@ -67,6 +67,11 @@ procedures, not a prescribed gameplay strategy.
 
 ## Browser and modal errors
 
+- **“Message received” dialog:** Read its visible body before closing. Record any
+  new program, reward, or `.msg` filename; after dismissing once, inspect the
+  named in-game file with `game_terminal` and `cat filename.msg`. If the same
+  message reappears, verify whether it is a new message or an unchanged modal
+  before dismissing again.
 - **A dialog is visible:** Call `game_dismiss_dialog` once, then `game_observe`.
   If it reports an actionable failure or the dialog remains, stop and report
   the blocker. Do not keep clicking old indexes, reload the page, or run a

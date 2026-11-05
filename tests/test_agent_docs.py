@@ -64,6 +64,12 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("positive PID", result)
         self.assertIn("not copy them there", result)
 
+    async def test_message_dialog_troubleshooting_preserves_unlock_information(self):
+        result = await self.actions["game_troubleshoot"]("Message received from unknown sender dialog")
+        self.assertIn("Read its visible body before closing", result)
+        self.assertIn("cat filename.msg", result)
+        self.assertIn("verify whether it is a new message", result)
+
     def test_every_session_includes_guide_and_keeps_persistent_game_tab(self):
         task = gameplay_task("Earn money", "checkpoint summary", "https://bitburner-official.github.io/",
                              "https://bitburner-official.github.io/", remote_authoring=True)
