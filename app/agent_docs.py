@@ -4,6 +4,11 @@ import re
 
 from browser_use import Tools
 
+try:
+    from .query_cache import cached_query_result, remember_query_result, repeated_query_message
+except ImportError:
+    from query_cache import cached_query_result, remember_query_result, repeated_query_message
+
 
 def _docs_root(module_file: str | Path = __file__) -> Path:
     """Resolve docs in both the flat image layout and source package layout."""
@@ -93,8 +98,9 @@ def _render(parts: tuple[tuple[str, str], ...]) -> str:
     return "\n\n".join(output)[:MAX_HELP_CHARS]
 
 
-def register_agent_doc_tools(tools: Tools) -> dict[str, object]:
+def register_agent_doc_tools(tools: Tools, action_state: dict | None = None) -> dict[str, object]:
     """Expose fixed documentation topics, never an arbitrary filesystem read."""
+    action_state = action_state if action_state is not None else {}
 
     @tools.action(description=(
         "Retrieve a short allowlisted Bitburner guide section. Topics: observe, tools, servers, root, "
@@ -106,8 +112,13 @@ def register_agent_doc_tools(tools: Tools) -> dict[str, object]:
         parts = HELP_TOPICS.get(key)
         if not parts:
             return "ERROR: Unknown topic. Allowed topics: " + ", ".join(HELP_TOPICS)
+        previous = cached_query_result(action_state, "game_help", key)
+        if previous is not None:
+            return repeated_query_message("game_help", previous)
         try:
-            return _render(parts)
+            result = _render(parts)
+            remember_query_result(action_state, "game_help", key, result)
+            return result
         except Exception as exc:
             return f"ERROR: Could not load gameplay documentation: {type(exc).__name__}: {exc}"
 
@@ -119,6 +130,9 @@ def register_agent_doc_tools(tools: Tools) -> dict[str, object]:
         query = error.strip().casefold()
         if not query:
             return "ERROR: Supply the visible error text or blocker."
+        previous = cached_query_result(action_state, "game_troubleshoot", query)
+        if previous is not None:
+            return repeated_query_message("game_troubleshoot", previous)
         try:
             parts = []
             if query.startswith("command ") and " not found" in query:
@@ -131,7 +145,9 @@ def register_agent_doc_tools(tools: Tools) -> dict[str, object]:
                 parts = [("agent-troubleshooting.md", "Deployment and Netscript errors"),
                          ("agent-troubleshooting.md", "Browser and modal errors"),
                          ("agent-troubleshooting.md", "Observation, progress, and inference limits")]
-            return _render(tuple(parts))
+            result = _render(tuple(parts))
+            remember_query_result(action_state, "game_troubleshoot", query, result)
+            return result
         except Exception as exc:
             return f"ERROR: Could not load troubleshooting notes: {type(exc).__name__}: {exc}"
 

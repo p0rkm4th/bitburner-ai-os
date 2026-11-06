@@ -18,6 +18,12 @@ not run concurrently. Check each returned result before acting again.
 | `game_netscript_reference` | one `symbol` | Retrieve the exact signature and nearby docs for a Netscript API from the connected game's own type definitions. Accepts `ns.grow`, `grow`, or signature-like forms such as `ns.grow(host, opts)`; supplied arguments are ignored for lookup. Terminal commands and `.exe` programs are not Netscript APIs; use visible in-game help and `game_terminal` for those. |
 | `game_run_script` | `filename`, optional `args`, optional `expected_host` | Run the script via the visible Terminal on the currently connected server and return the game's confirmation or visible error. If supplied, `expected_host` must match the current host shown in the visible Terminal prompt; a mismatch or missing prompt blocks execution. The tool does not connect or copy the file. A PID does not prove income; inspect output and stats afterward. |
 
+Documentation tools cache successful exact queries for the current gameplay task
+and across checkpoints. Repeating the same `game_help`, `game_troubleshoot`, or
+`game_netscript_reference` request returns `NO_PROGRESS` with the previous
+result excerpt. Use the result already returned; choose a different, evidence-led
+action. A transient documentation error is not cached and can be retried.
+
 If `tail` reports that no matching script process is running, do not repeat it.
 A one-shot script can finish after receiving a PID, so absence from `tail` is
 not proof that execution failed. Inspect visible output and progress, and read

@@ -17,7 +17,8 @@ class FakeTools:
 
 class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
-        self.actions = register_agent_doc_tools(FakeTools())
+        self.action_state = {}
+        self.actions = register_agent_doc_tools(FakeTools(), self.action_state)
 
     def test_compact_guide_is_available_and_within_context_budget(self):
         guide = load_core_guide()
@@ -70,6 +71,22 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Do not repeat `tail`", stopped)
         self.assertIn("Active Scripts", stopped)
         self.assertIn("another script's output", stopped)
+
+    async def test_repeated_troubleshooting_error_returns_cached_result_without_repeating_lookup(self):
+        error = "hack: Failed to hack 'n00dles'. Gained 0.825 exp"
+        first = await self.actions["game_troubleshoot"](error)
+        repeated = await self.actions["game_troubleshoot"](error)
+        self.assertTrue(repeated.startswith("NO_PROGRESS:"))
+        self.assertIn("Do not repeat", repeated)
+        self.assertIn(first[:100], repeated)
+
+    async def test_repeated_help_topic_is_blocked_but_different_topic_is_available(self):
+        first = await self.actions["game_help"]("servers")
+        repeated = await self.actions["game_help"](" SERVERS ")
+        self.assertTrue(repeated.startswith("NO_PROGRESS:"))
+        self.assertIn(first[:100], repeated)
+        different = await self.actions["game_help"]("errors")
+        self.assertNotIn("NO_PROGRESS:", different)
 
     async def test_removed_function_recovery_uses_observed_live_game_error(self):
         result = await self.actions["game_troubleshoot"](
@@ -175,6 +192,17 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         })
         self.assertEqual(summary["tool_results"][0]["message"], "runtime failure")
         self.assertEqual(summary["tool_metrics"]["failed"], 1)
+
+    def test_checkpoint_carries_recent_documentation_results_for_duplicate_guard(self):
+        summary = checkpoint_prompt_summary({
+            "objective": "debug a script",
+            "doc_query_cache": [{
+                "key": "game_netscript_reference:getsecuritylevel",
+                "result": "No exact Netscript function signature found for getSecurityLevel.",
+            }],
+        })
+        self.assertEqual(summary["prior_doc_results"][0]["result"],
+                         "No exact Netscript function signature found for getSecurityLevel.")
 
     def test_checkpoint_failed_action_invalidates_stale_subobjective_and_next_action(self):
         summary = checkpoint_prompt_summary({

@@ -212,6 +212,36 @@ class RemoteApiToolTests(unittest.IsolatedAsyncioTestCase):
         result = await self.actions["game_netscript_reference"]("ns.grow")
         self.assertIn("definition request timed out", result)
 
+    async def test_repeated_missing_api_reference_is_blocked_with_prior_result(self):
+        first = await self.actions["game_netscript_reference"]("ns.getSecurityLevel")
+        self.assertIn("No exact Netscript function signature", first)
+        calls_after_first = len(self.api.calls)
+        repeated = await self.actions["game_netscript_reference"]("getSecurityLevel")
+        self.assertTrue(repeated.startswith("NO_PROGRESS:"))
+        self.assertIn(first[:100], repeated)
+        self.assertEqual(len(self.api.calls), calls_after_first)
+
+    async def test_reference_cache_restores_after_checkpoint(self):
+        from app.query_cache import doc_query_cache_checkpoint, restore_doc_query_cache
+        first = await self.actions["game_netscript_reference"]("ns.getSecurityLevel")
+        checkpoint = {"doc_query_cache": doc_query_cache_checkpoint(self.action_state)}
+        restored = {}
+        restore_doc_query_cache(checkpoint, restored)
+        actions = register_remote_api_tools(FakeTools(), self.api, action_state=restored)
+        calls_after_first = len(self.api.calls)
+        repeated = await actions["game_netscript_reference"]("getSecurityLevel")
+        self.assertTrue(repeated.startswith("NO_PROGRESS:"))
+        self.assertIn(first[:100], repeated)
+        self.assertEqual(len(self.api.calls), calls_after_first)
+
+    async def test_transient_reference_error_does_not_poison_cache(self):
+        self.api.failure = ("getDefinitionFile", "definition request timed out")
+        result = await self.actions["game_netscript_reference"]("ns.grow")
+        self.assertIn("definition request timed out", result)
+        self.api.failure = None
+        recovered = await self.actions["game_netscript_reference"]("ns.grow")
+        self.assertIn("Exact signature for ns.grow", recovered)
+
     async def test_deployment_failure_keeps_ram_error(self):
         self.api.failure = ("calculateRam", "Unknown Netscript function ns.fakeCall")
         result = await self.actions["game_deploy_script"]("student.js", "export function main(ns) {}")

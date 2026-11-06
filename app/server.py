@@ -27,6 +27,7 @@ try:  # Package import for tests, flat import for the deployment image.
     from .remote_api_tools import (deployment_guard_checkpoint, pending_script_run, pending_script_run_message,
                                    register_remote_api_tools,
                                    remote_api_from_env, restore_deployment_guard)
+    from .query_cache import doc_query_cache_checkpoint, restore_doc_query_cache
 except ImportError:
     from agent_docs import load_core_guide, register_agent_doc_tools
     from agent_prompt import BITBURNER_SYSTEM_PROMPT
@@ -34,6 +35,7 @@ except ImportError:
     from remote_api_tools import (deployment_guard_checkpoint, pending_script_run, pending_script_run_message,
                                   register_remote_api_tools,
                                   remote_api_from_env, restore_deployment_guard)
+    from query_cache import doc_query_cache_checkpoint, restore_doc_query_cache
 
 STATE = Path(os.getenv("STATE_DIR", "/state"))
 for name in ("profile", "checkpoints", "logs", "screenshots", "saves", "backups"):
@@ -320,6 +322,7 @@ def checkpoint_prompt_summary(checkpoint: dict) -> dict:
     scripts = checkpoint.get("scripts_and_observed_results", [])[-6:]
     stored_action_state = {}
     restore_deployment_guard(checkpoint, stored_action_state)
+    restore_doc_query_cache(checkpoint, stored_action_state)
     deployment_guard = deployment_guard_checkpoint(stored_action_state)
     if remote_authoring:
         if obsolete_editor_text(objective) or obsolete_editor_text(subobjective):
@@ -349,6 +352,10 @@ def checkpoint_prompt_summary(checkpoint: dict) -> dict:
         "session": checkpoint.get("session"), "steps": checkpoint.get("steps"),
         "objective": objective,
         "subobjective": subobjective,
+        "prior_doc_results": [
+            {"key": item["key"], "result": item["result"][:450]}
+            for item in doc_query_cache_checkpoint(stored_action_state)[-2:]
+        ],
         "accomplishments": clean_items(checkpoint.get("accomplishments", [])),
         "latest_visible_state": latest_visible,
         "scripts_and_observed_results": scripts,
@@ -405,7 +412,7 @@ def create_game_tools(action_state: Optional[dict] = None) -> Tools:
                                   "close", "send_keys", "extract"])
     remote_api = remote_api_from_env()
     register_game_tools(tools, include_editor=remote_api is None, action_state=action_state)
-    register_agent_doc_tools(tools)
+    register_agent_doc_tools(tools, action_state)
     if remote_api is not None:
         # Remote API is the reliable authoring path; generic text entry can
         # otherwise send the model back into fragile editor/terminal typing.
@@ -861,6 +868,7 @@ async def run_agent(objective: str) -> None:
     action_state = {}
     if previous:
         restore_deployment_guard(previous, action_state)
+        restore_doc_query_cache(previous, action_state)
     rejection = checkpoint_ram_rejection(previous)
     if rejection:
         action_state["ram_rejection"] = rejection
@@ -993,6 +1001,7 @@ async def run_agent(objective: str) -> None:
                          "session_outcome": status.get("outcome"),
                          "ram_rejection": action_state.get("ram_rejection"),
                          "deployment_guard": deployment_guard_checkpoint(action_state),
+                         "doc_query_cache": doc_query_cache_checkpoint(action_state),
                          "unresolved_problems": errors[-4:], "next_intended_action": subobjective,
                          "session": status.get("session", 1), "steps": status["steps"],
                          "state": "active", "action": json.dumps(actions, ensure_ascii=False)[:1000],
@@ -1060,6 +1069,7 @@ async def run_agent(objective: str) -> None:
                       "done_report": action_state.get("done_report", ""),
                       "ram_rejection": action_state.get("ram_rejection"),
                       "deployment_guard": deployment_guard_checkpoint(action_state),
+                      "doc_query_cache": doc_query_cache_checkpoint(action_state),
                       "unresolved_problems": errors[-4:], "next_intended_action": final_result or subobjective,
                       "session": status.get("session", 1), "steps": len(history.history),
                       "state": "active", "result": final_result,
@@ -1083,6 +1093,7 @@ async def run_agent(objective: str) -> None:
                              "tool_metrics": dict(tool_metrics),
                              "ram_rejection": action_state.get("ram_rejection"),
                              "deployment_guard": deployment_guard_checkpoint(action_state),
+                             "doc_query_cache": doc_query_cache_checkpoint(action_state),
                              "session": status.get("session", 1), "steps": status["steps"], "state": "active"})
         except Exception:
             log.exception("Could not persist failure checkpoint")

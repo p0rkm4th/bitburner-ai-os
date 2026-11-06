@@ -9,6 +9,11 @@ import re
 import httpx
 from browser_use import Tools
 
+try:
+    from .query_cache import cached_query_result, remember_query_result, repeated_query_message
+except ImportError:
+    from query_cache import cached_query_result, remember_query_result, repeated_query_message
+
 
 FILENAME = re.compile(r"^[A-Za-z0-9_.-]+\.js$")
 IDENTIFIER = re.compile(r"^(?:ns\.)?([A-Za-z_$][A-Za-z0-9_$]{0,79})(?:\([^()\r\n]{0,160}\))?$")
@@ -216,6 +221,9 @@ def register_remote_api_tools(tools: Tools, api: RemoteApi,
             if not match:
                 raise ValueError("Query one Netscript function name, such as ns.grow, grow, ns.grow(host, opts), or getHackingLevel")
             name = match.group(1)
+            previous = cached_query_result(action_state, "game_netscript_reference", name)
+            if previous is not None:
+                return repeated_query_message("game_netscript_reference", previous)
             definition = await api.call("getDefinitionFile", {})
             if not isinstance(definition, str):
                 raise RuntimeError("The game did not return its Netscript definitions")
@@ -223,7 +231,9 @@ def register_remote_api_tools(tools: Tools, api: RemoteApi,
             signature = re.compile(rf"^\s*{re.escape(name)}\s*\(.*\)\s*:")
             index = next((i for i, line in enumerate(lines) if signature.search(line)), None)
             if index is None:
-                return f"No exact Netscript function signature found for {name} in this game's definitions."
+                result = f"No exact Netscript function signature found for {name} in this game's definitions."
+                remember_query_result(action_state, "game_netscript_reference", name, result)
+                return result
 
             start = index
             for candidate in range(index - 1, max(-1, index - 50), -1):
@@ -236,8 +246,10 @@ def register_remote_api_tools(tools: Tools, api: RemoteApi,
             # a naive prefix truncation, so always put the exact signature first.
             excerpt = list(doc_lines[:10]) + list(doc_lines[-5:])
             excerpt = list(dict.fromkeys(line for line in excerpt if line.strip()))
-            return (f"Exact signature for ns.{name}: {lines[index].strip()}\n"
-                    "Official documentation excerpt:\n" + "\n".join(excerpt))[:2500]
+            result = (f"Exact signature for ns.{name}: {lines[index].strip()}\n"
+                      "Official documentation excerpt:\n" + "\n".join(excerpt))[:2500]
+            remember_query_result(action_state, "game_netscript_reference", name, result)
+            return result
         except Exception as exc:
             return f"ERROR: Could not read Netscript reference: {type(exc).__name__}: {exc}"
 
