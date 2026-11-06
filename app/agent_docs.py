@@ -69,6 +69,8 @@ TROUBLESHOOT_TOPICS: tuple[tuple[tuple[str, ...], str], ...] = (
     (("dynamic ram", "dynamic usage", "ram usage error", "runtime ram",
       "cannot run", "not enough ram", "process does not start", "available ram", "positive pid"),
      "RAM and active process errors"),
+    (("no script named", "is not running on the server", "no matching script"),
+     "RAM and active process errors"),
     (("filename", "file not found", "path"), "Deployment and Netscript errors"),
     (("scan-analyze", "incorrect usage", "unknown command"), "Deployment and Netscript errors"),
     (("ram", "calculate", "unknown netscript", "main", "function removed", "undefined",

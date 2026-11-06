@@ -64,6 +64,11 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("positive numeric", command)
         unknown = await self.actions["game_troubleshoot"]("Command serverinfo not found.")
         self.assertIn("Unknown Terminal command", unknown)
+        stopped = await self.actions["game_troubleshoot"](
+            "No script named hack_n00dles_fast.js with args [] is running on the server")
+        self.assertIn("Do not repeat `tail`", stopped)
+        self.assertIn("Active Scripts", stopped)
+        self.assertIn("another script's output", stopped)
 
     async def test_removed_function_recovery_uses_observed_live_game_error(self):
         result = await self.actions["game_troubleshoot"](

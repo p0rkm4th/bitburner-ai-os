@@ -736,6 +736,11 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
             result = await send_terminal(command, browser_session)
             if result.startswith("UNCONFIRMED:"):
                 return result
+            if re.search(r"(?im)^\s*No script named .+? with args .* is running on (?:the )?server\.?\s*$", result):
+                return ("VISIBLE GAME ERROR (verbatim):\n" + result +
+                        "\nThe requested script process is not running on this host. Do not repeat `tail`; "
+                        "inspect the visible Active Scripts/`ps` state or read the listed `.js` file with "
+                        "`game_read_script`, then choose a different diagnostic.")
             # Preserve the game's exact rendered error while making it
             # unambiguous to the model that this was a failed game action.
             error_patterns = (

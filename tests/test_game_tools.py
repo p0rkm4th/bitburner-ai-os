@@ -90,6 +90,8 @@ class FakePage:
         self.focused = None
         self.terminal_visible = True
         self.run_output = None
+        self.tail_output = None
+        self.tail_output = None
         self.post_run_observations = []
         self.executed_commands = []
         self.delay_output_snapshots = 0
@@ -185,6 +187,10 @@ class FakePage:
                 self.visible = f"ERROR: no script named {filename}"
         elif command.startswith("run "):
             self.visible = self.run_output or f"Bitburner Terminal\n{command}\nRunning script home.js with PID 4; $1.25/s"
+        elif command.startswith("tail "):
+            self.visible = self.tail_output or f"Bitburner Terminal\n{command}\nNo script named home.js with args [] is running on the server"
+        elif command.startswith("tail "):
+            self.visible = self.tail_output or f"Bitburner Terminal\n{command}\nNo script named home.js with args [] is running on the server"
         elif command == "ps":
             self.visible = "Bitburner Terminal\nps\nPID Filename\n4 home.js"
         elif command.startswith("scp "):
@@ -510,6 +516,36 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         result = await self.actions["game_terminal"]("run home.js", self.browser)
         self.assertTrue(result.startswith("VISIBLE GAME ERROR (verbatim):"))
         self.assertIn("requires 81.60GB of RAM", result)
+
+    async def test_terminal_tail_no_running_script_gives_actionable_diagnostics(self):
+        self.page.tail_output = (
+            "Bitburner Terminal\n[home /]> tail hack_n00dles_fast.js\n"
+            "No script named hack_n00dles_fast.js with args [] is running on the server"
+        )
+        result = await self.actions["game_terminal"]("tail hack_n00dles_fast.js", self.browser)
+        self.assertIn("VISIBLE GAME ERROR (verbatim)", result)
+        self.assertIn("No script named hack_n00dles_fast.js", result)
+        self.assertIn("Do not repeat `tail`", result)
+        self.assertIn("Active Scripts", result)
+        self.assertIn("game_read_script", result)
+        repeat = await self.actions["game_terminal"]("tail hack_n00dles_fast.js", self.browser)
+        self.assertTrue(repeat.startswith("NO_PROGRESS:"))
+        self.assertEqual(self.page.executed_commands, ["tail hack_n00dles_fast.js"])
+
+    async def test_terminal_tail_no_running_script_gives_actionable_diagnostics(self):
+        self.page.tail_output = (
+            "Bitburner Terminal\n[home /]> tail hack_n00dles_fast.js\n"
+            "No script named hack_n00dles_fast.js with args [] is running on the server"
+        )
+        result = await self.actions["game_terminal"]("tail hack_n00dles_fast.js", self.browser)
+        self.assertIn("VISIBLE GAME ERROR (verbatim)", result)
+        self.assertIn("No script named hack_n00dles_fast.js", result)
+        self.assertIn("Do not repeat `tail`", result)
+        self.assertIn("Active Scripts", result)
+        self.assertIn("game_read_script", result)
+        repeat = await self.actions["game_terminal"]("tail hack_n00dles_fast.js", self.browser)
+        self.assertTrue(repeat.startswith("NO_PROGRESS:"))
+        self.assertEqual(self.page.executed_commands, ["tail hack_n00dles_fast.js"])
 
     async def test_run_script_catches_runtime_error_that_follows_pid_confirmation(self):
         self.page.post_run_observations = [
