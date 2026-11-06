@@ -1,0 +1,40 @@
+{
+  "fixture_note": "Minimal replay observations transcribed from archived Browser Use snapshots. These are test fixtures, not live page captures or complete DOMs.",
+  "source_commit": "b295a6c6223bf8d76c627b5256a800c86c780fe9",
+  "cases": [
+    {
+      "id": "stale-script-editor-index",
+      "source_trace": "local/benchmark-runs/devstral24-01/logs/conversation.json/conversation_06aebc8c-b8e9-7729-8000-b0829ab7fca5_14.txt",
+      "source_detail": "step 14 DOM snapshot and preceding repeated failed element-index-20 clicks",
+      "observation": {
+        "visible_navigation_labels": ["Hacking", "Terminal", "Script Editor", "Active Scripts", "Create Program", "Character", "Stats", "Hacknet", "World", "City", "Travel", "Help", "Milestones", "Documentation", "Achievements", "Options"],
+        "requested_label": "Script Editor",
+        "prior_stale_index": 20,
+        "repeated_stale_index_errors_in_trace": 5
+      },
+      "expected": {"fresh_unique_target": "Script Editor", "repeat_attempts": 0}
+    },
+    {
+      "id": "wrong-achievements-target",
+      "source_trace": "local/benchmark-runs/devstral24-01/logs/conversation.json/conversation_06aebc8c-b8e9-7729-8000-b0829ab7fca5_5.txt",
+      "source_detail": "step 5 DOM snapshot: Script Editor is a visible navigation item; preceding actions select Achievements despite editor goal",
+      "observation": {
+        "visible_navigation_labels": ["Hacking", "Terminal", "Script Editor", "Active Scripts", "Create Program", "Character", "Stats", "Hacknet", "World", "City", "Travel", "Help", "Milestones", "Documentation", "Achievements", "Options"],
+        "requested_label": "Script Editor",
+        "observed_wrong_target_repetitions": 2
+      },
+      "expected": {"fresh_unique_target": "Script Editor", "repeat_attempts": 0}
+    },
+    {
+      "id": "runtime-error-dialog-blocks-terminal",
+      "source_trace": "local/benchmark-runs/devstral24-02/logs/conversation.json/conversation_06aebcd0-31de-769c-8000-0de919858423_5.txt",
+      "source_detail": "step 5 visible DOM and failed dismissal; next terminal action blocked by the dialog",
+      "observation": {
+        "visible_dialog_text": "RUNTIME ERROR: hack: Cannot hack foodnstuff server because you do not have root access. Script: money_maker.js. PID: 1.",
+        "dismissal_failed_once": true,
+        "terminal_action_blocked": true
+      },
+      "expected": {"single_close_attempt": true, "error_text_preserved": true, "blind_retries": 0}
+    }
+  ]
+}
