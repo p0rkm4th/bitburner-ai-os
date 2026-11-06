@@ -499,3 +499,24 @@ explicit stop, so no gameplay or inference request was started. No save was
 imported and no model configuration was changed. A live bridge check returned
 401 without a bearer token and 200 with its configured token; the forbidden
 `getSaveFile` route returned 404. No write operation was sent.
+
+## Dialog-dismissal recovery guard deployment — commit `c3617d6` (2026-11-06)
+
+Run 29's isolated trace showed repeated dismissal requests after the runtime
+error modal had already closed. The game tool now returns `NO_PROGRESS` without
+input when no dialog is visible, includes any remaining rendered Terminal
+error for diagnosis, and permits another close only when a new modal is
+visible. The pinned suite passed 131 tests in a network-disabled container.
+
+The deployed test-game service was verified `operator_stopped` at session 0 /
+0 steps before update. A gzip-validated archive of the persistent profile,
+checkpoints, logs, screenshots, and native save backups was made before
+recreation. The agent and restricted Remote API sidecar were recreated from
+`c3617d6`; the data mount and service configuration were retained. After
+startup, the health API reported the browser ready, both containers were
+running, noVNC returned HTTP 200, and the visible game showed Remote API
+Online. The agent remains `operator_stopped` at session 0 / 0 steps; no
+gameplay or inference request was started. The visible game presented its
+offline-progress dialog after restart. Source hashes in the running image
+matched the deployed release for the dialog tool, system prompt, and detailed
+agent guides. No save import or inference-server change was made.
