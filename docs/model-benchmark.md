@@ -1171,5 +1171,8 @@ sessions. The helper now waits up to 6 seconds and returns an `UNCONFIRMED`
 result with the latest visible excerpt; the duplicate guard remains in force
 and the prompt/tool guide direct inspection with `game_observe` or
 `game_read_script`. Delayed-output, timeout, duplicate, and lifecycle summary
-tests pass. The full 179-test suite passes with network disabled. Live
-validation of this fix is pending.
+tests pass. The full 180-test suite passes with network disabled. The fix is
+deployed in commits `f02ded9` and `738d751`; postflight preserved terminal
+`failed` at session 14 with AUTO_RESUME enabled, so the agent did not restart.
+The updated Terminal behavior still needs validation in a new bounded live
+agent session. This run remains a failure and proves no attributable income.

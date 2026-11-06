@@ -984,7 +984,21 @@ timeout, returns `UNCONFIRMED` with the latest visible UI and an explicit
 no-repeat instruction. The duplicate-command guard remains active. The system
 prompt and tool guide direct the model to inspect with `game_observe` or read a
 listed script with `game_read_script`. Delayed-output and duplicate-prevention
-tests pass; the network-disabled suite passes 179/179. This runtime fix has not
-yet been deployed or validated in a live agent session. The test VM is
-`failed` and `AUTO_RESUME=1` does not revive terminal failures; no automatic
-restart has been issued. All income progress remains unverified.
+tests pass; the network-disabled suite passes 180/180. This runtime fix has not
+yet been validated in a live agent session. It was deployed as `f02ded9`; the
+deployment postflight then exposed that a terminal failure record omitted its
+session counter. `738d751` now persists that counter and restores the highest
+recorded session from the durable checkpoint without reviving a failed agent.
+
+The `738d751` release was built and deployed while the test agent remained
+terminal `failed`. Before recreating the agent and restricted Remote API
+bridge, the persistent data directory was archived and gzip-validated, and the
+previous image was tagged for rollback. Postflight verified marker `738d751`,
+agent health and browser readiness, terminal `failed` at session 14 / 0 steps,
+`AUTO_RESUME=1`, 16 steps per session, 16,384 context, Remote API Online, and
+noVNC HTTP 200. The existing profile was restored behind an offline-progress
+modal displaying `$11.835` aggregate offline generation; that amount is not
+current balance or attributable income. No inference or gameplay action ran
+during deployment. The network-disabled suite passes 180/180. A further
+bounded local-model session is needed to validate Terminal recovery and
+autonomous Netscript repair; no income has been verified.
