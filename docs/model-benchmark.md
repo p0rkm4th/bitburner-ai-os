@@ -1044,3 +1044,17 @@ first game action, ahead of generic file-listing directions; when no file is
 pending, it prioritizes visible process diagnostics after a RAM rejection. The
 rollout preserved the same test profile and terminal `operator_stopped` state.
 No gameplay or inference has yet validated this instruction change.
+
+### Run 39 session 10 — script started, income unverified
+
+With the split-prompt parser, cross-file RAM gate, and pending-run priority
+deployed, Qwen ran its authored `tiny_hack.js` on `n00dles` after `home`
+rejected it for insufficient free RAM. The visible Terminal confirmed PID 5.
+The model then inspected Active Scripts and saw an aggregate `$0.471/s` on
+`home`, which it incorrectly attributed to `tiny_hack.js`; the completion
+guard rejected its success report. The visible HUD at the end was $71.821k /
+hacking 156. No immediate pre-run money value was persisted, so this trial does
+not establish attributable income. The agent was operator-stopped at the
+16-action cap. A follow-up harness change records the visible balance before a
+run, ignores old PIDs when confirming a new command, and uses the pre-run value
+for progress comparison. All 170 pinned tests pass; live validation is pending.

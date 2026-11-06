@@ -153,9 +153,9 @@ def money_completion_block(objective: str, success: bool, action_state: dict,
         return None
     if not action_state.get("confirmed_script_run"):
         return "No visible successful Netscript run has been confirmed. Use the visible game terminal to run your authored script and inspect its result before claiming success."
-    baseline = action_state.get("initial_visible_money")
+    baseline = action_state.get("money_at_script_run")
     if baseline is None:
-        baseline = action_state.get("money_at_script_run")
+        baseline = action_state.get("initial_visible_money")
     current = visible_money_amount(visible)
     if baseline is None or current is None:
         return "Visible money could not be compared with the session baseline. Use game_progress to observe the current balance and verify the result before claiming success."
@@ -171,9 +171,9 @@ def money_progress_verified(objective: str, action_state: dict, visible: str) ->
         return False
     if not action_state.get("confirmed_script_run"):
         return False
-    baseline = action_state.get("initial_visible_money")
+    baseline = action_state.get("money_at_script_run")
     if baseline is None:
-        baseline = action_state.get("money_at_script_run")
+        baseline = action_state.get("initial_visible_money")
     current = visible_money_amount(visible)
     reward = re.search(
         r"(?:successfully hacked .+? for|\b(?:earned|reward|profit|income)\b[^$\n]{0,50})\s*\$\s*([\d,]+(?:\.\d+)?)",
@@ -264,6 +264,7 @@ def gameplay_task(objective: str, progress: str, current_url: str, game_url: str
                  "after game_deploy_script confirms read-back and RAM, run that exact filename through game_run_script before rewriting or "
                  "deploying it again. An earlier Terminal `ls` does not disprove a later verified deployment. "
                  "A PID confirms startup only. After a script starts, use game_progress to verify visible money, hacking level, and script income; "
+                 "do not attribute aggregate Active Scripts production to your script unless its visible row or output confirms that script. "
                  "do not poll by repeating game_observe. If game_observe says NO_PROGRESS, do not repeat it; use game_progress or take a different "
                  "useful action, and finish once the objective has visible evidence. If a runtime error appears, call game_troubleshoot with its exact text, check the named API "
                  "against the current live reference, revise your own script, and retry within the step budget. Verify actual money/output "

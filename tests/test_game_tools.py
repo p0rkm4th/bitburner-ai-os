@@ -3,7 +3,7 @@ import unittest
 from types import SimpleNamespace
 
 from app.game_tools import (_visible_content_matches, find_visible_button_node, find_visible_tab_node, register_game_tools,
-                            visible_progress, visible_runtime_error, visible_terminal_hosts)
+                            visible_money_value, visible_progress, visible_runtime_error, visible_terminal_hosts)
 
 
 class FakeElement:
@@ -376,6 +376,10 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(visible_terminal_hosts("Terminal\nhome\n\t]>"), ["home"])
         self.assertEqual(visible_terminal_hosts("Terminal\nrandom home text\nWelcome"), [])
 
+    def test_visible_money_value_parses_only_rendered_hud_balance(self):
+        self.assertEqual(visible_money_value("Overview\nMoney\n$1.262k"), 1262.0)
+        self.assertIsNone(visible_money_value("Terminal output\n$1.262k"))
+
     def test_tutorial_lookup_accepts_native_button_without_explicit_role(self):
         native = FakeNavNode("Exit Tutorial", 1005, role="")
         native.attributes = {"type": "button"}
@@ -733,6 +737,30 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Running script home.js", result)
         self.assertEqual(self.page.executed_commands, ["run home.js"])
 
+    async def test_confirmed_run_records_visible_money_before_terminal_execution(self):
+        self.page.visible = "Overview\nMoney\n$1.262k\nHack\n1\n[home /]>"
+        self.page.run_output = "Bitburner Terminal\n[home /]> run home.js\nRunning script home.js with PID 4"
+        result = await self.actions["game_run_script"]("home.js", self.browser, [])
+        self.assertIn("Running script home.js", result)
+        self.assertEqual(self.action_state["money_at_script_run"], 1262.0)
+        self.assertNotIn("money_before_run_attempt", self.action_state)
+
+    async def test_old_visible_pid_does_not_confirm_a_new_ram_rejected_run(self):
+        self.page.visible = (
+            "Overview\nMoney\n$1.262k\nBitburner Terminal\n[home /]> run home.js\n"
+            "Running script with 1 thread, PID 4"
+        )
+        self.page.run_output = (
+            "Bitburner Terminal\n[home /]> run home.js\nRunning script with 1 thread, PID 4\n"
+            "[home /]> run home.js\nCannot run home.js (t=1) on home. This script requires 81.60GB of RAM."
+        )
+
+        result = await self.actions["game_run_script"]("home.js", self.browser, [])
+
+        self.assertIn("requires 81.60GB of RAM", result)
+        self.assertNotIn("confirmed_script_run", self.action_state)
+        self.assertNotIn("money_at_script_run", self.action_state)
+
     async def test_visible_run_clears_verified_deployment_streak(self):
         self.action_state.update(deployments_without_run=2, last_deployed_filename="home.js")
         self.page.visible = "Bitburner Terminal\n[home /]>"
@@ -793,7 +821,10 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Running script hack.js", first)
         self.action_state.update(deployments_without_run=1, last_deployed_filename="hack.js")
         self.action_state.pop("last_terminal_command", None)  # successful changed deployment clears this marker
-        self.page.run_output = "Bitburner Terminal\n[home /]> run hack.js\nRunning script hack.js with PID 5"
+        self.page.run_output = (
+            "Bitburner Terminal\n[home /]> run hack.js\nRunning script hack.js with PID 4\n"
+            "[home /]> run hack.js\nRunning script hack.js with PID 5"
+        )
         second = await self.actions["game_run_script"]("hack.js", self.browser, [])
         self.assertIn("Running script hack.js", second)
         self.assertEqual(self.page.executed_commands, ["run hack.js", "run hack.js"])
@@ -856,6 +887,14 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         result = await self.actions["game_progress"](self.browser)
         self.assertIn("Money: $1.551k", result)
         self.assertIn("change +289.00", result)
+
+    async def test_game_progress_prefers_balance_captured_before_confirmed_run(self):
+        self.action_state.update(initial_visible_money=1200.0, confirmed_script_run="earn.js",
+                                 money_at_script_run=1262.0)
+        self.page.visible = "Overview\nMoney\n$1.551k\nHack\n1"
+        result = await self.actions["game_progress"](self.browser)
+        self.assertIn("change +289.00", result)
+        self.assertNotIn("change +351.00", result)
 
     async def test_game_progress_rejects_malformed_money_baseline_but_returns_visible_stats(self):
         self.page.visible = "Overview\nMoney\n$1.838k\nHack\n1"

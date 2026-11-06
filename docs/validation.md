@@ -798,3 +798,21 @@ browser ready, `AUTO_RESUME=1`, Remote API Online, noVNC HTTP 200, and
 loopback-only management listeners. A read-only in-container check confirmed
 the pending-script instruction is loaded. Live gameplay validation remains
 pending.
+
+### Pre-run money baseline and fresh PID confirmation — pending deployment
+
+Run 39's session 10 reached a successful visible `run tiny_hack.js` on rooted
+`n00dles` (PID 5), after `home` rejected it for insufficient free RAM. The
+script was model-authored as a one-shot `ns.hack` call. It did not visibly
+produce an attributable balance increase. Active Scripts showed an aggregate
+$0.471/s rate on `home`; the model incorrectly attributed it to `tiny_hack.js`,
+and the completion guard rejected that claim. The final visible HUD was
+$71.821k / hacking 156; the run did not preserve its immediate pre-run HUD
+baseline, so no money delta is recorded.
+
+The run helper now samples visible money immediately before sending a script
+command, only counts a PID confirmation found after the fresh command echo,
+and passes that pre-run balance to `game_progress` and the completion gate.
+The tool guide warns against attributing aggregate Active Scripts production
+to a particular file without its row or output. All 170 pinned tests pass.
+This correction awaits deployment and another bounded local-model trial.

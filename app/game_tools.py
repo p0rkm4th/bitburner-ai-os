@@ -61,6 +61,18 @@ def visible_runtime_error(visible: str) -> str:
     return excerpt.strip()
 
 
+def visible_money_value(visible: str) -> Optional[float]:
+    """Parse the balance shown in the visible HUD, if the current view includes it."""
+    match = re.search(r"\bMoney\b[^$]{0,100}\$\s*([\d,.]+)\s*([kmbt]?)", visible, re.IGNORECASE)
+    if not match:
+        return None
+    scale = {"": 1, "k": 1_000, "m": 1_000_000, "b": 1_000_000_000, "t": 1_000_000_000_000}
+    try:
+        return float(match.group(1).replace(",", "")) * scale[match.group(2).casefold()]
+    except (ValueError, KeyError):
+        return None
+
+
 TERMINAL_HOST_PROMPT = re.compile(r"\[([A-Za-z0-9_.-]+)\s+[^\]\r\n]*\]\s*>")
 SPLIT_TERMINAL_HOST_PROMPT = re.compile(
     r"(?m)^[ \t]*([A-Za-z0-9_.-]+)(?:[ \t]*\r?\n[ \t]*|[ \t]+)\]>"
@@ -401,7 +413,9 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
                         "No hacking-level comparison was made.\n" +
                         visible_progress(visible, baseline_money, None) + "\n\n" + visible[-1800:])
             if baseline_money is None:
-                stored_baseline = action_state.get("initial_visible_money")
+                stored_baseline = action_state.get("money_at_script_run")
+                if stored_baseline is None:
+                    stored_baseline = action_state.get("initial_visible_money")
                 if isinstance(stored_baseline, (int, float)):
                     baseline_money = f"${stored_baseline:,.2f}"
             if baseline_hacking_level is None:
@@ -591,6 +605,10 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
             return (f"NO_PROGRESS: The same Terminal command ({normalized_command}) was already executed with no intervening "
                     "Terminal action. Choose a different diagnostic or gameplay action; this repeat was not sent.")
         before = await _visible(browser_session)
+        if run_filename:
+            pre_run_money = visible_money_value(before)
+            if pre_run_money is not None:
+                action_state["money_before_run_attempt"] = pre_run_money
         await field.focus()
         await field.fill(command)
         # Once Enter is sent, treat the command as attempted even if the page
@@ -607,10 +625,12 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
             await asyncio.sleep(0.25)
             after = await _visible(browser_session)
             command_echoes = list(echo_pattern.finditer(after))
+            fresh_command_output = (after[command_echoes[-1].end():]
+                                    if len(command_echoes) > previous_echo_count else "")
             editor_opened = (normalized_command.casefold().startswith("nano ") and
                              "script editor" in after.casefold())
             tutorial_blocked = "please follow the tutorial" in after.casefold()
-            run_confirmed = bool(run_filename and CONFIRMED_RUN.search(after))
+            run_confirmed = bool(run_filename and CONFIRMED_RUN.search(fresh_command_output))
             runtime_error_visible = bool(visible_runtime_error(after))
             if (len(command_echoes) > previous_echo_count or editor_opened or tutorial_blocked or
                     run_confirmed or runtime_error_visible):
@@ -618,7 +638,9 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         editor_opened = (normalized_command.casefold().startswith("nano ") and
                          "script editor" in after.casefold())
         tutorial_blocked = "please follow the tutorial" in after.casefold()
-        run_confirmed = bool(run_filename and CONFIRMED_RUN.search(after))
+        fresh_command_output = (after[command_echoes[-1].end():]
+                                if len(command_echoes) > previous_echo_count else "")
+        run_confirmed = bool(run_filename and CONFIRMED_RUN.search(fresh_command_output))
         runtime_error_visible = bool(visible_runtime_error(after))
         if (len(command_echoes) <= previous_echo_count and not editor_opened and not tutorial_blocked and
                 not run_confirmed and not runtime_error_visible):
@@ -637,7 +659,7 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         # same visible UI briefly before reporting that the run only started.
         # This is ordinary rendered UI observation; it does not inspect game
         # objects or change the script.
-        if run_filename and CONFIRMED_RUN.search(after):
+        if run_filename and run_confirmed:
             for _ in range(4):
                 await asyncio.sleep(0.25)
                 observed = await _visible(browser_session)
@@ -659,6 +681,7 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
             after, re.IGNORECASE,
         )
         if ram_error:
+            action_state.pop("money_before_run_attempt", None)
             action_state["ram_rejection"] = {
                 "filename": ram_error.group(1).casefold(),
                 "host": ram_error.group(2),
@@ -668,10 +691,15 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         elif (action_state.get("ram_rejection") and
               re.fullmatch(r"\s*(?:ps|mem\s+[A-Za-z0-9_.-]+\.js)\s*", normalized_command, re.IGNORECASE)):
             action_state["ram_rejection"]["diagnosed"] = True
-        if run_filename and CONFIRMED_RUN.search(after):
+        if run_filename and run_confirmed:
+            pre_run_money = action_state.pop("money_before_run_attempt", None)
+            if pre_run_money is not None:
+                action_state["money_at_script_run"] = pre_run_money
             action_state.pop("ram_rejection", None)
             last_confirmed_run = run_filename
             action_state["confirmed_script_run"] = run_filename
+        elif run_filename:
+            action_state.pop("money_before_run_attempt", None)
         return after[-MAX_OBSERVATION:]
 
     @tools.action(description=(

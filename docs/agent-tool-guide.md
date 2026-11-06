@@ -6,7 +6,7 @@ not run concurrently. Check each returned result before acting again.
 | Tool | Input | Intended use and result |
 |---|---|---|
 | `game_observe` | none | Read a compact rendered UI snapshot and detect a visible dialog. Read-only. |
-| `game_progress` | optional `baseline_money`, `baseline_hacking_level` | Read visible money, hacking level, and script income from rendered UI text. It compares against the session's first visible balance when available, handles Bitburner's multiline HUD layout, and reports the balance delta. If supplying a baseline, copy the complete visible value exactly (for example, `$1.262k`); omit it if uncertain. A malformed baseline returns an actionable error alongside the current visible stats. If a stat is not rendered, use the visible `Stats` or `Active Scripts` tab and observe again. Use after running a script and after `game_observe` returns `NO_PROGRESS`; it neither changes the game nor clears the duplicate-observation guard. |
+| `game_progress` | optional `baseline_money`, `baseline_hacking_level` | Read visible money, hacking level, and script income from rendered UI text. It compares against the balance captured immediately before the latest confirmed script run, falling back to the session's first visible balance, handles Bitburner's multiline HUD layout, and reports the balance delta. If supplying a baseline, copy the complete visible value exactly (for example, `$1.262k`); omit it if uncertain. A malformed baseline returns an actionable error alongside the current visible stats. If a stat is not rendered, use the visible `Stats` or `Active Scripts` tab and observe again. Use after running a script and after `game_observe` returns `NO_PROGRESS`; it neither changes the game nor clears the duplicate-observation guard. |
 | `game_help` | `topic` | Retrieve one allowlisted section of this repository's concise gameplay/tool documentation. It cannot read arbitrary files. |
 | `game_troubleshoot` | `error` | Retrieve matching recovery notes for a visible game/tool error. |
 | `game_dismiss_dialog` | none | Dismiss one currently visible dialog using its semantic close control, a unique visible button within the modal, or Escape; then verify it is gone. If no dialog is visible, it returns `NO_PROGRESS` without sending input. Do not call it again unless a new dialog is visible. |
@@ -56,7 +56,9 @@ Bitburner v3.0.1 can render script `TYPE ERROR` panels without dialog roles. For
 a recognized script error, the helper accepts only a unique visible `Close`
 control from a fresh Browser Use accessibility snapshot.
 After a script starts, use `game_progress` to verify money, hacking level, and
-script income. If `game_observe` returns `NO_PROGRESS`, do not repeat it
+script income. Do not attribute aggregate Active Scripts production to your
+script unless its row or visible output confirms that script. If
+`game_observe` returns `NO_PROGRESS`, do not repeat it
 unchanged; use `game_progress` or take a different useful action. Once the
 objective has visible evidence, report it instead of polling the same screen.
 When a recognized offline-progress or message dialog is closed automatically,

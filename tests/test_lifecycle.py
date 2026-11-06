@@ -101,11 +101,11 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(server.money_progress_verified(
             "Create a script that earns money", evidence, "Money $1.551k"))
 
-    def test_session_start_balance_wins_over_post_run_balance(self):
-        # `money_at_script_run` may be sampled after a fast script has already
-        # earned money; compare with the earliest visible session balance.
-        evidence = {"confirmed_script_run": "hack.js", "initial_visible_money": 1262,
-                    "money_at_script_run": 1551}
+    def test_pre_run_balance_wins_over_earlier_session_balance(self):
+        # Existing scripts may earn money before the authored script starts;
+        # compare with the rendered balance captured immediately before `run`.
+        evidence = {"confirmed_script_run": "hack.js", "initial_visible_money": 1200,
+                    "money_at_script_run": 1262}
         visible = "Money $1.551k\nhack: Successfully hacked 'n00dles' for $288.750"
         self.assertTrue(server.money_progress_verified(
             "Create a script that earns money", evidence, visible))
