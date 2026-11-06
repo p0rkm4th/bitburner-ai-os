@@ -824,18 +824,22 @@ The deployed model independently read `simple_hack.js`, wrote
 from a visible 2.05 GB `home` RAM rejection by copying the file to rooted
 `n00dles`, and started it visibly (PID 5). The script log showed weaken/grow
 operations and successful hacks for `$0.005` and `$0.010`, each with 3.300
-hacking experience.
-The game HUD remained `$71.840k` / hacking 156 before and after; therefore no
-visible balance delta or hacking-level increase is claimed. Active Scripts'
-`$0.467/s` figure was aggregate and is not attributed to this program.
+hacking experience. Later read-only observations showed further successful
+`$0.014` and `$0.019` hacks. The HUD was `$71.840k` when the agent stopped and
+later showed `$71.842k` while the model-authored script remained active. This
+is a displayed `$2` increase after the trial began, but the entire HUD delta
+cannot be attributed to the script: its individually observed successful
+transactions total cents, and Active Scripts' `$0.467/s` figure was aggregate.
+Hacking remained level 156.
 
 The bounded agent session was stopped after 14 tool calls when it repeated
 `tail hack_n00dles.js` after the tool returned `NO_PROGRESS`. It had zero
 framework failures and seven game/tool errors. The agent is explicitly
 `operator_stopped`; the authored Netscript remains active in the shared test
 game, whose profile was preserved. This verifies independent authorship,
-deployment, visible execution, RAM recovery, and two positive hack results, but
-does not satisfy the visible-balance-delta acceptance criterion. Per-request
+deployment, visible execution, RAM recovery, and positive hack results. The
+visible balance changed after the trial, but its full delta is not attributable
+to this script. Per-request
 token and latency metrics were not persisted. The script remains active in the
 test game; next validation should observe the existing game state without
 starting another model request.

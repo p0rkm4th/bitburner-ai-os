@@ -1070,11 +1070,14 @@ rejected its first run on `home` because it required 2.05 GB RAM; the agent
 copied its own file to rooted `n00dles`, connected visibly, and started it with
 PID 5. Terminal output showed the script's weaken/grow/hack cycle. Visible logs
 confirmed successful hacks of `$0.005` and `$0.010` (3.300 hacking experience
-each); other attempts failed or stole `$0`. This is attributable script output
-and confirms successful game hacks, but the rendered player balance
-remained `$71.840k` before and after (display rounding hides any sub-dollar
-change), and hacking remained level 156. The Active Scripts summary showed
-`$0.467/s` aggregate production, which is not attributed to this script.
+each); a later read-only view showed further `$0.014` and `$0.019` successes.
+Other attempts failed or stole `$0`. The visible HUD was `$71.840k` at agent
+stop and later `$71.842k` while the script remained active. This is a `$2`
+displayed increase after the test began, but it cannot all be attributed to
+this script: its visible successful transactions total only cents, and the
+Active Scripts summary showed `$0.467/s` aggregate production. The script
+itself is confirmed to have earned money; the full HUD increase is not
+attributed. Hacking remained level 156.
 
 The agent stopped after 14 tool calls (about eight minutes) when it repeated
 `tail hack_n00dles.js` despite the `NO_PROGRESS` rejection. Tool metrics were
