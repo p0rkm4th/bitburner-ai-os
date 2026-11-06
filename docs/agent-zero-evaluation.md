@@ -35,3 +35,20 @@ high-level wrappers and a constrained browser session, without expanding its
 game or host permissions. Use the same model, clean isolated game seed,
 instructions, inference parameters, and time/action budget. Measure actual
 visible income and error recovery. No Agent Zero gameplay trial has been run.
+
+## Adapter parity follow-up (2026-11-06)
+
+The existing Browser Use Remote API adapter suite passes **17/17** tests using
+mock transport. It covers input constraints, allowlisted calls,
+`pushFile` → exact `getFile` read-back → `calculateRam` ordering,
+duplicate/pending/RAM guards, and actionable errors. These tests validate the
+Browser Use adapter; they do not establish equivalent Agent Zero behavior.
+
+Directly sharing those semantics with Agent Zero would require a new MCP
+facade over the Python adapter. Reimplementing the policy in the existing Node
+bridge would duplicate write-validation behavior and risk drift. Neither
+change is justified before an isolated game trial demonstrates the need.
+Current recommendation: keep the present restricted raw MCP surface and mark
+tool capabilities as non-equivalent in any A/B comparison; do not interpret a
+lower success rate as a model-only difference. No Agent Zero game, browser,
+bridge, Ollama endpoint, or model was contacted for this follow-up.
