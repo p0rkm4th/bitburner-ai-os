@@ -1261,3 +1261,27 @@ containers healthy, the agent remains operator-stopped at session 22, the
 browser and dashboard are available, the Remote API is Online, and noVNC
 returns HTTP 200. The restored browser shows the game offline-progress dialog;
 no gameplay session was started during deployment.
+
+## Run 50 — process and host diagnosis without authored income (2026-11-06)
+
+Qwen3.6:35b resumed at 15:15:13 UTC. It dismissed offline progress, ran
+`scan-analyze 1`, read existing `hack_n00dles.js` twice, used `scan-analyze 2`,
+then tailed the file while on `home`. The visible game reported it was not
+running on that host. Qwen connected to `n00dles`; `ps` showed
+`hack_n00dles.js` running there (PID -2), and the visible screenshot showed its
+output `Stole $7`. The model then opened Active Scripts. No new code was
+written, deployed, or run, and no income is attributed to Qwen. The full
+Browser Use conversation and screenshot contain the visible Terminal results;
+short `/api/status` fragments are 180-character event summaries, not truncated
+tool responses. Qwen made useful host/process diagnosis but did not call
+`game_troubleshoot` or `game_progress()`.
+
+The objective requested eight actions, but the VM remained configured for a
+16-step maximum. Qwen took a ninth action; the operator stop was confirmed at
+15:20:43 UTC. Session 23 is now `operator_stopped` at 9 actions. Nine Ollama
+responses used 86,273 prompt / 2,987 completion tokens; summed request time was
+276.862 seconds (30.762 seconds mean). Final HUD: $72.160k / Hacking 157. The
+in-game `hack_n00dles.js` output is pre-existing and not evidence of an
+independently authored program. The `serverinfo` guard was not exercised. The
+per-session limit shown to Qwen was 16; the eight-action instruction depended
+on operator monitoring and was exceeded by one action before operator stop.

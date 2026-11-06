@@ -1378,3 +1378,28 @@ from the existing `hack_n00dles.js`; no new balance baseline was available,
 and none of this output is attributed to the file Qwen inspected. No income or
 hacking progress was verified. A small tool-side guard is being added for the
 known unsupported `serverinfo` command so it can no longer reach the game UI.
+
+### Run 50 — network and process diagnosis, no authored income (2026-11-06)
+
+Qwen3.6:35b resumed the test profile at 15:15:13 UTC with 16K context. It
+closed offline progress, ran `scan-analyze 1`, and read the existing
+`hack_n00dles.js` twice. It then used `scan-analyze 2`, tried `tail` from
+`home` (which correctly said that file was not running on that host), connected
+to `n00dles`, ran `ps`, and opened Active Scripts. The screenshot confirms
+`hack_n00dles.js` was running on `n00dles` (PID -2) and had printed `Stole $7`.
+These are pre-existing game artifacts, not a script authored during this run.
+The full Browser Use conversation and screenshot contain the visible Terminal
+results. Short fragments in `/api/status` are 180-character event summaries,
+not truncated tool responses. Qwen made useful host/process diagnosis, but did
+not consult `game_troubleshoot`, author/deploy a script, call
+`game_progress()`, or verify attributable income.
+
+The task requested eight actions, but the deployed hard limit remained 16 and
+Qwen took a ninth action to open Active Scripts. The operator stopped the run
+at 15:20:43 UTC; it ended `operator_stopped` at session 23 / 9 actions. Nine
+Ollama responses processed 86,273 prompt and 2,987 completion tokens in
+276.862 seconds summed request time (30.762 seconds mean). The final rendered
+HUD showed $72.160k and hacking 157; this change is not attributed to Qwen.
+The `serverinfo` guard was not exercised in this trial. The per-session limit
+shown to Qwen was 16, so the eight-action instruction depended on operator
+monitoring and was exceeded by one step before the emergency stop.
