@@ -110,6 +110,10 @@ procedures, not a prescribed gameplay strategy.
   the dialog text. If either tool says `NO_PROGRESS`, do not repeat that same
   dismissal; inspect the current rendered UI and retrieve relevant
   `game_troubleshoot` notes.
+- **Terminal says “Please follow the tutorial”:** The submitted command did not
+  run. Inspect the visible tutorial and choose one `game_tutorial` action: use
+  `next` to learn a page or deliberately choose `exit` if appropriate. Verify
+  the transition before using Terminal again; do not repeat the blocked command.
 - **Fresh profile shows an offline-progress dialog:** Read its visible game
   earnings and milestones, then dismiss it once with `game_dismiss_dialog`.
   Remote API Online does not mean the dialog is absent. Do not repeat

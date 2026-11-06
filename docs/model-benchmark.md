@@ -825,8 +825,51 @@ control. The old detector therefore reported no dialog. Qwen repeated the same
 dismissal after `NO_PROGRESS`, and the stagnation guard stopped the run. The
 detector now recognizes rendered `TYPE ERROR`/`RUNTIME ERROR` text only when
 script and PID fields are present, then accepts a unique visible `Close`
-control from a fresh Browser Use accessibility snapshot. The exact error panel
-did not reappear after reloading the copied profile, so live dismissal remains
-unverified. Focused and full offline tests cover this behavior; all 142 tests
-pass. Private evidence is under
+control from a fresh Browser Use accessibility snapshot. The copied profile
+did not reproduce the error panel immediately after reload. Run 34 later
+reproduced the error by running the saved failing script and verified the
+model recovered. Focused and full offline tests cover this behavior; the
+current candidate passes 149 tests. Private evidence is under
 `local/benchmark-runs/qwen36-runtime-recovery-01/`.
+
+## Run 34 — independent runtime-error recovery and income (isolated)
+
+Run 34 used Qwen3.6:35b Q4_K_M with Browser Use, the restricted Remote API,
+the same compact game instructions, 16,384 context, `think=false`, temperature
+0.2, seed 7, and a 16-step / 20-minute bound. It began from a disposable copy
+of the saved test profile containing the previously model-authored but broken
+`hack.js`; it was a recovery trial, not a clean-seed comparison. No script,
+target, or corrected API was supplied to the model.
+
+The visible HUD began at $1.262k and hacking level 1. Qwen used visible
+`ls`, read the listed `hack.js` through the restricted script tool, then ran it
+through the in-game Terminal. Bitburner showed `TypeError: ns.getMoney is not a
+function`. Qwen identified the invalid call, authored a replacement using
+`ns.getServer`, deployed it through the Remote API, and ran that file through
+the Terminal. It opened the built-in Active Scripts page and called `done`
+after reporting a balance of $1.838k. The visible game showed $1.551k after the
+first run and $1.838k after the corrected run, a rounded +$287 after
+correction and +$576 from the session baseline. The Active Scripts UI showed
+$576.303 total production since the last augmentation and $0.009/sec; hacking
+remained level 1. The script was no longer active at the final observation.
+This is the first measured Qwen trial in this series to recover from the
+`ns.getMoney` runtime error and verify income from the corrected script.
+
+The agent completed 11 action steps in 5m13s (from objective start to its
+verified completion); the corrected script was visibly run at 3m38s and the
+final observation was captured at 5m13s. Twelve Ollama responses completed
+without transport errors or timeouts: 105,704 prompt tokens, 2,286 completion
+tokens, and 303.1 seconds summed request latency (25.3 seconds mean). Cold
+model load took 15.9 seconds. Aggregate throughput was 469 prompt and 38.1
+output tokens/sec. Ollama `/api/ps` recorded 23.05 GB of VRAM allocation at
+16,384 context. Per-GPU utilization/memory and CPU offload could not be
+measured because SSH telemetry authentication was unavailable in the test
+workspace. One later `game_progress` call contained a malformed baseline
+argument; the model then verified progress in the rendered Active Scripts UI.
+
+The pinned container passed 149/149 offline tests. The separate disposable
+browser-helper test verified one tutorial-page transition, deliberate tutorial
+exit, fresh semantic tab navigation, and visible Terminal `ls`; neither used
+model inference. All Run 34 artifacts, including its exact model digest,
+visible observations, action log, and request metrics, remain in ignored local
+storage. The shared persistent test-game profile was not used or changed.

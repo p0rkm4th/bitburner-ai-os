@@ -2,7 +2,7 @@
 import unittest
 from types import SimpleNamespace
 
-from app.game_tools import (_visible_content_matches, find_visible_tab_node, register_game_tools,
+from app.game_tools import (_visible_content_matches, find_visible_button_node, find_visible_tab_node, register_game_tools,
                             visible_progress, visible_runtime_error)
 
 
@@ -45,6 +45,17 @@ class FakeElement:
         return None
 
     async def click(self):
+        if self.kind.startswith("tutorial:"):
+            label = self.kind.split(":", 1)[1]
+            self.page.tutorial_clicks += 1
+            if not self.page.tutorial_click_noop:
+                if label == "Next":
+                    self.page.visible = "This tutorial will show you the basics. Page 2 Next Exit Tutorial"
+                    self.page.nav_nodes = [FakeNavNode("Next", 1001), FakeNavNode("Exit Tutorial", 1002)]
+                else:
+                    self.page.visible = "Bitburner Terminal\n[home /]>"
+                    self.page.nav_nodes = []
+            return
         if self.kind == "modal_close":
             self.page.close_clicks += 1
             if self.page.close_attempt_succeeds:
@@ -80,6 +91,9 @@ class FakePage:
         self.files = {"home.js": "export async function main(ns) {}"}
         self.nav_label = "Create Program"
         self.nav_nodes = []
+        self.tutorial_clicks = 0
+        self.tutorial_click_noop = False
+        self.tutorial_block_terminal = False
 
     async def get_url(self):
         return self.url
@@ -87,6 +101,9 @@ class FakePage:
     async def get_element(self, backend_node_id):
         if backend_node_id == 999:
             return FakeElement(self, "modal_close")
+        for node in self.nav_nodes:
+            if node.backend_node_id == backend_node_id and node.label in {"Next", "Exit Tutorial"}:
+                return FakeElement(self, f"tutorial:{node.label}")
         return FakeElement(self, "nav")
 
     async def get_elements_by_css_selector(self, selector):
@@ -139,6 +156,10 @@ class FakePage:
         if key != "Enter" or self.focused != "terminal":
             return
         command = self.command
+        if self.tutorial_block_terminal:
+            self.visible = ("Bitburner Terminal\n[home /]> " + command +
+                            "\nPlease follow the tutorial or click 'Exit Tutorial' if you'd like to skip it")
+            return
         self.executed_commands.append(command)
         if command == "ls":
             self.visible = "Bitburner Terminal\n" + " ".join(self.files)
@@ -226,6 +247,21 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         result = await self.actions["game_terminal"]("ls", self.browser)
         self.assertIn("home.js", result)
 
+    async def test_terminal_reports_tutorial_block_and_retries_only_after_explicit_exit(self):
+        self.page.tutorial_block_terminal = True
+        self.page.visible = "Bitburner Terminal"
+        self.page.nav_nodes = [FakeNavNode("Next", 1001), FakeNavNode("Exit Tutorial", 1002)]
+        blocked = await self.actions["game_terminal"]("ls", self.browser)
+        self.assertTrue(blocked.startswith("BLOCKED:"))
+        self.assertIn("the command was not executed", blocked)
+        self.assertEqual(self.page.executed_commands, [])
+        exited = await self.actions["game_tutorial"]("exit", self.browser)
+        self.assertTrue(exited.startswith("Exited the visible tutorial;"))
+        self.page.tutorial_block_terminal = False
+        listing = await self.actions["game_terminal"]("ls", self.browser)
+        self.assertIn("home.js", listing)
+        self.assertEqual(self.page.executed_commands, ["ls"])
+
     async def test_identical_observation_is_reported_as_no_progress(self):
         first = await self.actions["game_observe"](self.browser)
         repeated = await self.actions["game_observe"](self.browser)
@@ -255,6 +291,58 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         result = await self.actions["game_open_tab"]("Create Program", self.browser)
         self.assertIn("Opened visible game tab 'Create Program'", result)
         self.assertEqual(self.page.visible, "Create Program page opened")
+
+    async def test_tutorial_next_uses_fresh_visible_button_and_verifies_page_change(self):
+        self.page.visible = "This tutorial will show you the basics. Page 1 Next Exit Tutorial"
+        self.page.nav_nodes = [FakeNavNode("Next", 1001), FakeNavNode("Exit Tutorial", 1002)]
+        result = await self.actions["game_tutorial"]("next", self.browser)
+        self.assertTrue(result.startswith("Advanced one tutorial page; the rendered transition was verified."))
+        self.assertIn("Page 2", result)
+        self.assertEqual(self.page.tutorial_clicks, 1)
+
+    async def test_tutorial_exit_is_explicit_and_verified(self):
+        self.page.visible = "This tutorial will show you the basics. Next Exit Tutorial"
+        exit_button = FakeNavNode("Exit Tutorial", 1002, role="")
+        exit_button.attributes = {"type": "button"}
+        exit_button.tag_name = "button"
+        self.page.nav_nodes = [FakeNavNode("Next", 1001), exit_button]
+        result = await self.actions["game_tutorial"]("exit", self.browser)
+        self.assertTrue(result.startswith("Exited the visible tutorial; the rendered transition was verified."))
+        self.assertNotIn("Exit Tutorial", result.split("\n", 1)[1])
+        self.assertEqual(self.page.tutorial_clicks, 1)
+
+    async def test_tutorial_action_without_tutorial_does_not_click(self):
+        result = await self.actions["game_tutorial"]("next", self.browser)
+        self.assertTrue(result.startswith("NO_PROGRESS:"))
+        self.assertEqual(self.page.tutorial_clicks, 0)
+
+    async def test_unchanged_tutorial_page_blocks_repeated_click(self):
+        self.page.visible = "This tutorial will show you the basics. Next Exit Tutorial"
+        self.page.nav_nodes = [FakeNavNode("Next", 1001), FakeNavNode("Exit Tutorial", 1002)]
+        self.page.tutorial_click_noop = True
+        first = await self.actions["game_tutorial"]("next", self.browser)
+        second = await self.actions["game_tutorial"]("next", self.browser)
+        self.assertTrue(first.startswith("ERROR:"))
+        self.assertTrue(second.startswith("NO_PROGRESS:"))
+        self.assertEqual(self.page.tutorial_clicks, 1)
+
+    def test_tutorial_button_lookup_requires_unique_fresh_visible_exact_label(self):
+        state = SimpleNamespace(selector_map={
+            1: FakeNavNode("Next", 1001),
+            2: FakeNavNode("Next page", 1002),
+            3: FakeNavNode("Next", 1003, visible=False),
+        })
+        node = find_visible_button_node(state, "Next")
+        self.assertEqual(node.backend_node_id, 1001)
+        state.selector_map[4] = FakeNavNode("Next", 1004)
+        self.assertIsNone(find_visible_button_node(state, "Next"))
+
+    def test_tutorial_lookup_accepts_native_button_without_explicit_role(self):
+        native = FakeNavNode("Exit Tutorial", 1005, role="")
+        native.attributes = {"type": "button"}
+        native.tag_name = "button"
+        state = SimpleNamespace(selector_map={1: native})
+        self.assertEqual(find_visible_button_node(state, "Exit Tutorial").backend_node_id, 1005)
 
     async def test_open_tab_rejects_unknown_or_ambiguous_navigation_targets(self):
         unknown = await self.actions["game_open_tab"]("Arbitrary URL", self.browser)

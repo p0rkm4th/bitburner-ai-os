@@ -154,7 +154,11 @@ def find_visible_tab_node(dom_state, tab: str):
     matches = []
     for node in getattr(dom_state, "selector_map", {}).values():
         attrs = getattr(node, "attributes", {}) or {}
-        if str(attrs.get("role", "")).casefold() != "button" or not getattr(node, "is_visible", False):
+        role = str(attrs.get("role", "")).casefold()
+        native_button = (str(getattr(node, "tag_name", "")).casefold() == "button"
+                         or str(attrs.get("type", "")).casefold() == "button")
+        if (role not in {"", "button"} or (role != "button" and not native_button)
+                or not getattr(node, "is_visible", False)):
             continue
         label = " ".join(str(node.get_all_children_text()).split()).casefold()
         if label == tab.casefold():
@@ -171,6 +175,23 @@ def find_visible_close_node(dom_state):
             continue
         label = " ".join(str(node.get_all_children_text()).split()).casefold()
         if label == "close":
+            matches.append(node)
+    return matches[0] if len(matches) == 1 else None
+
+
+def find_visible_button_node(dom_state, label: str):
+    """Find one freshly observed visible game button by its exact rendered label."""
+    matches = []
+    for node in getattr(dom_state, "selector_map", {}).values():
+        attrs = getattr(node, "attributes", {}) or {}
+        role = str(attrs.get("role", "")).casefold()
+        native_button = (str(getattr(node, "tag_name", "")).casefold() == "button"
+                         or str(attrs.get("type", "")).casefold() == "button")
+        if (role not in {"", "button"} or (role != "button" and not native_button)
+                or not getattr(node, "is_visible", False)):
+            continue
+        name = " ".join(str(node.get_all_children_text()).split()).casefold()
+        if name == label.casefold():
             matches.append(node)
     return matches[0] if len(matches) == 1 else None
 
@@ -395,6 +416,49 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
             return f"ERROR: Could not open Bitburner tab: {type(exc).__name__}: {exc}"
 
     @tools.action(description=(
+        "Advance one visible Bitburner tutorial page (`action='next'`) or explicitly exit the tutorial (`action='exit'`). "
+        "Uses only the fresh visible Next or Exit Tutorial button, verifies the rendered transition, and never chooses for you."
+    ))
+    async def game_tutorial(action: str, browser_session: BrowserSession) -> str:
+        try:
+            choice = action.strip().casefold()
+            if choice not in {"next", "exit"}:
+                raise ValueError("Choose action='next' or action='exit'")
+            page = await _page(browser_session)
+            summary = await browser_session.get_browser_state_summary(include_screenshot=False)
+            before = summary.dom_state.llm_representation()
+            normalized = re.sub(r"\s+", " ", before).casefold()
+            has_exit = find_visible_button_node(summary.dom_state, "Exit Tutorial") is not None
+            if not has_exit:
+                action_state.pop("failed_tutorial_transition", None)
+                return "NO_PROGRESS: The Bitburner tutorial is not visibly open; no input was sent."
+            signature = hashlib.sha256(normalized.encode()).hexdigest()
+            failed = action_state.get("failed_tutorial_transition")
+            if failed == {"action": choice, "signature": signature}:
+                return ("NO_PROGRESS: The same tutorial page did not change after that button was tried. "
+                        "No input was sent; inspect the visible UI and report the blocker.")
+            label = "Next" if choice == "next" else "Exit Tutorial"
+            node = find_visible_button_node(summary.dom_state, label)
+            if node is None:
+                raise RuntimeError(f"Could not identify exactly one fresh visible tutorial button labelled {label!r}")
+            await (await page.get_element(node.backend_node_id)).click()
+            await asyncio.sleep(0.15)
+            after_summary = await browser_session.get_browser_state_summary(include_screenshot=False)
+            after = after_summary.dom_state.llm_representation()
+            if after == before:
+                action_state["failed_tutorial_transition"] = {"action": choice, "signature": signature}
+                return f"ERROR: Clicked the visible {label!r} button, but the rendered UI did not change. No repeat was sent."
+            tutorial_remains = find_visible_button_node(after_summary.dom_state, "Exit Tutorial") is not None
+            if choice == "exit" and tutorial_remains:
+                action_state["failed_tutorial_transition"] = {"action": choice, "signature": signature}
+                return f"ERROR: The tutorial remains visible after clicking {label!r}. No repeat was sent.\n{after[-MAX_OBSERVATION:]}"
+            action_state.pop("failed_tutorial_transition", None)
+            outcome = "Advanced one tutorial page" if choice == "next" else "Exited the visible tutorial"
+            return f"{outcome}; the rendered transition was verified.\n{after[-MAX_OBSERVATION:]}"
+        except Exception as exc:
+            return f"ERROR: Could not operate the visible Bitburner tutorial: {type(exc).__name__}: {exc}"
+
+    @tools.action(description=(
         "Dismiss one visible in-game dialog using its accessible close control, a unique visible button inside the modal, or Escape, then verify it is gone. "
         "If no dialog is visible, return NO_PROGRESS without sending input. Do not repeat dismissal unless a new visible dialog appears."
     ))
@@ -502,6 +566,14 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         await page.press("Enter")
         await asyncio.sleep(0.25)
         after = await _visible(browser_session)
+        command_echoes = list(re.finditer(
+            r"\]\s*>\s*" + re.escape(normalized_command) + r"(?:\s|$)", after, re.IGNORECASE
+        ))
+        latest_command_output = after[command_echoes[-1].end():].lstrip() if command_echoes else ""
+        if latest_command_output.casefold().startswith("please follow the tutorial"):
+            return ("BLOCKED: Bitburner rejected the Terminal command because the tutorial is still active; the command was not executed. "
+                    "Choose one visible `game_tutorial` action, verify the transition, then submit the command again.\n" +
+                    after[-MAX_OBSERVATION:])
         # Bitburner starts Netscript asynchronously. A positive PID can be
         # followed almost immediately by a runtime-error modal, so sample the
         # same visible UI briefly before reporting that the run only started.
@@ -548,6 +620,7 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
     @tools.action(description=(
         "Focus the visible in-game Bitburner terminal, enter one command, press Enter, and return the rendered result. "
         "Recognized offline-progress, message, and script runtime-error dialogs are dismissed once before acting; in that case the command is not sent and their visible text is returned. "
+        "If the tutorial blocks a command, return BLOCKED and say it was not executed; use game_tutorial only by explicit choice. "
         "An identical consecutive Terminal command and a connection request to the already visible current server are rejected as NO_PROGRESS. "
         "Use `scp filename.js server` only for the documented in-game copy operation; it cannot access the host filesystem. "
         "Use `cat filename.txt` to inspect a simple in-game text report that the script-only Remote API cannot read."
@@ -672,6 +745,7 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         "game_progress": game_progress,
         "game_dismiss_dialog": game_dismiss_dialog,
         "game_open_tab": game_open_tab,
+        "game_tutorial": game_tutorial,
         "game_terminal": game_terminal,
         "game_open_editor": game_open_editor,
         "game_edit_script": game_edit_script,

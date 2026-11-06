@@ -340,6 +340,7 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
                         "click", "input", "send_keys", "select_dropdown", "find_elements", "scroll"):
             self.assertNotIn(blocked, actions)
         for game_action in ("game_observe", "game_progress", "game_dismiss_dialog", "game_open_tab", "game_terminal",
+                            "game_tutorial",
                             "game_run_script", "game_help", "game_troubleshoot", "game_read_script",
                             "game_deploy_script", "game_netscript_reference"):
             self.assertIn(game_action, actions)
@@ -350,6 +351,7 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
             "game_progress": {"baseline_money", "baseline_hacking_level"},
             "game_dismiss_dialog": set(),
             "game_open_tab": {"tab"},
+            "game_tutorial": {"action"},
             "game_terminal": {"command"},
             "game_run_script": {"filename", "args", "expected_host"},
             "game_help": {"topic"},
@@ -371,7 +373,7 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("game_edit_script", actions)
         self.assertNotIn("input", actions)
         for name in ("game_read_script", "game_deploy_script", "game_netscript_reference",
-                     "game_run_script", "game_terminal", "game_open_tab", "game_observe"):
+                     "game_run_script", "game_terminal", "game_open_tab", "game_tutorial", "game_observe"):
             self.assertIn(name, actions)
 
     async def test_remote_api_checkpoint_discards_stale_editor_instructions(self):

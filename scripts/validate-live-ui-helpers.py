@@ -6,6 +6,7 @@ without opening a desktop display.
 """
 import asyncio
 import os
+import re
 
 from browser_use import BrowserProfile, BrowserSession, Tools
 
@@ -48,13 +49,33 @@ async def main() -> None:
             observed = await actions["game_observe"](browser_session=browser)
             if "Visible dialog: none" not in observed:
                 raise RuntimeError(f"Type Error modal remained after one dismissal: {observed}")
+        if "Exit Tutorial" in observed:
+            blocked = await actions["game_terminal"](command="ls", browser_session=browser)
+            if not blocked.startswith("BLOCKED:") or "the command was not executed" not in blocked:
+                raise RuntimeError(f"Tutorial-blocked Terminal command was not reported clearly: {blocked}")
+            advanced = await actions["game_tutorial"](action="next", browser_session=browser)
+            if not advanced.startswith("Advanced one tutorial page; the rendered transition was verified."):
+                raise RuntimeError(f"Could not advance the tutorial using its visible Next button: {advanced}")
+            observed = await actions["game_observe"](browser_session=browser)
+            if "Exit Tutorial" not in observed:
+                raise RuntimeError(f"Tutorial control was not visible after advancing one page: {observed}")
+            exited = await actions["game_tutorial"](action="exit", browser_session=browser)
+            if not exited.startswith("Exited the visible tutorial; the rendered transition was verified."):
+                raise RuntimeError(f"Could not dismiss the tutorial in the disposable validation profile: {exited}")
+            observed = await actions["game_observe"](browser_session=browser)
+            if "This tutorial will show you the basics" in observed:
+                raise RuntimeError(f"Tutorial remained visible in the disposable validation profile: {observed}")
         opened = await actions["game_open_tab"](tab="Create Program", browser_session=browser)
         if opened.startswith("ERROR:") or "Opened visible game tab 'Create Program'" not in opened:
             raise RuntimeError(opened)
         listing = await actions["game_terminal"](command="ls", browser_session=browser)
         if listing.startswith(("ERROR:", "NO_PROGRESS:")):
             raise RuntimeError(f"Visible Terminal ls could not be verified: {listing}")
-        print("Visible UI helper integration passed: modal state handled, Create Program opened by fresh semantic label, and Terminal ls returned:\n" + listing[-1600:])
+        command_echoes = list(re.finditer(r"\[home\s+[^]]*\]\s*>\s*ls(?:\s|$)", listing, re.IGNORECASE))
+        latest_output = listing[command_echoes[-1].end():].strip() if command_echoes else ""
+        if not command_echoes or not latest_output or latest_output.casefold().startswith("please follow the tutorial"):
+            raise RuntimeError(f"Terminal did not visibly execute the latest ls; it may have been blocked by game UI: {listing[-1600:]}")
+        print("Visible UI helper integration passed: modal/tutorial state handled, Create Program opened by fresh semantic label, and Terminal ls visibly executed:\n" + listing[-1600:])
     finally:
         await browser.stop()
 
