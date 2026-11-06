@@ -995,3 +995,15 @@ before validating `expected_host` or a pending deployment, and retains precise
 pending-run instructions across a failed checkpoint. All 160 pinned tests
 pass. Deployment and a new bounded gameplay attempt are pending; do not count
 this as a successful autonomous gameplay cycle.
+
+## Run 39 attempt — actual prompt rendering not recognized
+
+The bounded continuation used Qwen3.6:35b with the shared persistent test game
+and the deployed `d8bb369` hidden-Terminal opening fix. After one visible dialog
+dismissal, the rendered HUD showed $71.789k and hacking 155. The model then
+attempted `run hack.js` twice. Both actions were rejected because the live
+accessibility snapshot represents the Terminal prompt as `home` followed by
+`]>`, while the code recognized only `[home /]>`. The operator stopped after
+three agent steps; no script was executed and the balance/hacking baseline is
+not attributed to this run. A parser update for both visible forms passes 162
+pinned tests and awaits deployment and a repeat bounded trial.

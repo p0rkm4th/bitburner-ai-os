@@ -3,7 +3,7 @@ import unittest
 from types import SimpleNamespace
 
 from app.game_tools import (_visible_content_matches, find_visible_button_node, find_visible_tab_node, register_game_tools,
-                            visible_progress, visible_runtime_error)
+                            visible_progress, visible_runtime_error, visible_terminal_hosts)
 
 
 class FakeElement:
@@ -370,6 +370,11 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(node.backend_node_id, 1001)
         state.selector_map[4] = FakeNavNode("Next", 1004)
         self.assertIsNone(find_visible_button_node(state, "Next"))
+
+    def test_terminal_host_parser_accepts_visible_prompt_renderings(self):
+        self.assertEqual(visible_terminal_hosts("Terminal\n[home /]>"), ["home"])
+        self.assertEqual(visible_terminal_hosts("Terminal\nhome\n\t]>"), ["home"])
+        self.assertEqual(visible_terminal_hosts("Terminal\nrandom home text\nWelcome"), [])
 
     def test_tutorial_lookup_accepts_native_button_without_explicit_role(self):
         native = FakeNavNode("Exit Tutorial", 1005, role="")
@@ -762,6 +767,16 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(self.page.terminal_visible)
         self.assertEqual(self.page.executed_commands, ["run hack.js"])
         self.assertEqual(self.action_state["deployments_without_run"], 0)
+
+    async def test_pending_run_accepts_host_split_across_visible_dom_lines(self):
+        self.action_state.update(deployments_without_run=1, last_deployed_filename="hack.js")
+        self.page.visible = "Overview\nhome\n\t]>"
+        self.page.run_output = "Bitburner Terminal\n[home /]> run hack.js\nRunning script hack.js with PID 8"
+
+        result = await self.actions["game_run_script"]("hack.js", self.browser, [], expected_host="home")
+
+        self.assertIn("Running script hack.js with PID 8", result)
+        self.assertEqual(self.page.executed_commands, ["run hack.js"])
 
     async def test_pending_deployment_cannot_run_from_non_home_server(self):
         self.action_state.update(deployments_without_run=1, last_deployed_filename="home.js")

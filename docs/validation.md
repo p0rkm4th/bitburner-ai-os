@@ -737,3 +737,16 @@ attributable to this change. No gameplay session or inference request was
 started. Every Bitburner profile referenced by this project is a test game;
 there is no separate production game. Live gameplay validation of the ordering
 fix remains pending.
+
+### Visible Terminal host parsing follow-up — pending deployment
+
+Run 39 tested `d8bb369` and confirmed the Terminal opens after the offline
+progress dialog is dismissed, but the live accessibility snapshot presents the
+prompt host as separate rendered text (`home` followed by `]>`). The guard's
+prompt parser still required the normal bracketed host/path representation and
+rejected two consecutive attempts to run the pending deployment. The operator
+stopped the trial after three steps; no script ran. A read-only post-dismissal
+HUD observation captured $71.789k and hacking 155 as the baseline. The parser
+now recognizes both prompt renderings, with focused coverage and 162 pinned
+runtime tests passing. This parser update is not yet deployed; another live
+trial is required to validate execution.

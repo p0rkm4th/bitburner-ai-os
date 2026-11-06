@@ -61,6 +61,18 @@ def visible_runtime_error(visible: str) -> str:
     return excerpt.strip()
 
 
+TERMINAL_HOST_PROMPT = re.compile(r"\[([A-Za-z0-9_.-]+)\s+[^\]\r\n]*\]\s*>")
+SPLIT_TERMINAL_HOST_PROMPT = re.compile(
+    r"(?m)^[ \t]*([A-Za-z0-9_.-]+)(?:[ \t]*\r?\n[ \t]*|[ \t]+)\]>"
+)
+
+
+def visible_terminal_hosts(visible: str) -> list[str]:
+    """Extract host names only from prompt-shaped text in the rendered UI."""
+    return (TERMINAL_HOST_PROMPT.findall(visible)
+            + SPLIT_TERMINAL_HOST_PROMPT.findall(visible))
+
+
 async def _modal(page, visible: str = "", browser_session: Optional[BrowserSession] = None) -> Optional[str]:
     """Detect visible modal surfaces and stop before clicking covered controls."""
     selectors = ('[role="dialog"]', '[aria-modal="true"]', '.MuiDialog-root', '.MuiModal-root')
@@ -546,7 +558,7 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
             # Allow only a necessary hop to home before its visible execution.
             if connect_match and connect_match.group(1).casefold() == "home":
                 visible = await _visible(browser_session)
-                prompts = re.findall(r"\[([A-Za-z0-9_.-]+)\s+[^\]\r\n]*\]\s*>", visible)
+                prompts = visible_terminal_hosts(visible)
                 current_host = prompts[-1] if prompts else ""
                 if current_host and current_host.casefold() != "home":
                     pass
@@ -556,7 +568,7 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
                 return pending
         elif pending:
             visible = await _visible(browser_session)
-            prompts = re.findall(r"\[([A-Za-z0-9_.-]+)\s+[^\]\r\n]*\]\s*>", visible)
+            prompts = visible_terminal_hosts(visible)
             current_host = prompts[-1] if prompts else ""
             if current_host.casefold() != "home":
                 where = f"the visible prompt shows {current_host}" if current_host else "no current server is visible"
@@ -564,7 +576,7 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
                         "Connect home and verify the prompt before running this deployment.")
         if connect_match:
             visible = await _visible(browser_session)
-            prompts = re.findall(r"\[([A-Za-z0-9_.-]+)\s+[^\]\r\n]*\]\s*>", visible)
+            prompts = visible_terminal_hosts(visible)
             current_host = prompts[-1] if prompts else ""
             if current_host and current_host.casefold() == connect_match.group(1).casefold():
                 return (f"NO_PROGRESS: Already connected to {current_host}; no command was sent. "
@@ -766,7 +778,7 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
                 if not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", expected_host):
                     raise ValueError("expected_host must be a simple visible Bitburner server name")
                 visible = await _visible(browser_session)
-                prompts = re.findall(r"\[([A-Za-z0-9_.-]+)\s+[^\]\r\n]*\]\s*>", visible)
+                prompts = visible_terminal_hosts(visible)
                 if not prompts:
                     raise RuntimeError("Could not verify a current server from the visible Terminal prompt; no run command was sent")
                 current_host = prompts[-1]
