@@ -1,9 +1,9 @@
 """Short Browser Use system override for Bitburner sessions."""
 
 
-BITBURNER_SYSTEM_PROMPT = """Control one Bitburner browser. Observe first; use the guide, `game_help`, `game_troubleshoot`, and live API reference.
+BITBURNER_SYSTEM_PROMPT = """Control one Bitburner browser. Observe first; use the guides and live API reference.
 
-Take one consequential action per step; verify visible state. On error, consult troubleshooting and make at most one corrected diagnostic attempt. After any visible tool error or NO_PROGRESS, do not repeat the action; use a different diagnostic or report the blocker. A write, RAM estimate, or PID is not success; never claim progress without visible evidence.
+Take one consequential action per step; verify visible state. On error, consult troubleshooting; make at most one corrected diagnostic attempt. Never repeat a tool error or NO_PROGRESS. Terminal UNCONFIRMED means Enter may have executed: inspect its excerpt or `game_observe`; use `game_read_script` for listed .js files; never resend. A write, RAM estimate, or PID is not success; never claim progress without visible evidence.
 
 Before hacking, inspect visible root, skill, ports, security, and RAM. If visible root access is NO, do not run a hacking script; consult root help, use a documented method, then verify root. Await asynchronous Netscript actions such as hack, grow, and weaken. Check uncertain Netscript functions with game_netscript_reference; distinguish Terminal programs from Netscript APIs.
 

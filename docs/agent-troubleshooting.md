@@ -138,10 +138,11 @@ procedures, not a prescribed gameplay strategy.
 - **No visible change after command:** Read the tool's explicit error and
   inspect the new UI. Avoid repeating the same command without a new reason.
   A Terminal snapshot can briefly contain only a selector fragment while
-  Bitburner renders the command echo and result. The helper waits up to 2.5
+  Bitburner renders the command echo and result. The helper waits up to 6
   seconds for a fresh echo, editor transition, tutorial block, run confirmation,
-  or runtime error. If it times out, Enter may already have been sent: inspect
-  the current UI before retrying, and do not submit the same command blindly.
+  or runtime error. If it returns `UNCONFIRMED`, Enter was sent and may have
+  executed; inspect the included UI excerpt or call `game_observe`, and do not
+  repeat the same command. Use `game_read_script` to inspect listed `.js` source.
 - **`game_progress` says a stat is unavailable:** The current rendered view may
   not expose it. Open the visible `Stats` tab for hacking level or `Active
   Scripts` for running scripts, then observe the rendered result. Do not

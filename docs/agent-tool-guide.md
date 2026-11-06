@@ -52,6 +52,10 @@ an allowlisted label from the current rendered DOM and clicks that fresh visible
 button. `game_terminal` reacquires the
 current page and visible terminal input for every command. If a transition
 cannot be verified, inspect with `game_observe`; do not repeat the old action.
+If `game_terminal` returns `UNCONFIRMED`, Enter was sent and the command may
+have executed; the result includes the latest visible UI. Do not repeat that
+command. Inspect the excerpt or call `game_observe`; use `game_read_script` for
+a listed `.js` file instead of trying to read its source in Terminal.
 Bitburner v3.0.1 can render script `TYPE ERROR` panels without dialog roles. For
 a recognized script error, the helper accepts only a unique visible `Close`
 control from a fresh Browser Use accessibility snapshot.

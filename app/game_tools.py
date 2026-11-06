@@ -18,6 +18,8 @@ except ImportError:
 
 GAME_HOST = "bitburner-official.github.io"
 MAX_OBSERVATION = 2800
+TERMINAL_RESULT_CONFIRM_TIMEOUT_SECONDS = 6.0
+TERMINAL_RESULT_POLL_INTERVAL_SECONDS = 0.25
 SCRIPT_NAME = re.compile(r"^[A-Za-z0-9_.-]+\.js$")
 GAME_TABS = {
     "terminal", "script editor", "active scripts", "create program", "stats",
@@ -611,7 +613,8 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
                     "Do not run it again yet. Inspect `ps`, `tail`, Active Scripts, or the visible error and act on that evidence.")
         if normalized_command.casefold() == action_state.get("last_terminal_command"):
             return (f"NO_PROGRESS: The same Terminal command ({normalized_command}) was already executed with no intervening "
-                    "Terminal action. Choose a different diagnostic or gameplay action; this repeat was not sent.")
+                    "Terminal action. It may already have executed; this repeat was not sent. Do not repeat it. "
+                    "Use game_observe to inspect the current Terminal, or game_read_script for a listed .js file.")
         before = await _visible(browser_session)
         if run_filename:
             pre_run_money = visible_money_value(before)
@@ -629,8 +632,10 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         previous_echo_count = len(list(echo_pattern.finditer(before)))
         after = before
         command_echoes = []
-        for _ in range(10):
-            await asyncio.sleep(0.25)
+        poll_count = max(1, int(TERMINAL_RESULT_CONFIRM_TIMEOUT_SECONDS /
+                                TERMINAL_RESULT_POLL_INTERVAL_SECONDS))
+        for _ in range(poll_count):
+            await asyncio.sleep(TERMINAL_RESULT_POLL_INTERVAL_SECONDS)
             after = await _visible(browser_session)
             command_echoes = list(echo_pattern.finditer(after))
             fresh_command_output = (after[command_echoes[-1].end():]
@@ -652,9 +657,11 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         runtime_error_visible = bool(visible_runtime_error(after))
         if (len(command_echoes) <= previous_echo_count and not editor_opened and not tutorial_blocked and
                 not run_confirmed and not runtime_error_visible):
-            raise RuntimeError(
-                f"Enter was sent for {normalized_command!r}, but the visible Terminal did not confirm a new command result within 2.5 seconds. "
-                "The command may have executed; inspect the current UI before retrying."
+            return (
+                f"UNCONFIRMED: Enter was sent for {normalized_command!r}, but no fresh command result was visible "
+                f"within {TERMINAL_RESULT_CONFIRM_TIMEOUT_SECONDS:g} seconds. The command may have executed; do not repeat it. "
+                "Use game_observe to inspect the current Terminal, or game_read_script for a listed .js file.\n"
+                "Latest visible UI:\n" + after[-MAX_OBSERVATION:]
             )
         latest_command_output = after[command_echoes[-1].end():].lstrip() if command_echoes else ""
         if tutorial_blocked or latest_command_output.casefold().startswith("please follow the tutorial"):
@@ -721,6 +728,8 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
     async def game_terminal(command: str, browser_session: BrowserSession) -> str:
         try:
             result = await send_terminal(command, browser_session)
+            if result.startswith("UNCONFIRMED:"):
+                return result
             # Preserve the game's exact rendered error while making it
             # unambiguous to the model that this was a failed game action.
             error_patterns = (

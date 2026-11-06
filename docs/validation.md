@@ -961,3 +961,30 @@ generation; this is not treated as the current balance or attributable income.
 No inference or gameplay action ran during deployment. A coordinated bounded
 recovery trial is still required to verify that the model can diagnose the
 runtime RAM failure and achieve attributable income.
+
+## Run 41 and Terminal recovery fix (2026-11-06)
+
+The bounded local Qwen recovery run ended `failed` at 11:52:27 UTC after two
+consecutive failed sessions. The visible page showed the existing
+`hack_n00dles.js` and repeated `$0` output; the model did not edit or deploy a
+script, and no attributable income was verified. It reported `$71.893k` and
+hacking level 157, but no fresh baseline comparison was captured. The model's
+visible `scan-analyze 2` result showed `n00dles` root access and required
+hacking level 1; it nevertheless did not reach a script repair.
+
+Thirteen local model responses processed 84,230 prompt and 3,872 completion
+tokens in 309.661 seconds total (23.820 seconds mean), plus 15.905 seconds
+model-load time. At 16,384 context, Ollama reported about 23.05 GB VRAM
+allocated; this was not a peak sample. No generation-time GPU peak was
+recorded.
+
+The rendered Terminal eventually showed commands that its helper had reported
+unconfirmed after 2.5 seconds. The helper now polls up to 6 seconds and, on
+timeout, returns `UNCONFIRMED` with the latest visible UI and an explicit
+no-repeat instruction. The duplicate-command guard remains active. The system
+prompt and tool guide direct the model to inspect with `game_observe` or read a
+listed script with `game_read_script`. Delayed-output and duplicate-prevention
+tests pass; the network-disabled suite passes 179/179. This runtime fix has not
+yet been deployed or validated in a live agent session. The test VM is
+`failed` and `AUTO_RESUME=1` does not revive terminal failures; no automatic
+restart has been issued. All income progress remains unverified.

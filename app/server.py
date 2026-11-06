@@ -489,6 +489,11 @@ def summarize_action_results(actions: list[dict], results: list[object]) -> list
         content = str(getattr(result, "extracted_content", "") or "").strip()
         if error:
             state, message = "failed", error
+        elif content.startswith("UNCONFIRMED:"):
+            # Enter was sent but the UI echo was delayed or unavailable. The
+            # helper blocks an identical retry and returns the freshest visible
+            # state so the model can choose another diagnostic.
+            state, message = "returned", content.splitlines()[0]
         elif content.startswith("NO_PROGRESS:"):
             state, message = "game_error", content.splitlines()[0]
         elif content.startswith("ERROR:"):

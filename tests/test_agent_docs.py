@@ -143,7 +143,9 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Terminal `run` executes on the currently connected server", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("never assume `home` has enough free RAM", BITBURNER_SYSTEM_PROMPT)
         self.assertNotIn("run that exact file visibly on `home`", BITBURNER_SYSTEM_PROMPT)
-        self.assertIn("After any visible tool error or NO_PROGRESS, do not repeat", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("Never repeat a tool error or NO_PROGRESS", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("Terminal UNCONFIRMED means Enter may have executed", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("use `game_read_script` for listed .js files", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("If dismissal reveals a different dialog, inspect its text", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("call `game_progress` before changing or redeploying the file", BITBURNER_SYSTEM_PROMPT)
 

@@ -1137,3 +1137,39 @@ Ollama keep-alive after the request; a post-run `/api/ps` sample reported
 was released with no active Herd request. The next gameplay trial should show
 the model this visible error and let it diagnose and correct its own script
 without supplied code.
+
+### Run 41 — bounded recovery attempt; Terminal confirmation failure
+
+On 2026-11-06, the isolated test game was given to local `qwen3.6:35b` at
+16,384 context for up to 20 minutes. The run started at 11:45:42 UTC and ended
+at 11:52:27 UTC in terminal `failed` state after two consecutive failed
+sessions. The supervisor did not revive that terminal state. It recorded 13
+action steps. Ollama recorded 13 responses: 84,230 prompt tokens, 3,872
+completion tokens, 309.661 seconds summed request latency (23.820 seconds
+mean), and 15.905 seconds summed model-load time. VRAM allocation was about
+23.05 GB at 16,384 context; this is not a peak sample. GPU utilization was
+0% at preflight and one later idle sample; no generation-time peak was
+collected.
+
+The model dismissed the offline-progress dialog, then tried to diagnose the
+existing script through Terminal. It reported a visible balance of `$71.893k`
+and hacking level 157, but did not capture a fresh before/after balance
+comparison. The visible Terminal log showed repeated `Stole $0` output. The
+model guessed that its hacking level was insufficient; visible
+`scan-analyze 2` output instead showed `n00dles` required level 1 and had root
+access. The displayed script source was unchanged and formats the stolen value
+with `toFixed(0)`, so its own output rounds fractional dollars to `$0`. The
+model did not author, deploy, or verify a repair, and this run proves no
+attributable income.
+
+The run exposed a harness defect: several Terminal commands were visible in
+the final rendered UI after `game_terminal` had reported no new result within
+2.5 seconds. The timeout did not include that latest UI text; repeated attempts
+were then blocked by the duplicate-command guard, but the agent did not switch
+to a useful inspection path and the supervisor stopped after two failed
+sessions. The helper now waits up to 6 seconds and returns an `UNCONFIRMED`
+result with the latest visible excerpt; the duplicate guard remains in force
+and the prompt/tool guide direct inspection with `game_observe` or
+`game_read_script`. Delayed-output, timeout, duplicate, and lifecycle summary
+tests pass. The full 179-test suite passes with network disabled. Live
+validation of this fix is pending.

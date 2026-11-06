@@ -1,6 +1,7 @@
 """Integration-style tests for registered actions over a fake visible Browser Use page."""
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from app.game_tools import (_visible_content_matches, find_visible_button_node, find_visible_tab_node, register_game_tools,
                             visible_money_value, visible_progress, visible_runtime_error, visible_terminal_hosts)
@@ -277,12 +278,25 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Cannot run hack_n00dles.js (t=1) on home", result)
         self.assertEqual(self.page.executed_commands, ["run hack_n00dles.js"])
 
-    async def test_terminal_timeout_blocks_blind_retry_when_output_never_arrives(self):
+    async def test_terminal_waits_for_delayed_visible_command_result(self):
+        # Live Run 41 showed rendered Terminal output arriving after the old
+        # 2.5 second confirmation window. This models that delayed DOM update.
         self.page.delay_output_snapshots = 12
-        first = await self.actions["game_terminal"]("ls", self.browser)
-        second = await self.actions["game_terminal"]("ls", self.browser)
-        self.assertIn("did not confirm a new command result", first)
+        result = await self.actions["game_terminal"]("cat home.js", self.browser)
+        self.assertIn("cat home.js", result)
+        self.assertIn("export async function main(ns)", result)
+        self.assertEqual(self.page.executed_commands, ["cat home.js"])
+
+    async def test_terminal_timeout_blocks_blind_retry_when_output_never_arrives(self):
+        self.page.delay_output_snapshots = 30
+        with patch("app.game_tools.TERMINAL_RESULT_CONFIRM_TIMEOUT_SECONDS", 0.25):
+            first = await self.actions["game_terminal"]("ls", self.browser)
+            second = await self.actions["game_terminal"]("ls", self.browser)
+        self.assertTrue(first.startswith("UNCONFIRMED:"))
+        self.assertIn("Latest visible UI:", first)
+        self.assertIn("do not repeat it", first)
         self.assertTrue(second.startswith("NO_PROGRESS:"))
+        self.assertIn("game_observe", second)
         self.assertEqual(self.page.executed_commands, ["ls"])
 
     async def test_terminal_reports_tutorial_block_and_retries_only_after_explicit_exit(self):

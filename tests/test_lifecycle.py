@@ -625,6 +625,17 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("81.60GB of RAM", terminal[0]["message"])
         self.assertEqual(duplicate[0]["state"], "game_error")
 
+    async def test_unconfirmed_terminal_result_is_actionable_not_a_framework_failure(self):
+        from types import SimpleNamespace
+        result = server.summarize_action_results(
+            [{"game_terminal": {"command": "ps"}}],
+            [SimpleNamespace(error=None, extracted_content=(
+                "UNCONFIRMED: Enter was sent for 'ps'; no fresh result was visible. "
+                "Do not repeat it.\nLatest visible UI:\nBitburner Terminal"))],
+        )
+        self.assertEqual(result[0]["state"], "returned")
+        self.assertIn("UNCONFIRMED", result[0]["message"])
+
     async def test_delayed_visible_runtime_error_is_counted_once(self):
         message = "Visible Netscript runtime error: missing root access"
         returned = [{"tool": "game_run_script", "state": "returned", "message": "PID 1"}]
