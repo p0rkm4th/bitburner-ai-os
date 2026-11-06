@@ -969,3 +969,29 @@ the same file/host RAM condition. Commit `6e8f68a` normalizes these failures by
 filename and host, so a second identical RAM-guard outcome stops the loop.
 The 158-test suite passes and an in-container check confirmed different source
 variants produce the same signature. Live validation is pending.
+
+## Run 38 — deployment succeeded, Terminal guard deadlocked
+
+Run 38 continued the shared persistent test game after `6e8f68a`, using
+Qwen3.6:35b Q4_K_M at 16,384 context, `think=false`, temperature 0.2, seed 7.
+It ended in terminal failure after about 4m13s including one bounded supervisor
+retry. The model produced 10 responses (61,722 prompt / 1,944 completion
+tokens; 185.6 seconds summed request latency, 18.6 seconds mean; about 0.03
+seconds model load time), with no transport errors. The two sessions used six
+agent steps total and three visible game-tool calls in the terminal retry.
+
+The model dismissed the dialog, received the expected RAM rejection while
+trying to redeploy `hack_n00dles.js`, then independently authored and deployed
+`hack.js`. The tool failed to run it because the Terminal prompt was not
+visible; the follow-up `game_terminal` path also checked for a prompt before
+opening Terminal, so repeated calls could not recover. The supervisor stopped
+after the configured bounded retry. The final rendered UI showed $71.779k and
+hacking 155, equal to the captured post-dialog baseline; no script ran and no
+Run 38 income or progression is attributed. The deployed `hack.js` remains
+unexecuted in the persistent test game.
+
+The local correction opens Terminal with the documented visible shortcut
+before validating `expected_host` or a pending deployment, and retains precise
+pending-run instructions across a failed checkpoint. All 160 pinned tests
+pass. Deployment and a new bounded gameplay attempt are pending; do not count
+this as a successful autonomous gameplay cycle.

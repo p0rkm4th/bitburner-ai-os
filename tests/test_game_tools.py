@@ -154,7 +154,7 @@ class FakePage:
             return
         if key.casefold() == "alt+t":
             self.terminal_visible = True
-            self.visible = "Bitburner Terminal\nterminal-input"
+            self.visible = "Bitburner Terminal\n[home /]>"
             return
         if key != "Enter" or self.focused != "terminal":
             return
@@ -748,6 +748,19 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         result = await self.actions["game_run_script"]("home.js", self.browser, [])
         self.assertIn("Running script home.js with PID 4", result)
         self.assertEqual(self.page.executed_commands, ["run home.js"])
+        self.assertEqual(self.action_state["deployments_without_run"], 0)
+
+    async def test_pending_deployment_opens_hidden_terminal_before_validating_and_running(self):
+        self.action_state.update(deployments_without_run=1, last_deployed_filename="hack.js")
+        self.page.terminal_visible = False
+        self.page.visible = "Bitburner Overview with no Terminal prompt"
+        self.page.run_output = "Bitburner Terminal\n[home /]> run hack.js\nRunning script hack.js with PID 7"
+
+        result = await self.actions["game_run_script"]("hack.js", self.browser, [], expected_host="home")
+
+        self.assertIn("Running script hack.js with PID 7", result)
+        self.assertTrue(self.page.terminal_visible)
+        self.assertEqual(self.page.executed_commands, ["run hack.js"])
         self.assertEqual(self.action_state["deployments_without_run"], 0)
 
     async def test_pending_deployment_cannot_run_from_non_home_server(self):

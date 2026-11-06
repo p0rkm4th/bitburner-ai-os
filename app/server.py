@@ -323,8 +323,16 @@ def checkpoint_prompt_summary(checkpoint: dict) -> dict:
         next_action = (f"Run the latest verified {filename} through game_run_script and inspect the visible result "
                        "before attempting another deployment.")
     if previous_step_failed:
-        subobjective = "The prior step failed; treat its subobjective and next action as historical suggestions. Observe the current game and choose a different evidence-based action from the recorded error."
-        next_action = "Re-observe current visible state, diagnose the latest tool error, and do not repeat the action it rejected."
+        if deployment_guard:
+            filename = deployment_guard["last_deployed_filename"]
+            subobjective = (f"A verified deployment of {filename} is still pending execution. Re-observe the current UI, "
+                            "then complete that execution before changing or redeploying the script.")
+            next_action = (f"Use game_run_script({filename!r}, expected_host=\"home\"). If Terminal is hidden, "
+                           "open it through the visible game interaction; if its prompt shows another host, connect home, "
+                           "verify the prompt, then run the pending file. Inspect the actual output/error afterward.")
+        else:
+            subobjective = "The prior step failed; treat its subobjective and next action as historical suggestions. Observe the current game and choose a different evidence-based action from the recorded error."
+            next_action = "Re-observe current visible state, diagnose the latest tool error, and do not repeat the action it rejected."
     return {
         "session": checkpoint.get("session"), "steps": checkpoint.get("steps"),
         "objective": objective,

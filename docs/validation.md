@@ -710,3 +710,20 @@ mount and private configuration. Post-deploy, health reports
 The deployed image is
 `sha256:adbd1cf008a47ce09334927dab205e0a22392e27b85c8ff364e2c6fc679e3866`.
 The new signature has not yet been exercised in a live gameplay session.
+
+## Hidden Terminal and pending-run recovery — pending deployment
+
+Run 38 exposed an ordering defect: `game_run_script(expected_host=...)` and the
+pending-deployment check looked for a visible Terminal prompt before invoking
+the documented shortcut that opens Terminal. The deployed `hack.js` therefore
+could not be run even though the visible UI later showed a home prompt. The
+local fix opens Terminal through the normal UI before host validation, clears
+visible blocking dialogs first, and preserves the pending-run instruction when
+continuing from a failed checkpoint. No hidden game state is used.
+
+The focused regression tests and the full pinned runtime suite pass (160 tests).
+The fix has not yet been deployed or live-validated. Every Bitburner profile
+referenced by this project is a test game; there is no separate production
+game. The shared test game remains stopped after Run 38, with the Remote API
+Online and the persistent browser/profile retained. No gameplay or inference
+was started for this code change.

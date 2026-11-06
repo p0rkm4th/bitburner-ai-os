@@ -452,6 +452,23 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
             "last_deployed_filename": "student.js",
         })
 
+    async def test_failed_checkpoint_keeps_pending_deployment_execution_guidance(self):
+        with patch.dict(os.environ, {"BITBURNER_REMOTE_API_URL": "http://localhost:3001",
+                                     "BITBURNER_REMOTE_API_TOKEN": "test"}):
+            summary = server.checkpoint_prompt_summary({
+                "objective": "Earn money with an original Netscript",
+                "subobjective": "Run home.js",
+                "next_intended_action": "Scan again",
+                "tool_results": [{"tool": "game_terminal", "state": "failed",
+                                  "message": "Terminal prompt not visible"}],
+                "deployment_guard": {"deployments_without_run": 1,
+                                     "last_deployed_filename": "hack.js"},
+            })
+        self.assertIn("hack.js", summary["subobjective"])
+        self.assertIn("game_run_script", summary["next_intended_action"])
+        self.assertIn('expected_host="home"', summary["next_intended_action"])
+        self.assertIn("open it through the visible game interaction", summary["next_intended_action"])
+
     async def test_identical_failed_action_is_bounded_and_new_action_resets(self):
         signature = "same-action-and-visible-error"
         self.assertEqual(server.failed_action_repeat_count("", 0, signature), 1)

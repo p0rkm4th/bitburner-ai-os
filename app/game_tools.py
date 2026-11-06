@@ -536,6 +536,10 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         blocked = await _clear_known_modal_before_action(browser_session, f"running terminal command {normalized_command!r}")
         if blocked:
             return blocked
+        # Open Terminal before checking its prompt. Otherwise a pending
+        # deployment can deadlock: the guard asks the model to connect home,
+        # but refuses that command because the Terminal is still hidden.
+        page, field = await _ensure_terminal(page, browser_session)
         pending = pending_script_run_message(action_state)
         if pending and run_filename != str(action_state.get("last_deployed_filename", "")).casefold():
             # A newly deployed script has already been read back and RAM checked.
@@ -574,7 +578,6 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         if normalized_command.casefold() == action_state.get("last_terminal_command"):
             return (f"NO_PROGRESS: The same Terminal command ({normalized_command}) was already executed with no intervening "
                     "Terminal action. Choose a different diagnostic or gameplay action; this repeat was not sent.")
-        page, field = await _ensure_terminal(page, browser_session)
         before = await _visible(browser_session)
         await field.focus()
         await field.fill(command)
@@ -754,6 +757,11 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         try:
             if not SCRIPT_NAME.fullmatch(filename):
                 raise ValueError("Filename must be a simple in-game .js script name, such as home.js")
+            blocked = await _clear_known_modal_before_action(browser_session, f"running script {filename}")
+            if blocked:
+                return blocked
+            page = await _page(browser_session)
+            await _ensure_terminal(page, browser_session)
             if expected_host is not None:
                 if not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", expected_host):
                     raise ValueError("expected_host must be a simple visible Bitburner server name")
