@@ -114,6 +114,47 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
             )
         self.assertTrue(result.is_done)
         self.assertTrue(result.success)
+        self.assertTrue(state["accepted_done"])
+
+    def test_scoped_done_completes_bounded_goal_but_not_bitnode_goal(self):
+        checkpoint = {"accepted_done": True}
+        self.assertTrue(server.scoped_goal_completion_confirmed(
+            "Create and verify a money-making script", checkpoint))
+        self.assertFalse(server.scoped_goal_completion_confirmed(
+            "Continue playing toward BitNode 1", checkpoint))
+        self.assertFalse(server.scoped_goal_completion_confirmed(
+            "Create and verify a money-making script", {}))
+
+    async def test_supervisor_persists_bounded_done_as_completed(self):
+        old_state, old_status, old_stop = server.STATE, dict(server.status), server.stop_requested
+        with tempfile.TemporaryDirectory(prefix="bitburner-completion-test-") as temp:
+            server.STATE = Path(temp)
+            for name in ("checkpoints", "logs"):
+                (server.STATE / name).mkdir()
+            server.status.update(state="active", objective="", error="", outcome=None, session=0)
+            server.stop_requested = False
+
+            async def accepted_session(_objective):
+                server.status["error"] = ""
+                server.save_checkpoint({
+                    "accepted_done": True,
+                    "latest_visible_state": "Money $1.6k",
+                    "action": "done(success=True)",
+                    "action_count": 1,
+                })
+
+            try:
+                with patch.dict(os.environ, {"MAX_SESSIONS": "1", "MAX_RETRIES": "1"}):
+                    with patch.object(server, "run_agent", side_effect=accepted_session):
+                        await server.supervise("Create and verify a money-making script")
+                runtime = json.loads((server.STATE / "checkpoints" / "runtime.json").read_text())
+                self.assertEqual(server.status["state"], "completed")
+                self.assertEqual(runtime["state"], "completed")
+                self.assertEqual(runtime["outcome"], "objective_done")
+            finally:
+                server.STATE, server.stop_requested = old_state, old_stop
+                server.status.clear()
+                server.status.update(old_status)
 
     def test_checkpoint_restores_ram_rejection_diagnostic_gate(self):
         result = server.checkpoint_ram_rejection({

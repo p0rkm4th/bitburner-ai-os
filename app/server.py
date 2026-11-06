@@ -200,7 +200,12 @@ def register_completion_guard(tools: Tools, objective: str, action_state: dict) 
         if block:
             return ActionResult(is_done=False, success=False,
                                 extracted_content="Success not accepted: " + block)
-        return await default_done(params=params, file_system=file_system)
+        result = await default_done(params=params, file_system=file_system)
+        if (params.success and getattr(result, "is_done", False) and
+                getattr(result, "success", False)):
+            action_state["accepted_done"] = True
+            action_state["done_report"] = params.text[:1200]
+        return result
 
 
 def runtime_session_number(value) -> int:
@@ -381,6 +386,12 @@ def bitnode1_completion_confirmed(report: str, visible: str) -> bool:
     visible_confirmation = bool(re.search(r"bitnode 1.{0,100}(completed|complete|destroyed|finished)", ui) or
                                 re.search(r"(completed|complete|destroyed|finished).{0,100}bitnode 1", ui))
     return positive_marker and visible_confirmation
+
+
+def scoped_goal_completion_confirmed(objective: str, checkpoint: dict) -> bool:
+    """Accept a guarded `done` for bounded goals, but require BitNode evidence for long-term goals."""
+    requires_bitnode = bool(re.search(r"\bbit\s*node\s*1\b", objective, re.IGNORECASE))
+    return bool(checkpoint.get("accepted_done")) and not requires_bitnode
 
 
 def progress_signature(visible: str, action: str) -> str:
@@ -870,6 +881,8 @@ async def run_agent(objective: str) -> None:
                           list(getattr(history.history[-1], "result", []) or []) if history.history else []),
                       "tool_metrics": dict(tool_metrics),
                       "session_outcome": status.get("outcome"),
+                      "accepted_done": bool(action_state.get("accepted_done")),
+                      "done_report": action_state.get("done_report", ""),
                       "ram_rejection": action_state.get("ram_rejection"),
                       "deployment_guard": deployment_guard_checkpoint(action_state),
                       "unresolved_problems": errors[-4:], "next_intended_action": final_result or subobjective,
@@ -986,6 +999,12 @@ async def supervise(objective: str) -> None:
             status.update(state="completed")
             save_runtime("completed", objective=objective, session=number)
             record("supervisor", "Model reported and visible UI confirmed BitNode 1 completion")
+            break
+        if scoped_goal_completion_confirmed(objective, data):
+            status.update(state="completed", outcome="objective_done")
+            save_runtime("completed", objective=objective, session=number,
+                         outcome="objective_done")
+            record("supervisor", "Guarded model completion accepted for the bounded objective")
             break
         if no_progress >= no_progress_limit:
             status.update(state="exhausted", error=f"No observable progress across {no_progress} sessions")

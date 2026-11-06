@@ -484,6 +484,12 @@ verified money generation, while also confirming that repeated ineffective
 observations and end-state reporting remain weaknesses. It does not establish
 reliable extended autonomy or BitNode progression.
 
+After Run 23, the harness was updated so a guarded successful `done` marks a
+bounded objective `completed`; long-term BitNode objectives still require the
+separate visible BitNode completion proof. The regression suite passes 120/120
+in a network-disabled candidate image. This fix is not deployed to the
+production browser while existing game scripts remain active.
+
 ## Reproducing a trial
 
 The isolated Compose deployment, objective, fresh-profile trial runner, and
