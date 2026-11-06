@@ -84,8 +84,9 @@ control from a fresh Browser Use accessibility snapshot.
 After a script starts, use `game_progress` to verify money, hacking level, and
 script income. Do not attribute aggregate Active Scripts production to your
 script unless its row or visible output confirms that script. If
-`game_observe` returns `NO_PROGRESS`, do not repeat it
-unchanged; use `game_progress` or take a different useful action. Once the
+`game_observe` returns `NO_PROGRESS`, passive balance or script-log updates
+do not count as a changed page. Use `game_progress` for changing stats or take
+a different useful action before observing again. Once the
 objective has visible evidence, report it instead of polling the same screen.
 When a recognized offline-progress or message dialog is closed automatically,
 read the returned dialog body and choose the next action; the Terminal command

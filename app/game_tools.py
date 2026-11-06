@@ -29,6 +29,16 @@ GAME_TAB_LABELS = get_args(GameTab)
 GAME_TABS = {label.casefold() for label in GAME_TAB_LABELS}
 
 
+def _observation_signature(visible: str) -> str:
+    """Ignore passive HUD/log value churn when detecting a repeated observation."""
+    normalized = re.sub(r"\[\d+\]", "[]", visible)
+    normalized = re.sub(r"\$[\d,]+(?:\.\d+)?(?:[kmbt])?", "$<amount>", normalized, flags=re.I)
+    normalized = re.sub(r"\b\d+(?:\.\d+)?\s*(?:/\s*(?:sec|s)|seconds?)\b", "<rate/time>",
+                        normalized, flags=re.I)
+    normalized = re.sub(r"\s+", " ", normalized).strip().casefold()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
 async def _page(browser_session: BrowserSession):
     page = await browser_session.get_current_page()
     if page is None:
@@ -391,10 +401,12 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         try:
             page = await _page(browser_session)
             visible = await _visible(browser_session)
-            if last_observation == visible:
-                return ("NO_PROGRESS: This rendered observation is identical to the previous one; no input was sent. "
-                        "Choose one different action based on the visible state, or report the blocker instead of observing again.")
-            last_observation = visible
+            signature = _observation_signature(visible)
+            if last_observation == signature:
+                return ("NO_PROGRESS: The visible game page has not meaningfully changed since the previous observation; "
+                        "passive money/log updates do not count. No input was sent. Use game_progress for stats, "
+                        "or take a different game action before observing again.")
+            last_observation = signature
             modal = await _modal(page, visible, browser_session)
             prefix = f"Visible dialog: {modal}\n" if modal else "Visible dialog: none\n"
             return prefix + visible[-MAX_OBSERVATION:]

@@ -329,6 +329,17 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         changed = await self.actions["game_observe"](self.browser)
         self.assertIn("A different visible screen", changed)
 
+    async def test_passive_money_and_script_log_updates_do_not_enable_observation_polling(self):
+        self.page.visible = ("Overview\nMoney $100\nHack 1\nTerminal\n"
+                             "hack.js: Stole $5 from n00dles")
+        first = await self.actions["game_observe"](self.browser)
+        self.page.visible = ("Overview\nMoney $200\nHack 1\nTerminal\n"
+                             "hack.js: Stole $6 from n00dles")
+        repeated = await self.actions["game_observe"](self.browser)
+        self.assertIn("Money $100", first)
+        self.assertTrue(repeated.startswith("NO_PROGRESS:"))
+        self.assertIn("game_progress", repeated)
+
     async def test_progress_check_recovers_after_duplicate_observation_without_resetting_it(self):
         self.page.visible = "Overview\nMoney $1.838k\nHack 1\nActive Scripts\nProduction $0.022 / sec"
         first = await self.actions["game_observe"](self.browser)

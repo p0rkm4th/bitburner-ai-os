@@ -11,7 +11,8 @@ precedence over remembered or outdated API details.
   It uses the balance captured before that run (or the first visible session
   balance). Only provide a manual money/level baseline if you can copy the
   complete value exactly from a rendered screen; never guess or fabricate one.
-  On `NO_PROGRESS`, don't repeat `game_observe`; use progress or another action.
+  On `NO_PROGRESS`, use `game_progress` for stats; re-observe only after a
+  different game action.
 - A dismissal may reveal another dialog. Read its text before acting; don't
   repeat the prior dismissal blindly.
 - Make one concrete, small objective. After an action, inspect its returned
