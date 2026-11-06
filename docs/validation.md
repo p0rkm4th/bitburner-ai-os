@@ -22,7 +22,7 @@ This document records measured results only. A running container alone does not 
 | Remote live viewer | Passed (tunnel path) | noVNC page and internal VNC connection respond. A workstation SSH tunnel successfully reached both the health API and noVNC page; verify live game display during an agent session remains pending. |
 | Core statistics update | Pending | The dashboard observation endpoint now returns a live rendered game UI summary and container RAM usage/limit. The model has not yet created and run a Netscript statistics display. |
 | Browser/container restart preserves progress | Passed (profile data) | After a container recreate, Chromium reopened the same persistent profile and the game showed the existing character HUD and offline-progress summary. |
-| Checkpoint durability and agent lifecycle | Test-game service source `ed08cb1` deployed; 128 tests passed | Existing tests cover stop, overlap prevention, pause/resume, interruption recovery, terminal-state recovery, atomic checkpoints, stagnation, bounded inference, restricted Remote API actions, guide path resolution, modal handling, terminal error reporting, removal of stale editor guidance, cosmetic redeployment detection, repeat-run protection, constrained in-game `.js` copying, RAM rejection recovery, model reference lookup, persistence of the pending script-run guard across sessions, stable pending-run signatures across changing source/UI with reset after a successful diagnostic, visible progress verification after a duplicate observation, same-host `connect` rejection with different-host connection preserved, multiline runtime-error reporting, delayed runtime-error metrics, and reporting verified money progress when the agent omits its final report. Commit `53d398e` passed all 123 tests in a network-disabled container on the deployed VM using temporary state; it adds regression coverage for Bitburner runtime-error headings split across DOM lines. |
+| Checkpoint durability and agent lifecycle | Test-game service source `75e23e5` deployed; 149/149 tests passed | Coverage includes stop, overlap prevention, pause/resume, interruption and terminal-state recovery, atomic checkpoints, stagnation, bounded inference, restricted Remote API actions, guide loading, modal handling, terminal error reporting, stale editor guidance removal, repeat-run protection, constrained in-game `.js` copying, RAM rejection recovery, current API lookup, dialog detection, tutorial controls, and verified money progress. The network-disabled pinned container suite passed before deployment; the same commit was rebuilt on the VM. |
 | Auto-resume and session continuation | Deployed test-game service preserves operator stop; isolated benchmarks remain bounded | Every isolated trial used `AUTO_RESUME=0` and `MAX_SESSIONS=1`; step and time budgets varied by trial and are recorded in [model-benchmark.md](model-benchmark.md). Each trial was launched explicitly and its disposable containers were removed after a terminal result. The deployed test-game service retains `AUTO_RESUME=1` and `MAX_SESSIONS=0`; its persisted `operator_stopped` state was preserved across the update. |
 | Local model gameplay benchmark | Eight isolated Qwen trials demonstrated verified income; extended autonomy and BitNode progression remain unverified | Runs 17, 19, 20, 22, 23, 25, 28, and 34 demonstrated income; Runs 18, 21b, 24, 26, and 27 did not. Run 34 recovered from a visible Netscript runtime error and verified a corrected script's contribution to a $287 post-correction money increase. Run 27 exposed the prior-PID collision fixed in the current candidate. Qwen3.8 remains unscored because the exact tag is not installed on the local inference endpoint. See [model-benchmark.md](model-benchmark.md). |
 | Qwen client-options retest | Inference reliability improved; gameplay recovery failed | An isolated same-seed Qwen3.6:35b trial used explicit 16,384 context and `think=false`; all 11 requests completed without timeout (82,576 prompt and 3,025 completion tokens; 18.4–32.6 seconds/request). Qwen authored and deployed a script, but its first execution failed for lack of root access. After an authored revision, the next run returned the same old line-10 runtime error. The saved DOM shows the modal heading split into `RUNTIME` and `ERROR`; the detector required contiguous text at the time. A regression fix now normalizes visible whitespace before matching. No income or progress is claimed for this trial. Isolated artifacts remain private under ignored `local/benchmark-runs/`. |
@@ -564,3 +564,27 @@ noVNC returned HTTP 200, and both management listeners remained loopback-only.
 No gameplay action, inference request, or save import was performed. The
 private archive path and checksum are recorded only in the ignored local
 instance record.
+
+## Tutorial recovery and Run 34 deployment — commit `75e23e5` (2026-11-06)
+
+Commit `75e23e5` adds a bounded `game_tutorial` action for a visible `Next` or
+deliberately selected `Exit Tutorial` button, detects and reports a tutorial
+block on a Terminal command, and verifies each resulting UI transition. The
+fresh-selector logic also accepts native buttons without explicit ARIA roles.
+The pinned container passed 149/149 offline tests. A disposable live Chromium
+check verified tutorial advancement and exit, visible-tab navigation, and a
+successful latest Terminal `ls`; it ran without model inference.
+
+Before deployment, the shared test game was `operator_stopped` at session 0 /
+0 steps, with the Remote API Online. A new verified archive of the persistent
+data and a rollback image tag were created. The agent and restricted bridge
+containers were rebuilt and recreated from `75e23e5` using the same persistent
+data mount and private configuration. After startup, the service reported
+`browser_ready`, remained `operator_stopped` at session 0 / 0 steps, retained
+`AUTO_RESUME=1`, showed the game Remote API Online, and returned HTTP 200 from
+noVNC. Management ports remained bound to guest loopback. The game profile
+remained present and its visible balance advanced from $13.952k before restart
+to $20.073k afterward; that change is not attributed to this code update or to
+new inference. No shared-game action or inference request was made during
+deployment. Instance-specific backup, node, address, and access details remain
+in ignored local records.
