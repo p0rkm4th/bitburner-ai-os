@@ -1,4 +1,5 @@
 """Small durable cache for successful, allowlisted documentation lookups."""
+import hashlib
 import re
 
 
@@ -9,7 +10,10 @@ MAX_REPEAT_CONTEXT = 800
 
 def _query_key(tool: str, query: str) -> str:
     normalized = re.sub(r"\s+", " ", query.strip()).casefold()
-    return f"{tool}:{normalized}"[:240]
+    # Hash the full normalized query: long runtime errors often differ only
+    # after a shared prefix, so truncating the key can return unrelated advice.
+    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+    return f"{tool}:{digest}"
 
 
 def cached_query_result(action_state: dict, tool: str, query: str) -> str | None:
