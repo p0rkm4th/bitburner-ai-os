@@ -1,7 +1,8 @@
 """Exercise deterministic visible UI helpers against a disposable game profile.
 
 Run inside the deployment image with a fresh copy of a benchmark profile mounted
-at /state/profile. It tests one-shot modal recovery and semantic navigation only.
+at /state/profile. The optional HEADLESS=1 setting runs the rendered UI checks
+without opening a desktop display.
 """
 import asyncio
 import os
@@ -14,7 +15,7 @@ from app.game_tools import register_game_tools
 async def main() -> None:
     profile = BrowserProfile(
         user_data_dir=os.getenv("STATE_DIR", "/state") + "/profile",
-        headless=False,
+        headless=os.getenv("HEADLESS", "0") == "1",
         allowed_domains=["bitburner-official.github.io"],
         enable_default_extensions=False,
         keep_alive=False,
@@ -38,6 +39,15 @@ async def main() -> None:
             observed = await actions["game_observe"](browser_session=browser)
             if "Visible dialog: none" not in observed:
                 raise RuntimeError(f"Offline dialog remained after one dismissal: {observed}")
+        if "TYPE ERROR" in observed:
+            dismissed = await actions["game_dismiss_dialog"](browser_session=browser)
+            if ("dismissed and verified absent" not in dismissed
+                    or "TYPE ERROR" not in dismissed
+                    or "ns.getMoney is not a function" not in dismissed):
+                raise RuntimeError(f"Type Error modal was not diagnosed and dismissed once: {dismissed}")
+            observed = await actions["game_observe"](browser_session=browser)
+            if "Visible dialog: none" not in observed:
+                raise RuntimeError(f"Type Error modal remained after one dismissal: {observed}")
         opened = await actions["game_open_tab"](tab="Create Program", browser_session=browser)
         if opened.startswith("ERROR:") or "Opened visible game tab 'Create Program'" not in opened:
             raise RuntimeError(opened)

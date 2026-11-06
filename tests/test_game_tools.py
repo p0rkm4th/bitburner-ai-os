@@ -300,6 +300,24 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(self.page.modal)
         self.assertEqual(self.page.executed_commands, [])
 
+    async def test_terminal_dismisses_bitburner_type_error_before_sending_command(self):
+        self.page.modal = True
+        self.page.mui_modal = True
+        self.page.presentation_only = True
+        self.page.visible = (
+            "TYPE ERROR\nTypeError: ns.getMoney is not a function\n"
+            "Stack: TypeError: ns.getMoney is not a function\n"
+            "at main (home/hack.js:11:22)\nScript: hack.js\nPID: 1\n"
+            "Suppress error modals (5 min) Close View Script Logs Errors Page"
+        )
+        result = await self.actions["game_terminal"]("ls", self.browser)
+        self.assertTrue(result.startswith("NO_PROGRESS:"))
+        self.assertIn("TYPE ERROR", result)
+        self.assertIn("ns.getMoney is not a function", result)
+        self.assertIn("requested action was not performed", result)
+        self.assertEqual(self.page.close_clicks, 1)
+        self.assertEqual(self.page.executed_commands, [])
+
     async def test_terminal_rejects_same_command_repeat_without_sending_it(self):
         first = await self.actions["game_terminal"]("help", self.browser)
         second = await self.actions["game_terminal"]("help", self.browser)
@@ -345,6 +363,10 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         visible = "Terminal output\nRUNTIME ERROR\nScript: home.js\nPID: 4\nns.hack is not a function\nStack: home.js:L3"
         excerpt = visible_runtime_error(visible)
         self.assertIn("ns.hack is not a function", excerpt)
+        type_error = visible_runtime_error(
+            "TYPE ERROR\nTypeError: ns.getMoney is not a function\nScript: hack.js\nPID: 1")
+        self.assertIn("TYPE ERROR", type_error)
+        self.assertIn("ns.getMoney is not a function", type_error)
         self.assertEqual(visible_runtime_error("ordinary visible game page"), "")
 
     async def test_terminal_records_ram_rejection_and_process_inspection_satisfies_diagnostic_gate(self):
@@ -463,6 +485,39 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("dismissed and verified absent", result)
         self.assertEqual(self.page.close_clicks, 1)
         self.assertFalse(self.page.modal)
+
+    async def test_type_error_modal_selects_visible_close_with_other_buttons_present(self):
+        self.page.modal = True
+        self.page.mui_modal = True
+        self.page.presentation_only = True
+        self.page.modal_button_count = 3
+        self.page.nav_nodes = [FakeNavNode("Close", backend_node_id=999)]
+        self.page.visible = (
+            "TYPE ERROR\nTypeError: ns.getMoney is not a function\n"
+            "Stack: home/hack.js:11\nScript: hack.js PID: 1\n"
+            "Suppress error modals (5 min) Close View Script Logs Errors Page"
+        )
+        result = await self.actions["game_dismiss_dialog"](self.browser)
+        self.assertIn("dismissed and verified absent", result)
+        self.assertEqual(self.page.close_clicks, 1)
+        self.assertFalse(self.page.modal)
+
+    async def test_type_error_on_bare_div_surface_uses_only_fresh_accessible_close(self):
+        # The live Bitburner Type Error had no dialog role or MUI modal root;
+        # only the rendered error text and its visible Close button were exposed.
+        self.page.modal = False
+        self.page.mui_modal = False
+        self.page.presentation_only = False
+        self.page.nav_nodes = [FakeNavNode("Close", backend_node_id=999)]
+        self.page.visible = (
+            "TYPE\nERROR\nTypeError: ns.getMoney is not a function\n"
+            "Stack: TypeError: ns.getMoney is not a function\n"
+            "Script: hack.js\nPID: 1\nClose\nView Script Logs\nErrors Page"
+        )
+        result = await self.actions["game_dismiss_dialog"](self.browser)
+        self.assertIn("dismissed and verified absent", result)
+        self.assertEqual(self.page.close_clicks, 1)
+        self.assertEqual(self.page.visible, "Bitburner Terminal\nDialog dismissed")
 
     async def test_failed_dialog_close_is_never_repeated_for_same_visible_modal(self):
         self.page.modal = True

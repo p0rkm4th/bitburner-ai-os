@@ -50,6 +50,9 @@ an allowlisted label from the current rendered DOM and clicks that fresh visible
 button. `game_terminal` reacquires the
 current page and visible terminal input for every command. If a transition
 cannot be verified, inspect with `game_observe`; do not repeat the old action.
+Bitburner v3.0.1 can render script `TYPE ERROR` panels without dialog roles. For
+a recognized script error, the helper accepts only a unique visible `Close`
+control from a fresh Browser Use accessibility snapshot.
 After a script starts, use `game_progress` to verify money, hacking level, and
 script income. If `game_observe` returns `NO_PROGRESS`, do not repeat it
 unchanged; use `game_progress` or take a different useful action. Once the

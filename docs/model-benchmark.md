@@ -112,8 +112,8 @@ limited to 0.5 CPU and 384 MiB RAM.
 
 ## Recommendation
 
-Keep `qwen3.6:35b` as the production model for now. It was the most reliable of
-these tested candidates at generating tool actions and Netscript attempts, read
+Keep `qwen3.6:35b` as the deployed test-game service's configured model for now.
+It was the most reliable of these tested candidates at generating tool actions and Netscript attempts, read
 official definitions in one run, and was the fastest tested model. It still
 failed the gameplay goal in all three trials, so this benchmark does **not**
 validate autonomous gameplay. Devstral's code focus did not offset its lower
@@ -121,12 +121,12 @@ throughput and inability to recover from a blocked dialog. Gemma 4 should not
 be selected for this harness given repeated long timeouts and zero script
 authoring.
 
-Do not switch production to a challenger based on these runs. At the time of
-this initial benchmark, Qwen3.8 could not be pulled because the serving Ollama
+Do not switch the deployed test-game service to a challenger based on these
+runs. At the time of this initial benchmark, Qwen3.8 could not be pulled because the serving Ollama
 version was too old. The owner later reported that the Ollama servers had been
 updated; exact installed tags, current compatibility, and gameplay quality have
 not yet been reverified. Revisit model selection through a controlled isolated
-comparison. No production model setting was changed.
+comparison. No deployed test-game model setting was changed.
 
 ## Guided trial after documentation and harness changes
 
@@ -805,3 +805,28 @@ overwrite an existing trial. This mode is intended for recovery experiments,
 not clean-seed comparisons. It has been tested against Run 32's private
 artifacts without inference. A follow-up gameplay run still requires a separate
 inference reservation and has not started.
+
+## Run 33 — Type Error recovery regression (isolated)
+
+Run 33 continued the interrupted Run 32 profile with Qwen3.6:35b Q4_K_M at
+16,384 context, `think=false`, temperature 0.2, seed 7, with limits of 16
+actions or 20 minutes. It ended `failed` after four steps and four model/tool
+calls in about 92 seconds. The four responses used 23,570 prompt and 624
+completion tokens, with 88.65 seconds summed latency (22.16 seconds mean,
+30.19 maximum). Two game/tool errors occurred; there were no inference
+transport failures or timeouts. No script correction, income, or hacking
+progression was verified.
+
+The model dismissed the offline-progress notice, ran `ls`, and saw `hack.js`.
+It then encountered `TypeError: ns.getMoney is not a function`. The saved
+Bitburner v3.0.1 snapshot showed the error panel as bare divs, with no dialog
+role, `aria-modal`, or MUI dialog root, while exposing a visible `Close`
+control. The old detector therefore reported no dialog. Qwen repeated the same
+dismissal after `NO_PROGRESS`, and the stagnation guard stopped the run. The
+detector now recognizes rendered `TYPE ERROR`/`RUNTIME ERROR` text only when
+script and PID fields are present, then accepts a unique visible `Close`
+control from a fresh Browser Use accessibility snapshot. The exact error panel
+did not reappear after reloading the copied profile, so live dismissal remains
+unverified. Focused and full offline tests cover this behavior; all 142 tests
+pass. Private evidence is under
+`local/benchmark-runs/qwen36-runtime-recovery-01/`.

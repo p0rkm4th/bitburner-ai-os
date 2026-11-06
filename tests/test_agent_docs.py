@@ -72,6 +72,12 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("game_netscript_reference", result)
         self.assertIn("visible `run` PID confirms", result)
 
+    async def test_type_error_from_netscript_selects_api_recovery_notes(self):
+        result = await self.actions["game_troubleshoot"](
+            "TYPE ERROR TypeError: ns.getMoney is not a function; Script: hack.js PID: 1")
+        self.assertIn("is not a function", result)
+        self.assertIn("game_netscript_reference", result)
+
     async def test_ram_troubleshooting_mentions_process_inspection_and_home_file_scope(self):
         result = await self.actions["game_troubleshoot"](
             "Cannot run hack_n00dles.js on home: requires 1.70GB RAM")

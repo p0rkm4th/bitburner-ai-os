@@ -47,12 +47,13 @@ def _known_game_modal(visible: str) -> bool:
     text = re.sub(r"\s+", " ", visible).casefold()
     return (("offline for" in text and "your scripts generated" in text)
             or ("message received from" in text and "message was saved" in text)
-            or ("runtime error" in text and "script:" in text and "pid:" in text))
+            or (re.search(r"\b(?:runtime|type)\s+error\b", text)
+                and "script:" in text and "pid:" in text))
 
 
 def visible_runtime_error(visible: str) -> str:
     """Return a bounded runtime-error excerpt from rendered Bitburner UI text."""
-    match = re.search(r"\bRUNTIME\s+ERROR\b", visible, re.IGNORECASE)
+    match = re.search(r"\b(?:RUNTIME|TYPE)\s+ERROR\b", visible, re.IGNORECASE)
     if not match:
         return ""
     excerpt = visible[match.start():match.start() + 700]
@@ -60,7 +61,7 @@ def visible_runtime_error(visible: str) -> str:
     return excerpt.strip()
 
 
-async def _modal(page, visible: str = "") -> Optional[str]:
+async def _modal(page, visible: str = "", browser_session: Optional[BrowserSession] = None) -> Optional[str]:
     """Detect visible modal surfaces and stop before clicking covered controls."""
     selectors = ('[role="dialog"]', '[aria-modal="true"]', '.MuiDialog-root', '.MuiModal-root')
     for selector in selectors:
@@ -96,12 +97,21 @@ async def _modal(page, visible: str = "") -> Optional[str]:
                         continue
                 label = attrs.get("aria-label") or role or selector
                 return str(label)[:100]
+    # Bitburner v3.0.1 renders some script-error dialogs as bare divs rather
+    # than a role=dialog/aria-modal/MUI root. For a recognized visible game
+    # error, accept only a fresh, unique visible Close button from Browser Use's
+    # rendered accessibility snapshot; this avoids treating arbitrary page
+    # text or unrelated buttons as a modal.
+    if _known_game_modal(visible) and browser_session is not None:
+        summary = await browser_session.get_browser_state_summary(include_screenshot=False)
+        if find_visible_close_node(summary.dom_state) is not None:
+            return "Bitburner game dialog"
     return None
 
 
 async def _need_clear_surface(page, browser_session: BrowserSession) -> None:
     visible = await _visible(browser_session)
-    modal = await _modal(page, visible)
+    modal = await _modal(page, visible, browser_session)
     if modal:
         raise RuntimeError(
             f"A visible dialog ({modal}) is covering the game. Inspect and dismiss it with its visible UI control, then retry."
@@ -247,7 +257,7 @@ async def _dismiss_dialog_once(browser_session: BrowserSession) -> str:
     """Dismiss one visible dialog using a fresh, visible control and verify the transition."""
     page = await _page(browser_session)
     before_state = await _visible(browser_session)
-    modal = await _modal(page, before_state)
+    modal = await _modal(page, before_state, browser_session)
     if not modal:
         return "No visible dialog was detected; no input was sent."
     close = await _visible_element(page, SEMANTIC_CLOSE_CONTROLS)
@@ -276,7 +286,7 @@ async def _dismiss_dialog_once(browser_session: BrowserSession) -> str:
                 await page.press("Escape")
     await asyncio.sleep(0.15)
     state = await _visible(browser_session)
-    remaining = await _modal(page, state)
+    remaining = await _modal(page, state, browser_session)
     if remaining:
         return (f"ERROR: Dialog ({remaining}) remains after one close attempt. "
                 "Inspect the visible UI and report the blocker; no further input was sent.\n" +
@@ -297,7 +307,7 @@ async def _clear_known_modal_before_action(browser_session: BrowserSession, acti
     """Close only recognized game notices; return their visible text without doing the requested action."""
     page = await _page(browser_session)
     visible = await _visible(browser_session)
-    modal = await _modal(page, visible)
+    modal = await _modal(page, visible, browser_session)
     if not modal:
         return None
     if not _known_game_modal(visible):
@@ -327,7 +337,7 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
                 return ("NO_PROGRESS: This rendered observation is identical to the previous one; no input was sent. "
                         "Choose one different action based on the visible state, or report the blocker instead of observing again.")
             last_observation = visible
-            modal = await _modal(page, visible)
+            modal = await _modal(page, visible, browser_session)
             prefix = f"Visible dialog: {modal}\n" if modal else "Visible dialog: none\n"
             return prefix + visible[-MAX_OBSERVATION:]
         except Exception as exc:
@@ -393,7 +403,7 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         try:
             page = await _page(browser_session)
             before = await _visible(browser_session)
-            modal = await _modal(page, before)
+            modal = await _modal(page, before, browser_session)
             if not modal:
                 action_state.pop("failed_dialog_signature", None)
                 runtime_error = visible_runtime_error(before)

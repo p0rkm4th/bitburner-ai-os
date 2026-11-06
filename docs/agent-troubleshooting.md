@@ -30,7 +30,7 @@ procedures, not a prescribed gameplay strategy.
 - **`main` missing / entry point rejected:** Check the live script documentation
   and current game's expected export syntax. A deployment/read-back alone does
   not validate compilation or execution.
-- **Function removed / undefined:** Query the live definition for the current
+- **Function removed / undefined / “is not a function”:** Query the live definition for the current
   game version. Do not restore old names such as `nFormat` from memory. Debug
   using the actual runtime message, then update and redeploy the script.
 - **Bitburner v3.0.x reports `formatNumber` removed:** In the observed v3.0.1
@@ -104,6 +104,12 @@ procedures, not a prescribed gameplay strategy.
   the close attempt errors, report the blocker instead of retrying. Do not keep
   clicking old indexes, reload the page, or run a terminal command through a
   covered dialog.
+- **A `TYPE ERROR` dialog appears:** Treat it as a Netscript runtime error.
+  Read the rendered error and stack, then dismiss it once with
+  `game_dismiss_dialog` or let one `game_terminal` call dismiss it and return
+  the dialog text. If either tool says `NO_PROGRESS`, do not repeat that same
+  dismissal; inspect the current rendered UI and retrieve relevant
+  `game_troubleshoot` notes.
 - **Fresh profile shows an offline-progress dialog:** Read its visible game
   earnings and milestones, then dismiss it once with `game_dismiss_dialog`.
   Remote API Online does not mean the dialog is absent. Do not repeat
