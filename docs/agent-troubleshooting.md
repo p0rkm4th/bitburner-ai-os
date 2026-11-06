@@ -79,6 +79,10 @@ procedures, not a prescribed gameplay strategy.
 
 ## RAM and active process errors
 
+- **Dynamic RAM runtime error:** A script can fail at runtime even after a
+  static RAM calculation. Compare the visible dynamic usage with its allocation,
+  inspect the functions named in the error, and consult their live API docs
+  before revising. Recalculate the authored file, then verify a visible run.
 - **No RAM / process does not start:** Read the exact `mem` or run error and
   verify available RAM on the execution host. A RAM calculation is not proof
   that the host currently has that RAM free. Scripts have a 1.6 GB minimum;

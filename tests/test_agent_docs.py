@@ -88,6 +88,12 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("connecting alone", result)
         self.assertIn("does not copy files", result)
 
+        dynamic = await self.actions["game_troubleshoot"](
+            "RAM USAGE ERROR dynamic RAM 1.80GB exceeds allocation 1.70GB; Functions in-use: hasRootAccess, weaken")
+        self.assertIn("static RAM calculation", dynamic)
+        self.assertIn("Compare the visible dynamic usage", dynamic)
+        self.assertIn("functions named in the error", dynamic)
+
     async def test_message_dialog_troubleshooting_preserves_unlock_information(self):
         result = await self.actions["game_troubleshoot"]("Message received from unknown sender dialog")
         self.assertIn("Read its visible body before closing", result)

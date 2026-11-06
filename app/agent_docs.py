@@ -64,7 +64,8 @@ HELP_TOPICS: dict[str, tuple[tuple[str, str], ...]] = {
 
 TROUBLESHOOT_TOPICS: tuple[tuple[tuple[str, ...], str], ...] = (
     (("remote api", "getfile", "offline"), "Deployment and Netscript errors"),
-    (("cannot run", "not enough ram", "process does not start", "available ram", "positive pid"),
+    (("dynamic ram", "dynamic usage", "ram usage error", "runtime ram",
+      "cannot run", "not enough ram", "process does not start", "available ram", "positive pid"),
      "RAM and active process errors"),
     (("filename", "file not found", "path"), "Deployment and Netscript errors"),
     (("scan-analyze", "incorrect usage", "unknown command"), "Deployment and Netscript errors"),
