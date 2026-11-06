@@ -1176,3 +1176,35 @@ deployed in commits `f02ded9` and `738d751`; postflight preserved terminal
 `failed` at session 14 with AUTO_RESUME enabled, so the agent did not restart.
 The updated Terminal behavior still needs validation in a new bounded live
 agent session. This run remains a failure and proves no attributable income.
+
+### Run 42 — bounded script attempt; ReferenceError recovery failed
+
+On 2026-11-06 from 12:25:31 to 12:30:14 UTC, the isolated test game was
+continued with local `qwen3.6:35b` at 16,384 context, capped at eight action
+steps. Preflight showed no queued or in-flight Herd requests, no model loaded
+on Tartarus, and all four GPUs idle. The run used eight model responses,
+processing 72,435 prompt and 2,066 completion tokens. Summed Ollama request
+duration was 238.785 seconds (29.854 seconds mean elapsed per response); mean
+model-load duration was 1.987 seconds. A post-run idle sample showed 0%
+utilization and 7.329/5.059/6.201/5.207 GiB allocated across the four GPUs;
+this is a post-run allocation sample, not a generation-time peak.
+
+Qwen dismissed the visible offline-progress popup, inspected the existing
+script's RAM and available memory, stopped `hack_n00dles.js`, authored and
+deployed `hack_n00dles_fast.js`, and attempted to run it. The new script
+produced a visible Bitburner `REFERENCE ERROR`: `ReferenceError: ns is not
+defined` at line 16. The run tool correctly returned `UNCONFIRMED` because no
+fresh Terminal result arrived within six seconds; the subsequent rendered UI
+showed the actual error modal. Qwen called `game_dismiss_dialog` twice, but
+both calls incorrectly reported that no dialog was visible. The agent was
+explicitly stopped at eight actions. The final screen showed the error modal;
+no current balance or hacking-level delta was visible, and no attributable
+income was verified. The new script failed and was not independently debugged
+or corrected.
+
+The observation exposed a second harness defect: the modal detector handled
+`RUNTIME ERROR` and `TYPE ERROR`, but not Bitburner's rendered `REFERENCE
+ERROR` heading. A regression now recognizes that heading and uses only a fresh,
+unique visible Close button. The focused tests pass, and the network-disabled
+full suite passes 181/181. This correction is not yet deployed. The model
+remains stopped; all Bitburner instances are test games.

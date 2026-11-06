@@ -1002,3 +1002,32 @@ current balance or attributable income. No inference or gameplay action ran
 during deployment. The network-disabled suite passes 180/180. A further
 bounded local-model session is needed to validate Terminal recovery and
 autonomous Netscript repair; no income has been verified.
+
+## Run 42 — test-game script attempt and visible error recovery (2026-11-06)
+
+The test VM passed a fresh Tartarus preflight and local `qwen3.6:35b` ran from
+12:25:31 to 12:30:14 UTC with 16,384 context and an eight-action cap. It
+independently inspected memory, stopped the prior script, authored and
+deployed `hack_n00dles_fast.js`, and attempted visible Terminal execution. The
+browser displayed a Bitburner `REFERENCE ERROR` (`ReferenceError: ns is not
+defined`, line 16). The run tool returned `UNCONFIRMED` after its six-second
+confirmation window; a later read-only rendered observation confirmed the
+error modal. The model repeated dialog dismissal twice because the helper did
+not recognize that heading. The session was explicitly emergency-stopped at
+eight actions, and runtime state is `operator_stopped` at session 15. No
+current money balance or hacking-level change was visible; no income or
+successful debugging is claimed. The existing test profile and script state
+were preserved.
+
+Eight local model responses processed 72,435 prompt tokens and 2,066
+completion tokens in 238.785 seconds summed Ollama request duration (29.854
+seconds mean response time). Mean model-load duration was 1.987 seconds. A
+post-run sample showed 0% GPU utilization with 7.329/5.059/6.201/5.207 GiB
+allocated across four GPUs; it is not a peak inference measurement.
+
+The harness now recognizes the visible `REFERENCE ERROR` form and can close
+it using a fresh, unique visible Close control. Focused regression tests pass;
+the full network-disabled suite passes 181/181. The fix is tested locally but
+has not yet been committed or deployed. Remote API was Online in the last
+rendered observation; noVNC remained available. The agent remains explicitly
+stopped, and `AUTO_RESUME=1` does not revive this operator-stopped state.

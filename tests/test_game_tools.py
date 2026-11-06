@@ -516,6 +516,9 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
             "TYPE ERROR\nTypeError: ns.getMoney is not a function\nScript: hack.js\nPID: 1")
         self.assertIn("TYPE ERROR", type_error)
         self.assertIn("ns.getMoney is not a function", type_error)
+        reference_error = visible_runtime_error(
+            "REFERENCE ERROR\nReferenceError: ns is not defined\nScript:\nhack.js\nPID:\n4\nClose")
+        self.assertIn("ReferenceError: ns is not defined", reference_error)
         self.assertEqual(visible_runtime_error("ordinary visible game page"), "")
 
     async def test_terminal_records_ram_rejection_and_process_inspection_satisfies_diagnostic_gate(self):
@@ -634,6 +637,18 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("dismissed and verified absent", result)
         self.assertEqual(self.page.close_clicks, 1)
         self.assertFalse(self.page.modal)
+
+    async def test_reference_error_modal_uses_fresh_visible_close_button(self):
+        self.page.visible = (
+            "REFERENCE ERROR\nReferenceError: ns is not defined\n"
+            "Stack: home/hack_n00dles_fast.js:16\n"
+            "Script:\nhack_n00dles_fast.js\nPID:\n4\nClose\nView Script Logs\nErrors Page"
+        )
+        self.page.nav_nodes = [FakeNavNode("Close", 999)]
+        result = await self.actions["game_dismiss_dialog"](self.browser)
+        self.assertIn("dismissed and verified absent", result)
+        self.assertEqual(self.page.close_clicks, 1)
+        self.assertEqual(self.page.visible, "Bitburner Terminal\nDialog dismissed")
 
     async def test_type_error_modal_selects_visible_close_with_other_buttons_present(self):
         self.page.modal = True
