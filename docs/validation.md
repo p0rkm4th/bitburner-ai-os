@@ -874,3 +874,23 @@ A regression test now confirms that an offline-progress modal's aggregate
 `Your scripts generated` amount is not parsed as the player's current balance.
 The no-network suite passes 172/172 tests. This is test-only; deployed runtime
 behavior did not change.
+
+## Modal-transition diagnosis follow-up (2026-11-06)
+
+A bounded Qwen3.6:35b check made three visible dialog-dismissal attempts. The
+offline-progress modal transitioned to a Netscript runtime-error dialog, but
+the helper reported only that a presentation dialog remained. A fresh rendered
+observation showed `hack_n00dles.js@home (PID -4)` failed at `weaken` with
+dynamic RAM 1.80 GB / allocation 1.70 GB. This is the visible error from a
+home-server attempt; the HUD was covered, so no current balance or income was
+verified. The agent wrote, deployed, or launched no script. It was stopped and
+the persisted runtime state is `operator_stopped`.
+
+The source helper now fingerprints the visible dialog before and after one
+close attempt. If the original dialog is replaced by a different visible
+dialog, it reports the transition and returns the new dialog text for
+diagnosis, instead of saying the original dialog remains. A focused regression
+and the full network-disabled suite pass (176/176). This source change is not
+deployed yet; the existing test-game browser/profile remains intact. Deployment
+and live validation are deferred to a safe boundary before the next gameplay
+session.

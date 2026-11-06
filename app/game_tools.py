@@ -336,6 +336,12 @@ async def _dismiss_dialog_once(browser_session: BrowserSession) -> str:
     state = await _visible(browser_session)
     remaining = await _modal(page, state, browser_session)
     if remaining:
+        before_signature = _dialog_signature(modal, before_state)
+        after_signature = _dialog_signature(remaining, state)
+        if after_signature != before_signature:
+            return (f"Dialog transition verified: the previous dialog was closed and a different dialog ({remaining}) is now visible. "
+                    "Inspect the newly revealed dialog before choosing an action. Do not repeat dismissal for the previous dialog.\n" +
+                    state[-MAX_OBSERVATION:])
         return (f"ERROR: Dialog ({remaining}) remains after one close attempt. "
                 "Inspect the visible UI and report the blocker; no further input was sent.\n" +
                 state[-MAX_OBSERVATION:])
@@ -522,7 +528,9 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
                 return ("NO_PROGRESS: The same visible dialog remains after one close attempt. "
                         "No input was sent. Read the dialog and report the exact blocker; do not retry dismissal.")
             result = await _dismiss_dialog_once(browser_session)
-            if result.startswith("Dialog dismissed and verified absent") or "No visible dialog was detected" in result:
+            if (result.startswith("Dialog dismissed and verified absent") or
+                    result.startswith("Dialog transition verified:") or
+                    "No visible dialog was detected" in result):
                 action_state.pop("failed_dialog_signature", None)
                 result += " Do not call this again unless a new visible dialog appears."
             else:

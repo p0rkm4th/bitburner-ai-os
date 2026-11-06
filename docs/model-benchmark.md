@@ -1108,3 +1108,26 @@ A later read-only Remote API `getFile` call confirmed that the model-authored
 uses `toFixed(0)`, so its own `$0` line rounds away fractional-dollar results;
 Bitburner's visible operation log is the evidence for the `$0.005`–`$0.019`
 successes. The file was read only; no game state or script content was changed.
+
+### Run 40 — bounded visible-state check; RAM error revealed
+
+On 2026-11-06 at 11:10 UTC, after Herd showed zero queued/in-flight requests,
+Tartarus `/api/ps` was empty, all four GPUs were idle, and the VM was
+`operator_stopped`, Qwen3.6:35b received a three-action, five-minute
+observation-only objective. It made three `game_dismiss_dialog` calls; each
+returned a dialog-remains error. The session was explicitly stopped at 11:11:58
+UTC; status persisted `operator_stopped` at session 12, two completed steps.
+The third tool result raced with the stop, so the action log has three calls
+while the step counter has two. All three calls failed; two were counted as
+game errors. No tokens-per-request or inference-latency metrics were persisted.
+
+The fresh rendered UI revealed that the offline-progress popup had transitioned
+to a Bitburner runtime-error dialog for `hack_n00dles.js@home (PID -4)`. It
+reported `weaken` dynamic RAM of 1.80 GB against 1.70 GB allocated, with
+`hasRootAccess` and `weaken` listed as in-use functions and a stack at line 17.
+This is evidence of a failed home-server attempt. The current balance was not
+visible, so this run establishes no income or balance change. The model did
+not modify, deploy, start, or stop a script. Qwen remained resident under
+Ollama keep-alive after the request; Tartarus was released with no active Herd
+request. The next gameplay trial should show the model this visible error and
+let it diagnose and correct its own script without supplied code.

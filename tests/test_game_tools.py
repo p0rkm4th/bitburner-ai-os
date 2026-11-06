@@ -58,7 +58,10 @@ class FakeElement:
             return
         if self.kind == "modal_close":
             self.page.close_clicks += 1
-            if self.page.close_attempt_succeeds:
+            if self.page.dialog_after_close is not None:
+                self.page.visible = self.page.dialog_after_close
+                self.page.dialog_after_close = None
+            elif self.page.close_attempt_succeeds:
                 self.page.modal = False
                 self.page.mui_modal = False
                 self.page.presentation_only = False
@@ -78,6 +81,7 @@ class FakePage:
         self.mui_modal = False
         self.modal_button_count = 1
         self.close_attempt_succeeds = True
+        self.dialog_after_close = None
         self.close_clicks = 0
         self.command = ""
         self.editor_text = ""
@@ -681,6 +685,30 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         result = await self.actions["game_dismiss_dialog"](self.browser)
         self.assertIn("remains after one close attempt", result)
         self.assertTrue(self.page.modal)
+
+    async def test_dismissal_reports_newly_revealed_dialog_as_transition(self):
+        self.page.modal = True
+        self.page.mui_modal = True
+        self.page.presentation_only = True
+        self.page.visible = "Offline for 57 seconds. Your scripts generated $20.199 Close"
+        self.page.dialog_after_close = (
+            "RUNTIME ERROR RAM USAGE ERROR Script: hack_n00dles.js PID: -4 "
+            "weaken Dynamic RAM Usage: 1.80GB RAM Allocation: 1.70GB Close"
+        )
+
+        result = await self.actions["game_dismiss_dialog"](self.browser)
+
+        self.assertTrue(result.startswith("Dialog transition verified:"))
+        self.assertIn("RUNTIME ERROR RAM USAGE ERROR", result)
+        self.assertIn("Dynamic RAM Usage: 1.80GB", result)
+        self.assertEqual(self.page.close_clicks, 1)
+        self.assertTrue(self.page.modal)
+
+        # The newly visible error is an independent dialog and can be handled
+        # once on a later model action after inspecting its contents.
+        next_result = await self.actions["game_dismiss_dialog"](self.browser)
+        self.assertIn("Dialog dismissed and verified absent", next_result)
+        self.assertEqual(self.page.close_clicks, 2)
 
     async def test_existing_editor_edit_save_and_run_cycle(self):
         opened = await self.actions["game_open_editor"]("home.js", self.browser)
