@@ -965,7 +965,7 @@ session 4 / 6 steps. The prompt change did not correct this model behavior.
 Run 37 also exposed that the supervisor's repeated-failure signature included
 the complete proposed script content. As a result, harmless code variations
 reset the stagnation counter even though the tool rejected each deployment for
-the same file/host RAM condition. A local change now normalizes these failures
-by filename and host, so a second identical RAM-guard outcome stops the loop.
-The 158-test suite passes; this normalizer is not yet deployed or validated in
-a live run.
+the same file/host RAM condition. Commit `6e8f68a` normalizes these failures by
+filename and host, so a second identical RAM-guard outcome stops the loop.
+The 158-test suite passes and an in-container check confirmed different source
+variants produce the same signature. Live validation is pending.
