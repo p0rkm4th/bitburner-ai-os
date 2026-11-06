@@ -831,8 +831,9 @@ control from a fresh Browser Use accessibility snapshot. The copied profile
 did not reproduce the error panel immediately after reload. Run 34 later
 reproduced the error by running the saved failing script and verified the
 model recovered. Focused and full offline tests cover this behavior; the
-Run 33 candidate passed 149 tests at that point, while deployed candidate
-`60480e5` passes 152/152. Private evidence is under
+Run 33 candidate passed 149 tests at that point; deployed candidate `60480e5`
+passed 152/152, and session-number fix `e3a1a62` passed 154/154 in the pinned
+runtime image. Private evidence is under
 `local/benchmark-runs/qwen36-runtime-recovery-01/`.
 
 ## Run 34 — independent runtime-error recovery and income (isolated)
