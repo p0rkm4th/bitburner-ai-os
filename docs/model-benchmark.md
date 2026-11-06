@@ -598,3 +598,36 @@ lookups, unrelated Terminal commands, and task completion until that exact
 deployment receives a visible run attempt from the visible `home` prompt.
 The guard is covered by the automated suite; Run 27 will test it in a fresh
 isolated profile. The guard does not author code or choose a gameplay strategy.
+
+## Run 27 — pending-run guard trial (isolated; no income)
+
+Run 27 used the same Qwen3.6:35b Q4_K_M tag and Run 26 conditions, verified
+vision/tool capabilities, and the same clean seed and objective. It began at
+$1.262k / Hacking 1. Qwen deployed and visibly ran `hack.js`; the game's
+rendered Terminal result said the target needed root. Qwen then issued the
+invalid Terminal command `nuke n00dles` and attempted the same script with a
+target argument; visible output again reported no root access. After it
+deployed a revised `hack.js`, the new pending-run gate correctly blocked
+unrelated actions, but the existing no-repeat-PID guard also blocked running
+the newly deployed changed file because its filename had a previous PID. The
+session repeated that blocked result and failed after 14 actions. Final
+read-only screenshot showed $1.262k / Hacking 1 and no attributable income.
+Terminal showed the Remote API Online and visible run errors; the final game
+observation listed two active-script PIDs, but neither yielded verified
+earnings.
+
+There were 14 successful Ollama responses (86,044 prompt and 2,051 completion
+tokens), 261.75 seconds summed inference time (18.70 seconds mean, 33.84
+seconds maximum), one 180-second request timeout, and three later Ollama
+connection failures. The session lasted about 10m28s. Across 63 hardware
+samples, GPU utilization peaked at 100%, 100%, 100%, and 88%; per-card VRAM
+peaks were 7,329, 5,059, 6,201, and 5,207 MiB, and Ollama reported 23.05 GB
+for the model. CPU offload was not measured. Evidence remains private under
+`local/benchmark-runs/qwen36-pending-run-guard-01/`.
+
+The source now permits a new visible run of a file when that exact filename is
+the pending read-back-verified deployment, even if an earlier version already
+received a PID. It still rejects an immediate repeat after that deployment's
+visible run. The follow-up is covered by the network-disabled suite (128/128).
+It still needs a new isolated gameplay trial; Run 27 is a failed gameplay trial,
+not a success.

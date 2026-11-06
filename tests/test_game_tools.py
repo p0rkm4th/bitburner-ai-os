@@ -555,6 +555,19 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Connect home", result)
         self.assertEqual(self.page.executed_commands, [])
 
+    async def test_changed_deployment_can_run_again_after_prior_positive_pid(self):
+        self.page.visible = "Bitburner Terminal\n[home /]>"
+        self.page.run_output = "Bitburner Terminal\n[home /]> run hack.js\nRunning script hack.js with PID 4"
+        first = await self.actions["game_run_script"]("hack.js", self.browser, [])
+        self.assertIn("Running script hack.js", first)
+        self.action_state.update(deployments_without_run=1, last_deployed_filename="hack.js")
+        self.action_state.pop("last_terminal_command", None)  # successful changed deployment clears this marker
+        self.page.run_output = "Bitburner Terminal\n[home /]> run hack.js\nRunning script hack.js with PID 5"
+        second = await self.actions["game_run_script"]("hack.js", self.browser, [])
+        self.assertIn("Running script hack.js", second)
+        self.assertEqual(self.page.executed_commands, ["run hack.js", "run hack.js"])
+        self.assertEqual(self.action_state["deployments_without_run"], 0)
+
     async def test_terminal_blocks_repeated_run_until_a_diagnostic_command(self):
         first = await self.actions["game_terminal"]("run home.js", self.browser)
         self.assertIn("Running script home.js with PID 4", first)

@@ -438,7 +438,10 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
             if current_host and current_host.casefold() == connect_match.group(1).casefold():
                 return (f"NO_PROGRESS: Already connected to {current_host}; no command was sent. "
                         "Connecting again does not change the server or grant root access. Choose a different action from the visible state.")
-        if run_filename and run_filename == last_confirmed_run:
+        is_pending_deployment_run = bool(
+            pending and run_filename == str(action_state.get("last_deployed_filename", "")).casefold()
+        )
+        if run_filename and run_filename == last_confirmed_run and not is_pending_deployment_run:
             return (f"NO_PROGRESS: {run_match.group(1)} already received a visible positive PID. "
                     "Do not run it again yet. Inspect `ps`, `tail`, Active Scripts, or the visible error and act on that evidence.")
         if normalized_command.casefold() == action_state.get("last_terminal_command"):

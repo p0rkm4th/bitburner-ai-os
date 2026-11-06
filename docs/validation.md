@@ -447,10 +447,24 @@ a visible run attempt from the visible `home` prompt. If the browser is
 connected elsewhere, the agent may connect home once. This is a deterministic
 workflow guard; it does not write code or select gameplay strategy.
 
-The complete suite passes 127 tests in the pinned deployment image with
+The complete suite passes 128 tests in the pinned deployment image with
 networking disabled and temporary state. Tests cover blocking reads and
 references, preventing unrelated Terminal commands, requiring the home prompt,
 clearing the guard after a visible run attempt, and refusing task completion
 while a deployment is pending. This source candidate has not yet been deployed
 to the shared persistent test profile. A fresh isolated Qwen trial will test
 whether the guard improves completed gameplay.
+
+Run 27 exercised the guard in a disposable test profile but failed to earn
+money. Qwen visibly ran `hack.js` and received a root-access error, then issued
+the invalid Terminal command `nuke n00dles`. After it deployed a revised
+`hack.js`, the pending-run guard blocked further detours, but an existing
+same-filename PID guard also blocked the required new run. A regression test
+now confirms that the current source allows a pending changed deployment to
+run once and still blocks an immediate repeat; the full suite passes 128/128.
+Run 27 ended after 14 actions with one model timeout
+and three subsequent Ollama connection failures; the final screenshot showed
+$1.262k / Hacking 1 with no verified earnings. Its evidence is isolated under
+ignored local benchmark records. The revised duplicate-run behavior still needs
+another isolated gameplay trial; the source has not been deployed to the shared
+persistent test profile.
