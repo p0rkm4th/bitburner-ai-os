@@ -1040,3 +1040,29 @@ browser profile reopened behind an offline-progress modal. Its aggregate
 amount is not current balance or attributable income. Management and viewer
 ports remain bound to localhost. No inference or gameplay action ran during
 deployment.
+
+## Run 43 — live ReferenceError recovery (2026-11-06)
+
+After deployment, the isolated test game was resumed with local
+`qwen3.6:35b` at 16,384 context. The new dialog detector worked against the
+actual rendered `REFERENCE ERROR`: the agent dismissed it, read its own
+model-authored script, diagnosed that code outside `main(ns)` caused
+`ns is not defined`, authored and deployed a revision, and launched it. The
+revised script then produced a visible `TYPE ERROR` because `spawn` rejected
+an array-valued script argument at line 20. The agent had identified the
+second error in its checkpoint, but the run was emergency-stopped before it
+could correct it. The requested eight-action cap was exceeded by one action
+while the stop raced the next tool response; runtime state is
+`operator_stopped` at session 16 / 9 steps.
+
+The UI showed positive Terminal PIDs for two run attempts. Final read-only
+observation showed the visible HUD at `$71.947k`, hacking level 157, Remote API
+Online, and no modal; no comparable before balance was captured. This run
+therefore verifies model-authored deployment and visible start, plus recovery
+from the first runtime error, but not successful autonomous debugging or
+attributable income. Ten Ollama responses processed 76,863 prompt and 2,212
+completion tokens in 218.516 seconds summed request duration (21.857 seconds
+mean). The model was resident; preflight sampled 0% GPU utilization and
+7.329/5.059/6.201/5.207 GiB allocated across four GPUs. No generation-time
+peak or CPU offload measurement was collected. Tartarus was released with no
+queued or in-flight requests.

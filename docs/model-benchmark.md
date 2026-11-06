@@ -1213,3 +1213,30 @@ deployed source hash, browser readiness, Remote API Online, and noVNC HTTP 200;
 the agent remains `operator_stopped` at session 15. The restored browser shows
 an offline-progress modal with an aggregate amount; this is not a current
 balance or income measurement. All Bitburner instances are test games.
+
+### Run 43 — live dialog recovery and second Netscript error
+
+On 2026-11-06 from 12:44:59 to 12:48:49 UTC, the deployed build was tested on
+the same isolated game with local `qwen3.6:35b` at 16,384 context. The run
+recorded nine action steps before the emergency stop (the requested eight-step
+bound was exceeded by one action while the stop raced a tool response). Ten
+Ollama responses processed 76,863 prompt and 2,212 completion tokens; summed
+request duration was 218.516 seconds (21.857 seconds mean elapsed per
+response). The model was already resident; summed model-load time was 0.039
+seconds. Preflight sampled 0% GPU utilization and 7.329/5.059/6.201/5.207 GiB
+allocated across Tartarus's four GPUs; this was before generation, and no
+generation-time peak or CPU offload measurement was collected.
+
+The model reran its own earlier file and the deployed modal helper detected
+and dismissed the resulting `REFERENCE ERROR`. It then read the script,
+identified that Netscript code outside `main(ns)` caused `ns is not defined`,
+authored and redeployed a correction, and ran it again. The visible runtime
+error then changed to a `TYPE ERROR`: `spawn` rejected an array-valued script
+argument at line 20. This shows the model recovered from the first error and
+exposed a second bug, but did not finish debugging it within the bounded run.
+The UI showed positive Terminal PIDs for two run attempts. At the final
+read-only observation the rendered HUD showed `$71.947k` and hacking level
+157; no before/after baseline was recorded, so no money delta or income is
+attributed to the new script. A prior script's `$1` log line was visible, but
+it cannot be attributed to this run. Explicit stop persisted
+`operator_stopped` at session 16; no continuation was started.
