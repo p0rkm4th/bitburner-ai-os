@@ -1383,3 +1383,20 @@ dialog dismissal after the dialog was already closed, followed by host
 correction, runtime-error handling, code repair, and deployment. Revisit the
 session action budget or reduce avoidable dialog actions before another
 comparable trial.
+
+### Follow-up session-bound update and current connection status (2026-11-06)
+
+Because the 8-action ceiling forced the final Browser Use step to expose only
+`done` before the corrected deployment could run, the configured bounded
+session limit was raised to **12**. The change was made at terminal-failed
+session 27 after validating a new persistent-data archive and retaining a
+rollback image. Postflight verifies `MAX_STEPS=12`, the failed state persists,
+the browser and dashboard/noVNC are available, and the test profile remains
+intact.
+
+The rendered game currently reports Remote API **Offline** after this
+container recreation, although the restricted bridge process is listening on
+its configured loopback port. Remote API reconnection is not yet verified, so
+the deployment is not ready for another script-authoring run. The next
+diagnostic will use the visible Bitburner Options UI only; no saved game data
+or internal game objects will be modified.
