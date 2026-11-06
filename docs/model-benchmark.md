@@ -9,9 +9,10 @@ new copy of the same disposable Bitburner profile with the Remote API visibly
 Online. No trial shared game progress with another trial.
 
 The scored runs used the same objective, browser and restricted Remote API
-tools, 16,384-token context, temperature 0.2, seed 7, 24-step ceiling, 30-minute
-session ceiling, one session, and the same retry, history, and inactivity
-limits. The game objective supplied no code, target, or Netscript correction.
+tools, 16,384-token context, temperature 0.2, seed 7, one session, and the same
+retry, history, and inactivity limits. Step and session ceilings varied by
+trial and are recorded below; Run 23 used 16 steps and 20 minutes. The game
+objective supplied no code, target, or Netscript correction.
 The model had to observe the game, consult documentation when needed, write
 its own code, deploy it through the allowlisted API, run it through the visible
 terminal, debug errors, and verify a money change. Runs ended sooner when the
@@ -439,6 +440,49 @@ traces remain in ignored local artifacts. Production was not used or changed.
 Run 22 repeats the Run 19/20 pattern: useful income can occur, but the model
 may fail to conclude after seeing it. This is one successful isolated sample,
 not proof of sustained autonomous play or BitNode progression.
+
+### Guided Run 23 — isolated income and error-recovery repeat
+
+Run 23 used a newly prepared v3.0.1 seed saved through the visible game UI and
+confirmed Remote API Online after browser-session recreation. The trial used
+`qwen3.6:35b` Q4_K_M, 16,384 context, temperature 0.2, seed 7, explicit
+`think:false`, and a 16-step / 20-minute ceiling. The model received no script,
+target, or code correction. It inspected the game, authored and deployed
+`hack_n00dles.js`, then independently switched approaches after a visible RAM
+failure (`crime.js` required 81.65 GB on home). It authored and deployed
+`hack_n00dles_simple.js`, ran it through the visible Terminal, and its tail
+window showed successful `n00dles` hacks credited with $288.750, $287.553,
+$286.361, and $285.174, each with 3.300 experience. The initial HUD showed
+$1.262k / Hack 1. A screenshot at 00:09:44 UTC showed $2.125k / Hack 1 and the
+successful script output; a final visible observation at 00:10:46 UTC showed
+$2.410k / Hack 1 while the script was still active. No hacking-level increase
+was observed.
+
+The first script was attempted about 4m55s after objective start; the first
+visible successful hack output was captured at 7m37s. The model called
+`done(success=true)` on step 16 and reported money at $1.838k,
+but the supervisor ended the bounded run as `exhausted` at its step limit. The
+final HUD evidence verifies positive income independently of that inconsistent
+reported balance. The run included five game/tool errors, two duplicate
+deployment refusals before running verified files, one 81.65 GB RAM rejection,
+and repeated `game_progress` observations. It nevertheless recovered from the
+RAM error by authoring and running a lower-RAM hacking script. There were no
+inference timeouts or malformed responses.
+
+Seventeen Ollama requests used 143,832 prompt and 4,010 completion tokens;
+summed request time was 437.32 seconds (25.72 seconds mean, 26.48 seconds
+median), including a 15.84-second initial load. Total objective time to the
+final visible observation was 8m38s. Across 100 hardware samples, mean GPU
+utilization was 27.7/13.6/18.3/15.0%, with 100% peaks; peak VRAM was
+7.16/4.94/6.06/5.09 GiB. CPU offload was not measured. After cleanup all GPUs
+returned to 0% utilization, no inference requests remained active, and the
+model stayed resident at 16,384 context. Trial artifacts remain in ignored
+local files; production was not used or changed.
+
+Run 23 demonstrates independent recovery from a RAM-limited script attempt and
+verified money generation, while also confirming that repeated ineffective
+observations and end-state reporting remain weaknesses. It does not establish
+reliable extended autonomy or BitNode progression.
 
 ## Reproducing a trial
 
