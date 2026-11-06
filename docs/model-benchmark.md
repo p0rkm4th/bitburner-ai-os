@@ -789,3 +789,16 @@ hardware samples, all four GPUs reached 100%; VRAM peaks were 7,329, 5,059,
 6,201, and 5,207 MiB. Ollama reported 23.05 GB model allocation; CPU offload
 was not measured. The isolated run and its visual follow-up remain private
 under `local/benchmark-runs/qwen36-root-prereq-01/`.
+
+### Reproducible checkpoint continuation
+
+The isolated benchmark runner now supports continuing an interrupted run from
+`BENCH_CONTINUE_FROM=<prior-run-directory>` instead of `BENCH_SEED_PROFILE`.
+The source must have an active runtime and latest checkpoint, and must match the
+current objective, exact model digest, thinking mode, context, temperature, and
+seed. The runner copies only the browser profile and checkpoint files into a
+new trial state; it excludes Chromium singleton process markers and refuses to
+overwrite an existing trial. This mode is intended for recovery experiments,
+not clean-seed comparisons. It has been tested against Run 32's private
+artifacts without inference. A follow-up gameplay run still requires a separate
+inference reservation and has not started.

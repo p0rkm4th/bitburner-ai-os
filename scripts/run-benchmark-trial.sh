@@ -6,7 +6,8 @@ umask 077
 : "${OLLAMA_MODEL:?Set the exact Ollama model tag}"
 : "${INFERENCE_NODE:?Set a private descriptive node label}"
 : "${GPU_SSH_TARGET:?Set the matching private SSH target for telemetry}"
-: "${BENCH_SEED_PROFILE:?Set a copy of the clean seed Chromium profile}"
+: "${BENCH_SEED_PROFILE:=}"
+: "${BENCH_CONTINUE_FROM:=}"
 : "${BENCH_STATE_DIR:?Set a new, private directory for this trial}"
 export BENCH_UID="${BENCH_UID:-$(id -u)}"
 export BENCH_GID="${BENCH_GID:-$(id -g)}"
@@ -47,8 +48,17 @@ if [[ -e "$BENCH_STATE_DIR" ]]; then
   echo "Trial state already exists; refusing to reuse or overwrite it: $BENCH_STATE_DIR" >&2
   exit 2
 fi
-if [[ ! -d "$BENCH_SEED_PROFILE" ]]; then
+if [[ -n "$BENCH_SEED_PROFILE" && -n "$BENCH_CONTINUE_FROM" ]] || \
+   [[ -z "$BENCH_SEED_PROFILE" && -z "$BENCH_CONTINUE_FROM" ]]; then
+  echo "Set exactly one of BENCH_SEED_PROFILE or BENCH_CONTINUE_FROM" >&2
+  exit 2
+fi
+if [[ -n "$BENCH_SEED_PROFILE" && ! -d "$BENCH_SEED_PROFILE" ]]; then
   echo "Seed profile does not exist: $BENCH_SEED_PROFILE" >&2
+  exit 2
+fi
+if [[ -n "$BENCH_CONTINUE_FROM" && ! -d "$BENCH_CONTINUE_FROM" ]]; then
+  echo "Continuation source does not exist: $BENCH_CONTINUE_FROM" >&2
   exit 2
 fi
 
@@ -105,14 +115,28 @@ print(json.dumps(metadata, separators=(",", ":")))
 PY
 )"
 
-mkdir -p "$BENCH_STATE_DIR/profile" "$BENCH_STATE_DIR/logs"
+continuation_metadata='{}'
+seed_profile_label="$(basename "${BENCH_SEED_PROFILE:-}")"
+if [[ -n "$BENCH_CONTINUE_FROM" ]]; then
+  continuation_metadata="$(python3 scripts/prepare-benchmark-continuation.py \
+    --source "$BENCH_CONTINUE_FROM" --destination "$BENCH_STATE_DIR" \
+    --objective benchmarks/gameplay-objective.md --model-json "$model_metadata" \
+    --think "${OLLAMA_THINK:-default}" --context "$OLLAMA_NUM_CTX" \
+    --temperature "$OLLAMA_TEMPERATURE" --seed "$OLLAMA_SEED")"
+  seed_profile_label="continuation:$(basename "$BENCH_CONTINUE_FROM")"
+else
+  mkdir -p "$BENCH_STATE_DIR/profile"
+  cp -a "$BENCH_SEED_PROFILE/." "$BENCH_STATE_DIR/profile/"
+fi
+mkdir -p "$BENCH_STATE_DIR/logs"
 python3 - "$BENCH_STATE_DIR/logs/trial-config.json" "$TRIAL_ID" "$INFERENCE_NODE" \
   "$OLLAMA_THINK" "$OLLAMA_NUM_CTX" "$OLLAMA_TEMPERATURE" "$OLLAMA_SEED" \
   "$MAX_STEPS" "$MAX_SESSION_SECONDS" "$BENCH_OLLAMA_TIMEOUT" \
-  "$(basename "$BENCH_SEED_PROFILE")" "$model_metadata" <<'PY'
+  "$seed_profile_label" "$model_metadata" "$continuation_metadata" <<'PY'
 import datetime, hashlib, json, pathlib, sys
-path, trial_id, node, think, context, temperature, seed, steps, seconds, timeout, profile, model_json = sys.argv[1:]
+path, trial_id, node, think, context, temperature, seed, steps, seconds, timeout, profile, model_json, continuation_json = sys.argv[1:]
 model = json.loads(model_json)
+continuation = json.loads(continuation_json)
 objective = pathlib.Path("benchmarks/gameplay-objective.md").read_bytes()
 config = {
     "trial_id": trial_id,
@@ -126,12 +150,12 @@ config = {
     "max_session_seconds": int(seconds),
     "request_timeout_seconds": int(timeout),
     "seed_profile_label": profile,
+    "continuation": continuation,
     "objective_sha256": hashlib.sha256(objective).hexdigest(),
     "created_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
 }
 pathlib.Path(path).write_text(json.dumps(config, indent=2) + "\n")
 PY
-cp -a "$BENCH_SEED_PROFILE/." "$BENCH_STATE_DIR/profile/"
 env_file="${BENCH_ENV_FILE:-local/benchmark-run.env}"
 mkdir -p "$(dirname "$env_file")"
 printf 'OLLAMA_BASE_URL=%s\nOLLAMA_MODEL=%s\nINFERENCE_NODE=%s\nBENCH_STATE_DIR=%s\nBENCH_UID=%s\nBENCH_GID=%s\nBENCH_AGENT_PORT=%s\nBENCH_VNC_PORT=%s\nMAX_STEPS=%s\nMAX_SESSION_SECONDS=%s\nOLLAMA_NUM_CTX=%s\nOLLAMA_TEMPERATURE=%s\nOLLAMA_SEED=%s\nOLLAMA_THINK=%s\nBENCH_OLLAMA_TIMEOUT=%s\n' \
