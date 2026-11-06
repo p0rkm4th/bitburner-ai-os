@@ -766,3 +766,16 @@ RAM rejection until the model checks `ps` or opens Active Scripts. The gate
 clears after diagnosis and a subsequent verified new deployment. The focused
 regression tests and all 164 pinned runtime tests pass. This correction awaits
 deployment and a bounded gameplay recheck.
+
+### Pending-run continuation priority — pending deployment
+
+After the cross-file RAM guard deployed, the next session still chose Terminal
+`ls` twice because the generic benchmark objective requested a listing while a
+checkpoint required running `tiny_hack.js` first. Both calls were blocked by
+the pending-run guard; the agent was stopped after three steps. No script ran.
+The session task builder now adds a state-specific priority instruction when a
+verified deployment is pending, explicitly making that required run the first
+action and overriding generic file-listing guidance. When no deployment is
+pending but a RAM rejection remains unresolved, it prioritizes visible process
+inspection before any new script authoring. Two focused prompt-priority tests
+and the full 166-test suite pass. Deployment and live validation remain pending.

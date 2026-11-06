@@ -362,6 +362,23 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("without killing the script", task)
         self.assertIn("taking another observation", task)
 
+    def test_pending_deployment_resume_overrides_generic_file_listing_guidance(self):
+        task = server.gameplay_task(
+            "List files with Terminal ls and independently make progress", "", "https://bitburner-official.github.io/",
+            "https://bitburner-official.github.io/", remote_authoring=True, pending_script="tiny_hack.js")
+        self.assertIn("PRIORITY RESUME STEP: tiny_hack.js", task)
+        self.assertIn("first game action must be game_run_script", task)
+        self.assertIn("takes precedence over any general task instruction to list files", task)
+        self.assertIn("If execution returns a visible error", task)
+
+    def test_ram_recovery_resume_prioritizes_visible_process_diagnosis(self):
+        task = server.gameplay_task(
+            "Create an original money-generating script", "", "https://bitburner-official.github.io/",
+            "https://bitburner-official.github.io/", remote_authoring=True, ram_diagnosis_required=True)
+        self.assertIn("PRIORITY RECOVERY STEP", task)
+        self.assertIn("game_terminal('ps')", task)
+        self.assertIn("Before authoring or deploying any file", task)
+
     def test_restricted_agent_disables_browser_use_auto_navigation(self):
         tools = server.create_game_tools()
         self.assertNotIn("navigate", tools.registry.registry.actions)

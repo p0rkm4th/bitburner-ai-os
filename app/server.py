@@ -24,14 +24,14 @@ try:  # Package import for tests, flat import for the deployment image.
     from .agent_docs import load_core_guide, register_agent_doc_tools
     from .agent_prompt import BITBURNER_SYSTEM_PROMPT
     from .game_tools import _modal, find_visible_tab_node, register_game_tools, visible_runtime_error
-    from .remote_api_tools import (deployment_guard_checkpoint, pending_script_run_message,
+    from .remote_api_tools import (deployment_guard_checkpoint, pending_script_run, pending_script_run_message,
                                    register_remote_api_tools,
                                    remote_api_from_env, restore_deployment_guard)
 except ImportError:
     from agent_docs import load_core_guide, register_agent_doc_tools
     from agent_prompt import BITBURNER_SYSTEM_PROMPT
     from game_tools import _modal, find_visible_tab_node, register_game_tools, visible_runtime_error
-    from remote_api_tools import (deployment_guard_checkpoint, pending_script_run_message,
+    from remote_api_tools import (deployment_guard_checkpoint, pending_script_run, pending_script_run_message,
                                   register_remote_api_tools,
                                   remote_api_from_env, restore_deployment_guard)
 
@@ -248,7 +248,8 @@ def browser_task(objective: str, progress: str, current_url: str, game_url: str)
 
 
 def gameplay_task(objective: str, progress: str, current_url: str, game_url: str,
-                  *, remote_authoring: bool) -> str:
+                  *, remote_authoring: bool, pending_script: Optional[str] = None,
+                  ram_diagnosis_required: bool = False) -> str:
     """Build the same compact, guide-backed instruction on every resumed session."""
     task = browser_task(objective, progress, current_url, game_url)
     task += (" Once the requested success evidence is visible and verified, call done(success=True) immediately; "
@@ -270,6 +271,15 @@ def gameplay_task(objective: str, progress: str, current_url: str, game_url: str
                  "verify any Netscript root-access API against the live reference before revising your script. If a dialog remains after "
                  "one game_dismiss_dialog attempt, do not call it again; report the visible blocker. If the first observation shows a "
                  "dialog, read it and call game_dismiss_dialog once; do not repeat an unchanged observation.")
+    if remote_authoring and pending_script:
+        task += (f" PRIORITY RESUME STEP: {pending_script} is already deployed and must be executed before any other Terminal "
+                 "command. Your first game action must be game_run_script with this exact filename and expected_host='home'. "
+                 "This checkpoint requirement takes precedence over any general task instruction to list files or inspect scripts. "
+                 "If execution returns a visible error, use that exact error to choose the next diagnostic; do not redeploy first.")
+    elif remote_authoring and ram_diagnosis_required:
+        task += (" PRIORITY RECOVERY STEP: a visible script RAM rejection is unresolved. Before authoring or deploying any "
+                 "file, inspect visible running processes with game_terminal('ps') or open the visible Active Scripts page, "
+                 "then base the next action on that evidence.")
     return ("BITBURNER CORE GUIDE (compact, version-aware orientation; use live game state and definitions where version-specific):\n"
             + load_core_guide() + "\n\nSESSION TASK:\n" + task)
 
@@ -855,7 +865,10 @@ async def run_agent(objective: str) -> None:
         except Exception:
             pass
     task = gameplay_task(objective, progress, current_url, game_url,
-                         remote_authoring=remote_api_from_env() is not None)
+                         remote_authoring=remote_api_from_env() is not None,
+                         pending_script=pending_script_run(action_state),
+                         ram_diagnosis_required=bool(action_state.get("ram_rejection") and
+                                                     not action_state["ram_rejection"].get("diagnosed")))
     last_activity = time.monotonic()
     prior = json.loads(checkpoint_path.read_text()) if checkpoint_path.exists() else {}
     accomplishments = list(prior.get("accomplishments", []))[-8:]

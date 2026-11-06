@@ -1024,3 +1024,14 @@ redeployment of the same filename, allowing the model to evade the diagnostic
 step by renaming its script. The new cross-filename gate requires visible `ps`
 or Active Scripts inspection before any new deployment. All 164 pinned tests
 pass. This fix has not yet been deployed or live-validated.
+
+### Run 39 continuation — stale generic file-listing instruction
+
+After the cross-filename RAM gate was deployed, the next Qwen continuation
+cleared the offline dialog, then called Terminal `ls` twice. The tool correctly
+rejected both calls because `tiny_hack.js` was already deployed and awaiting
+visible execution. The model did not execute the pending script and made no
+game progress. The operator stopped at three steps. A dynamic session-priority
+instruction now makes pending execution override the generic objective's file
+listing request, and gives unresolved RAM errors a visible process-inspection
+priority. All 166 pinned tests pass; this prompt change is not yet deployed.
