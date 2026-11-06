@@ -274,6 +274,13 @@ def gameplay_task(objective: str, progress: str, current_url: str, game_url: str
             + load_core_guide() + "\n\nSESSION TASK:\n" + task)
 
 
+def checkpoint_last_action_failed(checkpoint: dict) -> bool:
+    """A failed last tool action invalidates its model-suggested continuation."""
+    results = checkpoint.get("tool_results", []) or []
+    return any(isinstance(item, dict) and item.get("state") in ("failed", "game_error")
+               for item in results)
+
+
 def checkpoint_prompt_summary(checkpoint: dict) -> dict:
     """Pass only compact, useful progress context to the next model session."""
     remote_authoring = bool(os.getenv("BITBURNER_REMOTE_API_URL") and
@@ -296,6 +303,8 @@ def checkpoint_prompt_summary(checkpoint: dict) -> dict:
     subobjective = str(checkpoint.get("subobjective", ""))[:500]
     latest_visible = str(checkpoint.get("latest_visible_state", ""))[-1400:]
     next_action = str(checkpoint.get("next_intended_action", ""))[:500]
+    tool_results = checkpoint.get("tool_results", [])[-4:]
+    previous_step_failed = checkpoint_last_action_failed(checkpoint)
     scripts = checkpoint.get("scripts_and_observed_results", [])[-6:]
     stored_action_state = {}
     restore_deployment_guard(checkpoint, stored_action_state)
@@ -313,6 +322,9 @@ def checkpoint_prompt_summary(checkpoint: dict) -> dict:
         filename = deployment_guard["last_deployed_filename"]
         next_action = (f"Run the latest verified {filename} through game_run_script and inspect the visible result "
                        "before attempting another deployment.")
+    if previous_step_failed:
+        subobjective = "The prior step failed; treat its subobjective and next action as historical suggestions. Observe the current game and choose a different evidence-based action from the recorded error."
+        next_action = "Re-observe current visible state, diagnose the latest tool error, and do not repeat the action it rejected."
     return {
         "session": checkpoint.get("session"), "steps": checkpoint.get("steps"),
         "objective": objective,
@@ -321,7 +333,7 @@ def checkpoint_prompt_summary(checkpoint: dict) -> dict:
         "latest_visible_state": latest_visible,
         "scripts_and_observed_results": scripts,
         "errors": clean_items(checkpoint.get("errors", [])),
-        "tool_results": checkpoint.get("tool_results", [])[-4:],
+        "tool_results": tool_results,
         "tool_metrics": checkpoint.get("tool_metrics", {}),
         "deployment_guard": deployment_guard,
         "next_intended_action": next_action,
@@ -822,7 +834,8 @@ async def run_agent(objective: str) -> None:
     accomplishments = list(prior.get("accomplishments", []))[-8:]
     errors = list(prior.get("errors", []))[-8:]
     visible = prior.get("latest_visible_state", "")
-    subobjective = str(prior.get("subobjective", ""))
+    previous_step_failed = checkpoint_last_action_failed(prior)
+    subobjective = ("" if previous_step_failed else str(prior.get("subobjective", "")))
     last_output = {}
     last_actions = []
     successful_actions = 0

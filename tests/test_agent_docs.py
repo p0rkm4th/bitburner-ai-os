@@ -129,10 +129,15 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("no dialog returns `NO_PROGRESS`", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("Do not repeat dismissal", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("expected_host", BITBURNER_SYSTEM_PROMPT)
-        self.assertIn("check uncertain Netscript functions with game_netscript_reference", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("check uncertain Netscript functions with game_netscript_reference".casefold(),
+                      BITBURNER_SYSTEM_PROMPT.casefold())
         self.assertIn("if none is listed, author independently", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("If visible root access is NO, do not run a hacking script", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("Await asynchronous Netscript actions such as hack, grow, and weaken", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("Terminal `run` executes on the currently connected server", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("never assume `home` has enough free RAM", BITBURNER_SYSTEM_PROMPT)
+        self.assertNotIn("run that exact file visibly on `home`", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("After any visible tool error or NO_PROGRESS, do not repeat", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("call `game_progress` before changing or redeploying the file", BITBURNER_SYSTEM_PROMPT)
 
     def test_checkpoint_carries_tool_failures_but_not_long_outputs(self):
@@ -143,6 +148,21 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         })
         self.assertEqual(summary["tool_results"][0]["message"], "runtime failure")
         self.assertEqual(summary["tool_metrics"]["failed"], 1)
+
+    def test_checkpoint_failed_action_invalidates_stale_subobjective_and_next_action(self):
+        summary = checkpoint_prompt_summary({
+            "objective": "Make verified income",
+            "subobjective": "Run hack_n00dles.js on home",
+            "next_intended_action": "Rewrite hack_n00dles.js and run it on home",
+            "tool_results": [{"tool": "game_deploy_script", "state": "game_error",
+                              "message": "NO_PROGRESS: prior run failed due to RAM"}],
+            "errors": ["home rejected the script for insufficient RAM"],
+        })
+        self.assertNotIn("Run hack_n00dles.js on home", summary["subobjective"])
+        self.assertNotIn("Rewrite hack_n00dles.js", summary["next_intended_action"])
+        self.assertIn("historical suggestions", summary["subobjective"])
+        self.assertIn("do not repeat the action", summary["next_intended_action"])
+        self.assertEqual(summary["tool_results"][0]["state"], "game_error")
 
     def test_context_settings_bound_history_and_checkpoint_text(self):
         from app.server import agent_context_settings

@@ -903,6 +903,40 @@ returned short selector fragments before later observations showed the actual
 command echo and result. The deployed helper was therefore changed to wait up
 to 2.5 seconds for fresh visible confirmation and to block blind duplicate
 commands after an uncertain timeout. Regression coverage exercises delayed
-output and the timeout guard. This Run 35 used the old deployed helper; the
-candidate fix passed 156 offline tests and awaits deployment and a bounded
-follow-up run. Private traces and metrics remain in ignored local records.
+output and the timeout guard. Run 35 used the old helper. The fix was deployed
+as `c2379de` after passing 156 offline tests; Run 36 exercised a live Terminal
+command but did not reproduce the delayed-snapshot condition. Private traces
+and metrics remain in ignored local records.
+
+## Run 36 — repeated RAM-guard rejection (persistent test game)
+
+Run 36 continued the same persistent **test** profile after deploying commit
+`c2379de`; it was bounded to 16 steps and manually stopped at stagnation. The
+session used Qwen3.6:35b Q4_K_M at 16,384 context, `think=false`, temperature
+0.2, seed 7. It ended after eight steps in 3m24s (08:31:16–08:34:40 UTC), with
+eight Ollama responses, 61,353 prompt and 2,112 completion tokens, 197.4
+seconds summed request time (24.7 seconds mean), and about 0.04 seconds model
+load time. There were no inference transport errors. Tool metrics were eight
+calls, six visible game errors, and zero framework failures.
+
+The model dismissed an offline-progress dialog, attempted to dismiss it again
+and received `NO_PROGRESS`, then successfully used visible `scan-analyze 2`.
+It next made five variants of a `game_deploy_script` call for
+`hack_n00dles.js`; each was blocked because the prior visible run had failed
+the 1.70 GB RAM check on `home` and the harness required process/host diagnosis
+before another write. Repeated failure detection ended the loop, and the
+operator stop awaited the underlying run task. No script executed in Run 36.
+The latest rendered HUD showed $71.749k and hacking 154, but no start HUD
+baseline was captured; no income or level change is attributed.
+
+Run 36 exposed a conflicting instruction in the system prompt: it required
+every deployed script to run on `home`, even when visible RAM evidence said
+that host could not run it. The prior checkpoint also carried a stale model
+subobjective into the next session. The prompt now selects the execution host
+from visible root/RAM evidence, allows the documented in-game copy/connect
+flow, and treats a failed step's saved subobjective as historical. These
+changes pass 157 offline tests but are not yet deployed or gameplay-validated.
+Run 36 did exercise one successful live Terminal action through the updated
+fresh-observation helper (`scan-analyze 2`); it did not reproduce the delayed
+snapshot condition. Tartarus was released after the run; private request traces
+remain under ignored local artifacts.
