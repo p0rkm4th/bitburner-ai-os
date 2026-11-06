@@ -24,11 +24,16 @@ host and arguments, then use `game_read_script` to inspect the source and
 diagnose why the process exited. Do not attribute another script's output to
 the file being tested.
 
+After a confirmed run, first call `game_progress()` without arguments. It uses
+the balance captured before the latest confirmed run, or the first visible
+session balance. Only pass a manual money or hacking baseline if its complete
+value was copied from the rendered UI; never synthesize one from memory.
+
 Examples (these are tool inputs, not gameplay strategy):
 
 ```text
 game_observe()
-game_progress(baseline_money="$1.262k", baseline_hacking_level=1)
+game_progress()
 game_help(topic="servers")
 game_open_tab(tab="Create Program")
 game_tutorial(action="next")

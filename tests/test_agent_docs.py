@@ -24,7 +24,8 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         self.assertLess(len(guide), 6000)
         for fact in ("home` is the player's computer", "Root/admin access", "main(ns)",
                      "game_netscript_reference", "does not prove", "scan-analyze 2",
-                     "cat report.txt", "script-only Remote API", "game_progress"):
+                     "cat report.txt", "script-only Remote API", "game_progress()",
+                     "complete value exactly"):
             self.assertIn(fact, guide)
         self.assertIn("`ns.nuke`", guide)
         self.assertIn("without connecting to that target", guide)
@@ -136,7 +137,7 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
 
     def test_core_guide_distinguishes_current_server_from_script_arguments(self):
         guide = load_core_guide()
-        self.assertIn("on the currently connected", guide)
+        self.assertIn("on the connected server", guide)
         self.assertIn("script arguments, not a destination server", guide)
 
     def test_system_prompt_is_short_and_requires_verified_progress(self):

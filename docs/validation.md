@@ -1206,3 +1206,32 @@ VNC HTTP 200, AUTO_RESUME=1, MAX_STEPS=16, MAX_SESSIONS=0, and 16K context.
 The restored page showed an offline-progress dialog reporting `$6.428` from
 scripts during 19 seconds offline. Profile persistence is confirmed; that
 aggregate amount is not attributed to the model-authored file.
+
+## Run 48 — process inspection without verified income (2026-11-06)
+
+Qwen3.6:35b resumed the test game at 14:30 UTC with 16K context. It dismissed
+the offline dialog, ran `ps`, read its script through the restricted tool,
+killed and relaunched it as visible PID 4, then opened Active Scripts using a
+valid enum label. The rendered page showed the collapsed `home` and `n00dles`
+host groups and aggregate production of `$0.423/sec` / `$70.076k` since
+augmentation. It did not expand the groups to confirm script filenames. Its
+Terminal `tail` call returned only the fragment `ter overview />`; the model
+recovered by opening Active Scripts instead of retrying `tail`. It then sent a
+malformed `baseline_money: ", "` to `game_progress`, which made no comparison.
+The bounded run was explicitly stopped at session 21 / 8 actions; final state
+is `operator_stopped`.
+
+Ten Ollama responses processed 93,136 prompt and 2,177 completion tokens in
+233.923 seconds summed request time (23.392 seconds mean). The later visible
+HUD showed $72.051k and hacking 157. Visible `$4` output was labeled
+`hack_n00dles.js`; the aggregate script total was not attributed to the file
+under test. No hacking progression or verified income is claimed.
+
+### Improve default progress-check input
+
+Run 48 failed a tool call because Qwen supplied an invalid manual currency
+baseline despite `game_progress()` supporting an automatically captured
+pre-run balance. The core and tool guides now direct the agent to call
+`game_progress()` without arguments first and to supply manual values only
+when copied exactly from visible UI. This instructional change is in the
+worktree and will be tested/deployed before the next comparable run.

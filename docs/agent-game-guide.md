@@ -5,30 +5,30 @@ precedence over remembered or outdated API details.
 
 ## Observe before acting
 
-- Read the visible game version, money, hacking level, current screen, dialogs,
-  and Remote API status with `game_observe`.
-- After scripts, use `game_progress` with prior money/level to verify balance,
-  hacking, and income. On `NO_PROGRESS`, don't repeat `game_observe`; use
-  progress or another action.
+- Read version, money, hacking level, screen, dialogs, and Remote API status
+  with `game_observe`.
+- After a confirmed script run, first call `game_progress()` with no arguments.
+  It uses the balance captured before that run (or the first visible session
+  balance). Only provide a manual money/level baseline if you can copy the
+  complete value exactly from a rendered screen; never guess or fabricate one.
+  On `NO_PROGRESS`, don't repeat `game_observe`; use progress or another action.
 - A dismissal may reveal another dialog. Read its text before acting; don't
   repeat the prior dismissal blindly.
 - Make one concrete, small objective. After an action, inspect its returned
   result and the changed UI before choosing the next action.
-- A successful tool call, file upload, or RAM calculation does not prove the
-  in-game action worked. Confirm it in the visible game.
+- A successful tool call, upload, or RAM calculation does not prove the game
+  action worked. Confirm it visibly.
 
 ## Servers and hacking
 
 - `home` is the player's computer. It stores scripts and provides RAM; it is
   not a money target to hack.
-- Use the game's Terminal `scan` or `scan-analyze` output to discover reachable
-  servers and see root-access, required hacking level, required open ports, and
-  available RAM.
-- `scan` only lists directly connected hostnames and root status. Before choosing
-  a hacking target or assuming a prerequisite, use the detailed scan view with
-  a numeric depth and read its visible hacking-level, port, root, and RAM fields.
-  A hostname-only scan does not establish that a server is hackable or ready to
-  host scripts.
+- Use Terminal `scan` or `scan-analyze` to discover servers and inspect root,
+  hacking level, required ports, and RAM.
+- `scan` lists directly connected hostnames and root status only. Before choosing
+  a target or assuming a prerequisite, use detailed scan with numeric depth and
+  inspect hacking level, ports, root, and RAM. A hostname alone proves none of
+  these.
 - `scan` takes no arguments. `scan-analyze` takes a positive numeric depth, for
   example `scan-analyze 2`; it does not take a hostname. Read the full visible
   error before correcting a command.
@@ -43,13 +43,13 @@ precedence over remembered or outdated API details.
   and visible root status. Copying a script to an unrooted target does not
   grant access, and running it there requires root and sufficient RAM. Root
   does not waive hacking skill. Check the live reference if unsure.
-- After a root-access error, consult `game_troubleshoot` and verify uncertain
-  APIs such as `ns.nuke` against the connected game's live reference before
-  correcting a script. Verify visible root access and the result after a run.
-- Terminal `run <file.js> [args...]` starts the file on the currently connected
-  server; trailing values are script arguments, not a destination server. To
+- After a root-access error, consult `game_troubleshoot`; verify uncertain APIs
+  such as `ns.nuke` against the live reference. Check root and run results.
+- Terminal `run <file.js> [args...]` starts the file on the connected server;
+  trailing values are script arguments, not a destination server. To
   execute on another host, copy the file with `scp <file.js> <host>` while on
   `home`, connect to that host, then run the file there.
+
 ## Money, security, and progression
 
 - `hack` attempts to steal some of a target's available money and increases its

@@ -1336,3 +1336,24 @@ visible `$0` and `$3` hack messages were labeled `hack_n00dles.js`; no income
 from the model-authored file or hacking progression is verified. The model
 did not inspect Active Scripts or diagnose why its launched process exited.
 The schema change was deployed, but Run 47 did not exercise `game_open_tab`.
+
+### Run 48 — process inspection and aggregate production (2026-11-06)
+
+Qwen3.6:35b resumed at 14:30 UTC, 16K context. It dismissed the offline
+dialog, inspected `ps`, read `hack_n00dles_fast.js`, killed and relaunched it
+(visible PID 4), then opened the enum-validated Active Scripts tab. It did not
+repeat the prior `tail` command. One Terminal call returned a truncated visible
+fragment (`ter overview />`), but the model recovered to Active Scripts. The
+rendered page showed two collapsed host groups (`home` and `n00dles`) and
+aggregate production `$0.423/sec` / `$70.076k` since augmentation. The model
+inferred its orchestrator had spawned children, but did not expand the rows to
+verify filenames. It then sent malformed `baseline_money: ", "` to
+`game_progress`; no comparison was made. The agent was stopped at 8 actions / 8
+tool calls, with one invalid call and one game error. This improved diagnosis
+and navigation but did not prove the authored file earned money.
+
+Ten Ollama responses processed 93,136 prompt and 2,177 completion tokens in
+233.923 seconds summed request time (23.392 seconds mean). The rendered HUD
+showed $72.051k and hacking 157. Visible `$4` output belonged to the separate
+`hack_n00dles.js`; aggregate Active Scripts production was not attributed to
+the authored file. No hacking progression or attributable income is claimed.
