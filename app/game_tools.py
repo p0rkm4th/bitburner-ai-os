@@ -7,7 +7,7 @@ import asyncio
 import hashlib
 import re
 import shlex
-from typing import Optional
+from typing import Literal, Optional, get_args
 
 from browser_use import BrowserSession, Tools
 try:  # Package import for tests, flat import for the deployment image.
@@ -21,10 +21,12 @@ MAX_OBSERVATION = 2800
 TERMINAL_RESULT_CONFIRM_TIMEOUT_SECONDS = 6.0
 TERMINAL_RESULT_POLL_INTERVAL_SECONDS = 0.25
 SCRIPT_NAME = re.compile(r"^[A-Za-z0-9_.-]+\.js$")
-GAME_TABS = {
-    "terminal", "script editor", "active scripts", "create program", "stats",
-    "hacknet", "city", "travel", "milestones", "documentation",
-}
+GameTab = Literal[
+    "Terminal", "Script Editor", "Active Scripts", "Create Program", "Stats",
+    "Hacknet", "City", "Travel", "Milestones", "Documentation",
+]
+GAME_TAB_LABELS = get_args(GameTab)
+GAME_TABS = {label.casefold() for label in GAME_TAB_LABELS}
 
 
 async def _page(browser_session: BrowserSession):
@@ -439,11 +441,15 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         "Allowed: Terminal, Script Editor, Active Scripts, Create Program, Stats, Hacknet, City, Travel, "
         "Milestones, Documentation. Does not use stored element indexes."
     ))
-    async def game_open_tab(tab: str, browser_session: BrowserSession) -> str:
+    async def game_open_tab(tab: GameTab, browser_session: BrowserSession) -> str:
         try:
             label = " ".join(tab.split())
             if label.casefold() not in GAME_TABS:
-                raise ValueError("Unknown game tab. Use one of the allowlisted visible tab names in the tool description.")
+                allowed = ", ".join(GAME_TAB_LABELS)
+                raise ValueError(
+                    f"Unknown game tab {tab!r}. Allowed exact labels: {allowed}. "
+                    "No browser action was sent; choose one listed label or observe the current UI."
+                )
             page = await _page(browser_session)
             blocked = await _clear_known_modal_before_action(browser_session, f"opening {label!r}")
             if blocked:

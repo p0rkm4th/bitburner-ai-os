@@ -1153,3 +1153,14 @@ seconds summed request time (24.381 seconds mean). Wall-clock duration was
 resident at 16K; no generation-time peak or CPU offload sample was collected.
 The post-run Herd queue is empty. The persistent game remains open and
 in-game scripts may continue after the agent stops.
+
+### Follow-up: constrain malformed navigation targets
+
+Run 46 exposed two identical malformed `game_open_tab` arguments after a
+progress check. The local tool now declares its `tab` argument as a finite
+enum of visible navigation labels and returns the exact valid values when
+called incorrectly. The Browser Use registry schema was inspected to verify
+that it publishes the enum, and the full suite passes 184/184 in the project
+container. This follow-up is in the worktree/pending deployment; the test
+game page still shows recent script launches and output, so no browser restart
+was performed during this turn.

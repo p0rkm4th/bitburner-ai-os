@@ -407,10 +407,23 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_open_tab_rejects_unknown_or_ambiguous_navigation_targets(self):
         unknown = await self.actions["game_open_tab"]("Arbitrary URL", self.browser)
-        self.assertIn("allowlisted", unknown)
+        self.assertIn("Allowed exact labels:", unknown)
+        self.assertIn("Terminal", unknown)
+        self.assertIn("No browser action was sent", unknown)
         self.page.nav_nodes = [FakeNavNode("Stats", 1), FakeNavNode("Stats", 2)]
         ambiguous = await self.actions["game_open_tab"]("Stats", self.browser)
         self.assertIn("exactly one fresh visible navigation button", ambiguous)
+
+    def test_open_tab_schema_restricts_targets_to_visible_labels(self):
+        from browser_use import Tools
+
+        browser_tools = Tools()
+        register_game_tools(browser_tools)
+        schema = browser_tools.registry.registry.actions["game_open_tab"].param_model.model_json_schema()
+        self.assertEqual(schema["properties"]["tab"]["enum"], [
+            "Terminal", "Script Editor", "Active Scripts", "Create Program", "Stats",
+            "Hacknet", "City", "Travel", "Milestones", "Documentation",
+        ])
 
     async def test_tab_label_matching_ignores_hidden_and_non_button_nodes(self):
         nodes = [FakeNavNode("Create Program", 1, visible=False), FakeNavNode("Create Program", 2, role="link"),
