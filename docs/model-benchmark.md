@@ -881,3 +881,28 @@ model inference. After the baseline-validation correction, the current
 candidate passes 152/152 tests. All Run 34 artifacts, including its exact model digest,
 visible observations, action log, and request metrics, remain in ignored local
 storage. The shared persistent test-game profile was not used or changed.
+
+## Run 35 — Terminal observation lag (persistent test game)
+
+Run 35 continued the shared persistent **test** profile with Qwen3.6:35b
+Q4_K_M, 16,384 context, `think=false`, temperature 0.2, seed 7, and a 16-step
+bound. It stopped at the step limit after 7m51s. This was not a clean-seed
+comparison. The model dismissed an offline-progress dialog, encountered a
+1.70 GB RAM rejection when attempting to run its script on `home`, and used
+visible `scan-analyze 1` output to discover that rooted `n00dles` had 4 GB RAM.
+It authored/deployed `simple_hack.js` and visibly copied it to `n00dles`, but
+did not connect there or execute it. No income or hacking-level change is
+attributed: the final rendered state showed $71.733k and hacking 154, but the
+starting state was behind the dialog and was not captured.
+
+The run made 17 successful Ollama responses (149,838 prompt and 3,661
+completion tokens), with 453.5 seconds summed request time (26.7 seconds
+mean), and no inference transport errors. It made 16 game-tool calls, with
+eight visible game errors and no failed tool calls. Several Terminal calls
+returned short selector fragments before later observations showed the actual
+command echo and result. The deployed helper was therefore changed to wait up
+to 2.5 seconds for fresh visible confirmation and to block blind duplicate
+commands after an uncertain timeout. Regression coverage exercises delayed
+output and the timeout guard. This Run 35 used the old deployed helper; the
+candidate fix passed 156 offline tests and awaits deployment and a bounded
+follow-up run. Private traces and metrics remain in ignored local records.

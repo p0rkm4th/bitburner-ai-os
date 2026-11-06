@@ -578,14 +578,42 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         before = await _visible(browser_session)
         await field.focus()
         await field.fill(command)
+        # Once Enter is sent, treat the command as attempted even if the page
+        # takes too long to render its output. This prevents a blind duplicate.
+        action_state["last_terminal_command"] = normalized_command.casefold()
         await page.press("Enter")
-        await asyncio.sleep(0.25)
-        after = await _visible(browser_session)
-        command_echoes = list(re.finditer(
-            r"\]\s*>\s*" + re.escape(normalized_command) + r"(?:\s|$)", after, re.IGNORECASE
-        ))
+        echo_pattern = re.compile(
+            r"\]\s*>\s*" + re.escape(normalized_command) + r"(?:\s|$)", re.IGNORECASE
+        )
+        previous_echo_count = len(list(echo_pattern.finditer(before)))
+        after = before
+        command_echoes = []
+        for _ in range(10):
+            await asyncio.sleep(0.25)
+            after = await _visible(browser_session)
+            command_echoes = list(echo_pattern.finditer(after))
+            editor_opened = (normalized_command.casefold().startswith("nano ") and
+                             "script editor" in after.casefold())
+            tutorial_blocked = "please follow the tutorial" in after.casefold()
+            run_confirmed = bool(run_filename and CONFIRMED_RUN.search(after))
+            runtime_error_visible = bool(visible_runtime_error(after))
+            if (len(command_echoes) > previous_echo_count or editor_opened or tutorial_blocked or
+                    run_confirmed or runtime_error_visible):
+                break
+        editor_opened = (normalized_command.casefold().startswith("nano ") and
+                         "script editor" in after.casefold())
+        tutorial_blocked = "please follow the tutorial" in after.casefold()
+        run_confirmed = bool(run_filename and CONFIRMED_RUN.search(after))
+        runtime_error_visible = bool(visible_runtime_error(after))
+        if (len(command_echoes) <= previous_echo_count and not editor_opened and not tutorial_blocked and
+                not run_confirmed and not runtime_error_visible):
+            raise RuntimeError(
+                f"Enter was sent for {normalized_command!r}, but the visible Terminal did not confirm a new command result within 2.5 seconds. "
+                "The command may have executed; inspect the current UI before retrying."
+            )
         latest_command_output = after[command_echoes[-1].end():].lstrip() if command_echoes else ""
-        if latest_command_output.casefold().startswith("please follow the tutorial"):
+        if tutorial_blocked or latest_command_output.casefold().startswith("please follow the tutorial"):
+            action_state.pop("last_terminal_command", None)
             return ("BLOCKED: Bitburner rejected the Terminal command because the tutorial is still active; the command was not executed. "
                     "Choose one visible `game_tutorial` action, verify the transition, then submit the command again.\n" +
                     after[-MAX_OBSERVATION:])
@@ -607,7 +635,6 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         if run_filename and run_filename == str(action_state.get("last_deployed_filename", "")).casefold():
             action_state["deployments_without_run"] = 0
             action_state.pop("last_deployed_filename", None)
-        action_state["last_terminal_command"] = normalized_command.casefold()
         if not run_filename:
             # A successfully executed diagnostic command permits a later
             # deliberate relaunch after the positive PID check.

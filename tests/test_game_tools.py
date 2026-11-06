@@ -87,6 +87,9 @@ class FakePage:
         self.run_output = None
         self.post_run_observations = []
         self.executed_commands = []
+        self.delay_output_snapshots = 0
+        self.stale_output_snapshots = 0
+        self.delayed_visible = ""
         self.visible = "Bitburner Terminal"
         self.files = {"home.js": "export async function main(ns) {}"}
         self.nav_label = "Create Program"
@@ -185,6 +188,14 @@ class FakePage:
             self.visible = f"Bitburner Terminal\n{command}\nIncorrect usage of scan-analyze command. depth argument must be positive numeric"
         else:
             self.visible = f"Bitburner Terminal\n{command}\nCommand accepted"
+        if not self.editor and f"]> {command}" not in self.visible:
+            terminal_prefix = "Bitburner Terminal\n"
+            body = self.visible[len(terminal_prefix):] if self.visible.startswith(terminal_prefix) else self.visible
+            self.visible = f"{terminal_prefix}[home /]> {command}\n{body}"
+        if self.delay_output_snapshots:
+            self.delayed_visible = self.visible
+            self.visible = "[14]<div id=root />"
+            self.stale_output_snapshots = self.delay_output_snapshots
 
 
 class FakeSnapshot:
@@ -213,7 +224,12 @@ class FakeBrowserSession:
                 self.page.modal = True
                 self.page.mui_modal = True
                 self.page.presentation_only = True
-        return FakeSnapshot(self.page)
+        snapshot = FakeSnapshot(self.page)
+        if self.page.stale_output_snapshots:
+            self.page.stale_output_snapshots -= 1
+            if self.page.stale_output_snapshots == 0:
+                self.page.visible = self.page.delayed_visible
+        return snapshot
 
 
 class FakeNavNode:
@@ -246,6 +262,24 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Visible dialog: none", state)
         result = await self.actions["game_terminal"]("ls", self.browser)
         self.assertIn("home.js", result)
+
+    async def test_terminal_waits_for_fresh_command_echo_before_reporting_visible_error(self):
+        self.page.delay_output_snapshots = 2
+        self.page.run_output = (
+            "Bitburner Terminal\n[home /]> run hack_n00dles.js\n"
+            "Cannot run hack_n00dles.js (t=1) on home. This script requires 1.70GB of RAM.\n[home /]>"
+        )
+        result = await self.actions["game_terminal"]("run hack_n00dles.js", self.browser)
+        self.assertIn("Cannot run hack_n00dles.js (t=1) on home", result)
+        self.assertEqual(self.page.executed_commands, ["run hack_n00dles.js"])
+
+    async def test_terminal_timeout_blocks_blind_retry_when_output_never_arrives(self):
+        self.page.delay_output_snapshots = 12
+        first = await self.actions["game_terminal"]("ls", self.browser)
+        second = await self.actions["game_terminal"]("ls", self.browser)
+        self.assertIn("did not confirm a new command result", first)
+        self.assertTrue(second.startswith("NO_PROGRESS:"))
+        self.assertEqual(self.page.executed_commands, ["ls"])
 
     async def test_terminal_reports_tutorial_block_and_retries_only_after_explicit_exit(self):
         self.page.tutorial_block_terminal = True
