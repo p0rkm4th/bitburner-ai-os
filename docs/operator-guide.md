@@ -48,7 +48,7 @@ Set `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, and `INFERENCE_NODE` in the private `.env
 
 ## Backups
 
-The VM is included in the Proxmox scheduled backup job, and VM snapshots are kept as deployment rollback points. The active game save is in Chromium's persistent profile. Use the game's visible save UI to export a native `.json.gz` save. The service waits for a completed download, checks its gzip integrity, and archives it under `/opt/bitburner-agent/data/backups/`; it keeps the latest 30 verified exports. `/api/backups` and the dashboard list those exports. No export is considered validated until an actual file appears there.
+The VM is included in the Proxmox scheduled backup job, and VM snapshots are kept as deployment rollback points. The active game save is in Chromium's persistent profile. When the agent is idle and the viewer is read-only, the service uses Bitburner's visible Options → System → Export Game flow every six hours by default. Set `SAVE_EXPORT_INTERVAL_SECONDS` in the private service environment to change the interval (bounded to 60 seconds through seven days). The service waits for a completed download, checks its gzip integrity, and archives it under `/opt/bitburner-agent/data/backups/`; it keeps the latest 30 verified exports. `/api/backups` and the dashboard list those exports. An export is confirmed only when an actual native file appears in the archive list.
 
 To restore a verified export, preserve the active profile first, then use the game's visible Import Save UI with a copy of the archived file. Never edit save contents or import a backup to gain progress. Test restoration in a separate browser profile before restoring the primary profile.
 
