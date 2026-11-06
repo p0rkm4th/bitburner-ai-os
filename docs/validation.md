@@ -1285,3 +1285,14 @@ in-game `hack_n00dles.js` output is pre-existing and not evidence of an
 independently authored program. The `serverinfo` guard was not exercised. The
 per-session limit shown to Qwen was 16; the eight-action instruction depended
 on operator monitoring and was exceeded by one action before operator stop.
+
+### Enforced action cap for bounded trials (2026-11-06)
+
+After Run 50, the deployed TEST GAME configuration was changed from a 16-step
+per-session limit to **8 steps**, matching the requested trial bound. This was
+applied while the agent was `operator_stopped`, after archiving persistent test
+data and retaining the previous image for rollback. Postflight confirms the
+container receives `MAX_STEPS=8`; the persisted stop at session 23 survives the
+recreation; the browser and game profile reopen; the Remote API is Online; the
+dashboard and noVNC return HTTP 200. No inference or gameplay session was
+started during this configuration update.
