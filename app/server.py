@@ -270,7 +270,8 @@ def gameplay_task(objective: str, progress: str, current_url: str, game_url: str
                  "against the current live reference, revise your own script, and retry within the step budget. Verify actual money/output "
                  "before claiming success. For missing root access, inspect the target's visible root, skill, and port requirements; "
                  "verify any Netscript root-access API against the live reference before revising your script. If a dialog remains after "
-                 "one game_dismiss_dialog attempt, do not call it again; report the visible blocker. If the first observation shows a "
+                 "one game_dismiss_dialog attempt, do not call it again for an unchanged dialog; report the visible blocker. If the tool reports a "
+                 "dialog transition, inspect the newly revealed dialog text and diagnose that new state before acting. If the first observation shows a "
                  "dialog, read it and call game_dismiss_dialog once; do not repeat an unchanged observation.")
     if remote_authoring and pending_script:
         task += (f" PRIORITY RESUME STEP: {pending_script} is already deployed and must be executed before any other Terminal "

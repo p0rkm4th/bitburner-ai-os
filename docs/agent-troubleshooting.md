@@ -109,6 +109,11 @@ procedures, not a prescribed gameplay strategy.
   the close attempt errors, report the blocker instead of retrying. Do not keep
   clicking old indexes, reload the page, or run a terminal command through a
   covered dialog.
+- **Dismissal reveals a different dialog:** The first dialog closed and another
+  is now covering the game. Read the returned new dialog text and use
+  `game_troubleshoot` or the relevant live documentation before choosing the
+  next action. Do not retry dismissal as though the original dialog were still
+  open; dismiss the newly visible dialog only after inspecting it.
 - **A `TYPE ERROR` dialog appears:** Treat it as a Netscript runtime error.
   Read the rendered error and stack, then dismiss it once with
   `game_dismiss_dialog` or let one `game_terminal` call dismiss it and return

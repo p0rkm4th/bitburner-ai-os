@@ -10,6 +10,8 @@ precedence over remembered or outdated API details.
 - After scripts, use `game_progress` with prior money/level to verify balance,
   hacking, and income. On `NO_PROGRESS`, don't repeat `game_observe`; use
   progress or another action.
+- A dismissal may reveal another dialog. Read its text before acting; don't
+  repeat the prior dismissal blindly.
 - Make one concrete, small objective. After an action, inspect its returned
   result and the changed UI before choosing the next action.
 - A successful tool call, file upload, or RAM calculation does not prove the

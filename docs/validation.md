@@ -912,3 +912,9 @@ request. The modal-transition behavior is covered by a mocked regression test
 in the 176/176 network-disabled suite; live verification still needs a bounded
 model session to close the offline dialog and inspect any newly revealed game
 error.
+
+The task-specific system prompt and compact game guide now explicitly explain
+that dismissing one dialog can reveal another. They direct the agent to inspect
+the new visible text before choosing an action. The 177/177 source suite passes;
+this prompt/documentation update is pending deployment with the next safe
+release.

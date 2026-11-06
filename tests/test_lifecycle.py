@@ -362,6 +362,13 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("without killing the script", task)
         self.assertIn("taking another observation", task)
 
+    def test_gameplay_task_explains_dialog_transition_recovery(self):
+        task = server.gameplay_task(
+            "Inspect the visible runtime error", "", "https://bitburner-official.github.io/",
+            "https://bitburner-official.github.io/", remote_authoring=True)
+        self.assertIn("dialog transition", task)
+        self.assertIn("inspect the newly revealed dialog text", task)
+
     def test_pending_deployment_resume_overrides_generic_file_listing_guidance(self):
         task = server.gameplay_task(
             "List files with Terminal ls and independently make progress", "", "https://bitburner-official.github.io/",

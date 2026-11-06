@@ -127,7 +127,7 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("never claim progress without visible evidence", BITBURNER_SYSTEM_PROMPT.casefold())
         self.assertIn("at most one corrected diagnostic attempt", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("no dialog returns `NO_PROGRESS`", BITBURNER_SYSTEM_PROMPT)
-        self.assertIn("Do not repeat dismissal", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("never retry blindly", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("expected_host", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("check uncertain Netscript functions with game_netscript_reference".casefold(),
                       BITBURNER_SYSTEM_PROMPT.casefold())
@@ -138,6 +138,7 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("never assume `home` has enough free RAM", BITBURNER_SYSTEM_PROMPT)
         self.assertNotIn("run that exact file visibly on `home`", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("After any visible tool error or NO_PROGRESS, do not repeat", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("If dismissal reveals a different dialog, inspect its text", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("call `game_progress` before changing or redeploying the file", BITBURNER_SYSTEM_PROMPT)
 
     def test_checkpoint_carries_tool_failures_but_not_long_outputs(self):
