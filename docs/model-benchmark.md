@@ -1206,5 +1206,10 @@ The observation exposed a second harness defect: the modal detector handled
 `RUNTIME ERROR` and `TYPE ERROR`, but not Bitburner's rendered `REFERENCE
 ERROR` heading. A regression now recognizes that heading and uses only a fresh,
 unique visible Close button. The focused tests pass, and the network-disabled
-full suite passes 181/181. This correction is not yet deployed. The model
-remains stopped; all Bitburner instances are test games.
+full suite passes 181/181. The fix was deployed from commit `9b8d82d` after the
+agent was explicitly stopped, persistent test data was archived and validated,
+and the previous image was retained for rollback. Postflight verified the
+deployed source hash, browser readiness, Remote API Online, and noVNC HTTP 200;
+the agent remains `operator_stopped` at session 15. The restored browser shows
+an offline-progress modal with an aggregate amount; this is not a current
+balance or income measurement. All Bitburner instances are test games.

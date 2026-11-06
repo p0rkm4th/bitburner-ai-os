@@ -1027,7 +1027,16 @@ allocated across four GPUs; it is not a peak inference measurement.
 
 The harness now recognizes the visible `REFERENCE ERROR` form and can close
 it using a fresh, unique visible Close control. Focused regression tests pass;
-the full network-disabled suite passes 181/181. The fix is tested locally but
-has not yet been committed or deployed. Remote API was Online in the last
-rendered observation; noVNC remained available. The agent remains explicitly
+the full network-disabled suite passes 181/181. Remote API was Online in the
+last rendered observation; noVNC remained available. The agent was explicitly
 stopped, and `AUTO_RESUME=1` does not revive this operator-stopped state.
+
+Commit `9b8d82d` was then deployed while the agent was stopped. Persistent test
+data was archived and validated; the previous image was retained for rollback.
+Postflight source hashes match the release, both containers are healthy, the
+browser is ready, Remote API is Online, and noVNC returns HTTP 200. Runtime
+remains `operator_stopped` at session 15 despite `AUTO_RESUME=1`; the existing
+browser profile reopened behind an offline-progress modal. Its aggregate
+amount is not current balance or attributable income. Management and viewer
+ports remain bound to localhost. No inference or gameplay action ran during
+deployment.
