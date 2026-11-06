@@ -1517,3 +1517,17 @@ passed 194/194 both in the local project container and in the offline VM
 candidate image. Postflight confirms the browser is ready, the test-game
 Remote API is Online, management pages return HTTP 200, and the terminal
 `operator_stopped` state persisted. No inference was started by the update.
+
+### Passive-observation loop guard deployment (2026-11-06)
+
+Commit `bbf7156` updates `game_observe` to treat passive HUD money and script-log
+changes as the same page for repeat detection. This directs changing-stat checks
+to `game_progress` and requires a meaningful UI change before a repeated
+observation. Three focused tests passed; the full suite passed 195/195 locally
+and in an offline VM candidate image. Deployment followed an explicit
+`operator_stopped` check and retained a fresh validated test-data archive and
+rollback image. The existing browser profile/save volume was reused. Postflight
+verified matching runtime source, browser readiness, Remote API Online,
+loopback dashboard/noVNC HTTP 200, and preserved `operator_stopped` state with
+`AUTO_RESUME=1`. No inference was started during rollout; this guard still needs
+a bounded gameplay trial.
