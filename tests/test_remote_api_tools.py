@@ -153,6 +153,18 @@ class RemoteApiToolTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("no file write was made", result)
         self.assertEqual(self.api.calls, [])
 
+    async def test_ram_rejection_blocks_different_filename_until_process_diagnosis(self):
+        self.action_state["ram_rejection"] = {
+            "filename": "hack.js", "host": "home", "required_ram": "1.70", "diagnosed": False,
+        }
+        result = await self.actions["game_deploy_script"](
+            "another.js", "export async function main(ns) { await ns.hack('n00dles'); }"
+        )
+        self.assertTrue(result.startswith("NO_PROGRESS:"))
+        self.assertIn("last visible run of hack.js on home", result)
+        self.assertIn("before deploying any script", result)
+        self.assertEqual(self.api.calls, [])
+
     async def test_recovered_ram_rejection_reports_unknown_host_without_writing(self):
         self.action_state["ram_rejection"] = {
             "filename": "student.js", "host": "unknown", "required_ram": "unknown", "diagnosed": False,
@@ -172,6 +184,16 @@ class RemoteApiToolTests(unittest.IsolatedAsyncioTestCase):
         code = "export async function main(ns) { await ns.grow('n00dles'); }"
         result = await self.actions["game_deploy_script"]("student.js", code)
         self.assertIn("Deployed and read-back verified student.js", result)
+        self.assertNotIn("ram_rejection", self.action_state)
+
+    async def test_diagnosed_ram_rejection_allows_new_filename_and_clears_old_gate(self):
+        self.action_state["ram_rejection"] = {
+            "filename": "hack.js", "host": "home", "required_ram": "1.70", "diagnosed": True,
+        }
+        result = await self.actions["game_deploy_script"](
+            "different.js", "export async function main(ns) { await ns.hack('n00dles'); }"
+        )
+        self.assertIn("Deployed and read-back verified different.js", result)
         self.assertNotIn("ram_rejection", self.action_state)
 
     async def test_docs_returns_only_relevant_official_definition_excerpt(self):

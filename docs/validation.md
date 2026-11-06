@@ -750,3 +750,19 @@ HUD observation captured $71.789k and hacking 155 as the baseline. The parser
 now recognizes both prompt renderings, with focused coverage and 162 pinned
 runtime tests passing. This parser update is not yet deployed; another live
 trial is required to validate execution.
+
+### Cross-file RAM diagnosis gate — pending deployment
+
+The continued Run 39 trial validated the split-line prompt parser and reached
+Bitburner's actual execution error. The visible Terminal reported that
+`hack.js` required 1.70 GB and `simple_hack.js` required 1.85 GB on `home`; no
+script ran. The model then authored/deployed `tiny_hack.js` without first
+checking the visible process list or Active Scripts. The run was stopped after
+nine agent steps to avoid repeating the RAM-blocked cycle. A post-dialog
+baseline was $71.796k / hacking 155; no income or progression is attributed.
+
+The deployment tool now blocks *any* new filename after an unresolved visible
+RAM rejection until the model checks `ps` or opens Active Scripts. The gate
+clears after diagnosis and a subsequent verified new deployment. The focused
+regression tests and all 164 pinned runtime tests pass. This correction awaits
+deployment and a bounded gameplay recheck.

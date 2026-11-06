@@ -156,15 +156,14 @@ def register_remote_api_tools(tools: Tools, api: RemoteApi,
                         f"game_run_script('{last_filename}') and inspect its exact result before writing more code. "
                         "A Terminal file listing from before deployment is stale evidence.")
             ram_rejection = action_state.get("ram_rejection")
-            if (ram_rejection and ram_rejection.get("filename") == filename.casefold()
-                    and not ram_rejection.get("diagnosed")):
+            if ram_rejection and not ram_rejection.get("diagnosed"):
                 if ram_rejection.get("host") == "unknown":
-                    return (f"NO_PROGRESS: The previous visible run of {filename} failed because of a RAM limit, "
+                    return (f"NO_PROGRESS: The previous visible run of {ram_rejection['filename']} failed because of a RAM limit, "
                             "but its host and exact requirement were not preserved. Inspect running processes with `ps` "
-                            "or use the visible Active Scripts page before deciding what to do; no file write was made.")
-                return (f"NO_PROGRESS: The last visible run of {filename} on {ram_rejection['host']} failed because it required "
+                            "or open the visible Active Scripts page before deploying any script; no file write was made.")
+                return (f"NO_PROGRESS: The last visible run of {ram_rejection['filename']} on {ram_rejection['host']} failed because it required "
                         f"{ram_rejection['required_ram']} GB of RAM. Rewriting or redeploying it cannot free RAM on that host. "
-                        "Inspect running processes with `ps` or use the visible Active Scripts page before deciding what to do; "
+                        "Inspect running processes with `ps` or open the visible Active Scripts page before deploying any script; "
                         "no file write was made.")
             try:
                 existing = await api.call("getFile", {"filename": filename, "server": "home"})
@@ -195,7 +194,7 @@ def register_remote_api_tools(tools: Tools, api: RemoteApi,
             # visible run attempt after an earlier runtime error. Cosmetic or
             # duplicate deployments return above without clearing this guard.
             action_state.pop("last_terminal_command", None)
-            if ram_rejection and ram_rejection.get("filename") == filename.casefold():
+            if ram_rejection and ram_rejection.get("diagnosed"):
                 action_state.pop("ram_rejection", None)
             action_state["deployments_without_run"] = deployments + 1
             action_state["last_deployed_filename"] = filename

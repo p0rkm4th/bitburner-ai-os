@@ -1007,3 +1007,20 @@ accessibility snapshot represents the Terminal prompt as `home` followed by
 three agent steps; no script was executed and the balance/hacking baseline is
 not attributed to this run. A parser update for both visible forms passes 162
 pinned tests and awaits deployment and a repeat bounded trial.
+
+### Run 39 continued — prompt fixed, RAM recovery still missing
+
+After deploying `c268e46`, Qwen3.6:35b successfully passed the live Terminal
+host check and reached visible Bitburner execution. The post-dialog HUD
+baseline was $71.796k / hacking 155. `hack.js` was rejected on `home` at 1.70
+GB required RAM; model-authored `simple_hack.js` was rejected at 1.85 GB. The
+model then deployed `tiny_hack.js` without inspecting running processes or
+Active Scripts, and repeated that deployment after the guard's rejection. The
+operator stopped at nine steps. No script executed; no income or progression
+is attributable to this attempt.
+
+This isolated the next harness defect: an unresolved RAM rejection gated only
+redeployment of the same filename, allowing the model to evade the diagnostic
+step by renaming its script. The new cross-filename gate requires visible `ps`
+or Active Scripts inspection before any new deployment. All 164 pinned tests
+pass. This fix has not yet been deployed or live-validated.
