@@ -1488,3 +1488,32 @@ dashboard/noVNC return HTTP 200 on loopback-only ports. The visible game reports
 Remote API **Online** and retains the offline-progress dialog after restart.
 No gameplay or inference has been run since this deployment; its prompt/tool
 behavior still needs a bounded inference trial.
+
+### Session 34 — query-loop guard follow-up (2026-11-06)
+
+One bounded Qwen3.6:35b continuation ran on the retained **test-game** profile
+from 17:37:55 to 17:42:18 UTC. It made 10 tool actions: repeated the same
+Netscript reference lookup (the new guard returned `NO_PROGRESS`), dismissed
+a visible dialog, inspected running processes and script output, then repeated
+the same observation. It did not complete the requested edit/run/verification
+cycle, so the operator stopped it after the repeated observation. The agent
+reported 10 tool calls, 0 thrown tool failures, and 3 game errors.
+
+The final rendered HUD showed $74.902k and hacking level 158. Visible terminal
+output showed the pre-existing `hack_n00dles.js` stealing money; `ps` also
+showed a weaken process. No before/after balance was attributable to the
+revised script, and no new hacking progression was verified. Therefore this
+trial does **not** meet the money-generation acceptance criterion. Ollama
+telemetry for the window contains 11 responses, 79,500 prompt tokens, 2,982
+completion tokens, and 218.941 seconds summed request duration (4m23s wall
+time). The run was stopped at 10/12 allowed actions after repeating an
+unproductive observation.
+
+After the agent reached `operator_stopped`, commit `b7690f8` was deployed. It
+replaces truncating documentation-cache keys with SHA-256 of the full
+normalized query, preventing long troubleshooting messages with shared
+prefixes from colliding. Focused regression test passed, and the full suite
+passed 194/194 both in the local project container and in the offline VM
+candidate image. Postflight confirms the browser is ready, the test-game
+Remote API is Online, management pages return HTTP 200, and the terminal
+`operator_stopped` state persisted. No inference was started by the update.
