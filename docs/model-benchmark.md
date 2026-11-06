@@ -932,11 +932,40 @@ baseline was captured; no income or level change is attributed.
 Run 36 exposed a conflicting instruction in the system prompt: it required
 every deployed script to run on `home`, even when visible RAM evidence said
 that host could not run it. The prior checkpoint also carried a stale model
-subobjective into the next session. The prompt now selects the execution host
-from visible root/RAM evidence, allows the documented in-game copy/connect
-flow, and treats a failed step's saved subobjective as historical. These
-changes pass 157 offline tests but are not yet deployed or gameplay-validated.
+subobjective into the next session. The prompt was corrected to select the
+execution host from visible root/RAM evidence and allow the documented
+in-game copy/connect flow; failed saved subobjectives are marked historical.
+The change passed 157 offline tests and was deployed as `667e4ab`; Run 37
+showed that this instruction alone did not stop the model's repeated writes.
 Run 36 did exercise one successful live Terminal action through the updated
 fresh-observation helper (`scan-analyze 2`); it did not reproduce the delayed
 snapshot condition. Tartarus was released after the run; private request traces
 remain under ignored local artifacts.
+
+## Run 37 — host prompt did not change RAM-retry behavior
+
+Run 37 continued the same persistent test game after `667e4ab` deployed the
+host-selection prompt and failed-checkpoint handling. Qwen3.6:35b Q4_K_M at
+16,384 context, `think=false`, temperature 0.2, seed 7 ran for about 2m42s
+(08:53:41–08:56:23 UTC) and stopped at six agent steps. Seven Ollama responses
+used 48,403 prompt and 1,215 completion tokens; summed request time was 137.7
+seconds (19.7 seconds mean), with about 0.03 seconds model-load time and no
+reported transport errors. Tool metrics: six calls, four visible game errors,
+zero framework failures.
+
+The model again dismissed a dialog, repeated the dismissal despite `NO_PROGRESS`,
+used visible `scan-analyze 2`, and attempted three code variants for the same
+blocked `hack_n00dles.js` deployment on `home`. The RAM diagnostic guard
+returned the same file/host failure each time. I stopped the session to avoid
+further inference; no script ran. Post-run rendered stats were $71.763k and
+hacking 155, but no session-start HUD baseline was captured, so neither a
+money delta nor hacking gain is attributed. The game remains stopped at
+session 4 / 6 steps. The prompt change did not correct this model behavior.
+
+Run 37 also exposed that the supervisor's repeated-failure signature included
+the complete proposed script content. As a result, harmless code variations
+reset the stagnation counter even though the tool rejected each deployment for
+the same file/host RAM condition. A local change now normalizes these failures
+by filename and host, so a second identical RAM-guard outcome stops the loop.
+The 158-test suite passes; this normalizer is not yet deployed or validated in
+a live run.

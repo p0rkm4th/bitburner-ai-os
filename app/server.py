@@ -540,9 +540,28 @@ def failed_result_signature(actions: list[dict], visible: str, failures: list[di
         failure_text = "game_deploy_script:NO_PROGRESS:pending_run_required"
         state = ""
     else:
-        action_json = json.dumps(actions, sort_keys=True, ensure_ascii=False)
-        failure_text = "|".join(str(item.get("tool", "unknown")) + ":" +
-                                str(item.get("message", "")) for item in failures)
+        blocked_ram_redeploy = None
+        for item in failures:
+            if item.get("tool") != "game_deploy_script":
+                continue
+            match = re.search(
+                r"last visible run of ([A-Za-z0-9_.-]+\.js) on ([A-Za-z0-9_.-]+) failed because it required ([\d.]+) GB of RAM",
+                str(item.get("message", "")), re.IGNORECASE)
+            if match:
+                blocked_ram_redeploy = tuple(part.casefold() for part in match.groups())
+                break
+        if blocked_ram_redeploy:
+            filename, host, required_ram = blocked_ram_redeploy
+            # Source edits cannot resolve a host RAM rejection. Treat every
+            # changed-content retry as the same failed action until the model
+            # takes a successful diagnostic step.
+            action_json = json.dumps([f"game_deploy_script:ram_rejected:{filename}:{host}"])
+            failure_text = f"game_deploy_script:NO_PROGRESS:ram_rejected:{filename}:{host}:{required_ram}"
+            state = ""
+        else:
+            action_json = json.dumps(actions, sort_keys=True, ensure_ascii=False)
+            failure_text = "|".join(str(item.get("tool", "unknown")) + ":" +
+                                    str(item.get("message", "")) for item in failures)
     return hashlib.sha256((action_json + "\n" + state + "\n" + failure_text).encode()).hexdigest()
 
 

@@ -459,6 +459,21 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(server.failed_action_repeat_count(signature, 2, "different-action"), 1)
         self.assertEqual(server.failed_action_repeat_count(signature, 2, ""), 0)
 
+    def test_ram_rejected_redeploy_signature_ignores_model_code_variants(self):
+        message = ("NO_PROGRESS: The last visible run of hack_n00dles.js on home failed because it required "
+                   "1.70 GB of RAM. Rewriting or redeploying it cannot free RAM on that host.")
+        first = server.failure_signature_for_tool_results(
+            [{"game_deploy_script": {"filename": "hack_n00dles.js", "content": "await ns.hack('n00dles')"}}],
+            "same visible RAM rejection",
+            [{"tool": "game_deploy_script", "state": "game_error", "message": message}],
+        )
+        second = server.failure_signature_for_tool_results(
+            [{"game_deploy_script": {"filename": "hack_n00dles.js", "content": "while(true) await ns.hack('n00dles')"}}],
+            "same visible RAM rejection",
+            [{"tool": "game_deploy_script", "state": "game_error", "message": message}],
+        )
+        self.assertEqual(first, second)
+
     async def test_empty_model_response_failures_have_a_repeatable_signature(self):
         failure = [{"tool": "unmapped", "state": "failed", "message": "LLM call timed out"}]
         first = server.failed_result_signature([], "[12] Offline dialog", failure)
