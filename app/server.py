@@ -581,6 +581,12 @@ def failed_result_signature(actions: list[dict], visible: str, failures: list[di
             action_json = json.dumps(actions, sort_keys=True, ensure_ascii=False)
             failure_text = "|".join(str(item.get("tool", "unknown")) + ":" +
                                     str(item.get("message", "")) for item in failures)
+            if any(str(item.get("message", "")).startswith("NO_PROGRESS:")
+                   for item in failures):
+                # A tool has explicitly rejected the repeated action without
+                # sending it. Background game output can still change the DOM
+                # every second, so it must not reset this same-action streak.
+                state = ""
     return hashlib.sha256((action_json + "\n" + state + "\n" + failure_text).encode()).hexdigest()
 
 

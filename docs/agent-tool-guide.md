@@ -65,6 +65,8 @@ When a recognized offline-progress or message dialog is closed automatically,
 read the returned dialog body and choose the next action; the Terminal command
 in that call was not executed. If a repeated command returns `NO_PROGRESS`,
 change the diagnostic or inspect the game state before acting again.
+Background script output can change the page without making that rejected
+command useful; do not submit the same command again for that reason.
 
 For network inspection, use `scan` without arguments. `scan-analyze` requires a
 positive numeric depth, such as `scan-analyze 2`; passing a hostname is invalid.

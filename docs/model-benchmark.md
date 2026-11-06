@@ -1068,10 +1068,10 @@ seed 7). The agent cleared the offline dialog, read `simple_hack.js`, authored
 `hack_n00dles.js`, and deployed it through the restricted Remote API. Bitburner
 rejected its first run on `home` because it required 2.05 GB RAM; the agent
 copied its own file to rooted `n00dles`, connected visibly, and started it with
-PID 5. Terminal output showed the script's weaken/grow/hack cycle. A later
-visible log confirmed one successful hack of `$0.005` and 3.300 hacking
-experience; other attempts failed or stole `$0`. This is attributable script
-output and confirms a successful game hack, but the rendered player balance
+PID 5. Terminal output showed the script's weaken/grow/hack cycle. Visible logs
+confirmed successful hacks of `$0.005` and `$0.010` (3.300 hacking experience
+each); other attempts failed or stole `$0`. This is attributable script output
+and confirms successful game hacks, but the rendered player balance
 remained `$71.840k` before and after (display rounding hides any sub-dollar
 change), and hacking remained level 156. The Active Scripts summary showed
 `$0.467/s` aggregate production, which is not attributed to this script.
@@ -1083,6 +1083,15 @@ fragments and the repeat guard. The agent is `operator_stopped`; the legitimate
 Netscript process remains active in the preserved test game. No token/latency
 telemetry was persisted for this deployed session. The run demonstrates
 independent authoring, deployment, visible execution, RAM-error recovery, and a
-successful five-mill hack, but does not yet meet the visible balance-delta
-acceptance criterion. The next check should observe the existing script and
-HUD without starting another inference session or changing the game state.
+successful hacks, but does not yet meet the visible balance-delta acceptance
+criterion. The next check should observe the existing script and HUD without
+starting another inference session or changing the game state.
+
+The run exposed a repetition-detection gap: identical rejected `NO_PROGRESS`
+actions kept receiving a new failure signature while the background script
+changed visible log text. The harness now ignores changing DOM text for an
+explicit `NO_PROGRESS` result while still keying on the attempted tool action
+and rejection; a different action resets the streak. A regression test covers
+the live pattern. The 171-test suite passes in a no-network test container.
+This fix is not yet deployed because the model-authored game script remains
+active in the shared test profile; a later deployment must preserve that state.

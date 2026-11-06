@@ -520,6 +520,22 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotEqual(repeated, changed_ui)
         self.assertEqual(server.failed_result_signature([], "Terminal ready", []), "")
 
+    async def test_no_progress_repeat_ignores_background_dom_churn(self):
+        action = [{"game_terminal": {"command": "tail hack_n00dles.js"}}]
+        rejection = [{"tool": "game_terminal", "state": "game_error",
+                      "message": "NO_PROGRESS: the same command was not sent"}]
+        first = server.failure_signature_for_tool_results(
+            action, "Terminal output: hack failed; time 1", rejection)
+        second = server.failure_signature_for_tool_results(
+            action, "Terminal output: hack succeeded; time 2", rejection)
+        self.assertEqual(first, second)
+        self.assertEqual(server.failed_action_repeat_count(first, 1, second), 2)
+
+        different_action = [{"game_progress": {"baseline_money": "$1k"}}]
+        changed = server.failure_signature_for_tool_results(
+            different_action, "Terminal output: time 3", rejection)
+        self.assertNotEqual(second, changed)
+
     async def test_pending_deployment_refusal_ignores_changed_script_content(self):
         visible = "[home /]> connect home"
         failure = [{"tool": "game_deploy_script", "state": "game_error",
