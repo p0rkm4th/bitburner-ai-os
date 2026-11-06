@@ -1296,3 +1296,33 @@ container receives `MAX_STEPS=8`; the persisted stop at session 23 survives the
 recreation; the browser and game profile reopen; the Remote API is Online; the
 dashboard and noVNC return HTTP 200. No inference or gameplay session was
 started during this configuration update.
+
+## Run 51 — authored and deployed, but not executed (2026-11-06)
+
+One uninterrupted bounded session ran on the preserved test game with local
+Qwen3.6:35b at 16K context. It started at 15:40:51 UTC and was stopped at
+15:42:58 UTC after the harness detected an unproductive repeated-action loop.
+The runtime reported `operator_stopped`, session 24, 5 actions, 5 tool calls,
+0 failed tool calls, and 3 game errors. The deployed `MAX_STEPS=8` limit was
+active; the no-progress safeguard stopped this run earlier.
+
+Qwen authored `hack_n00dles_v2.js` and deployed it through the restricted
+Remote API. Deployment returned successfully after read-back and RAM checks.
+The agent then attempted `ls home hack_n00dles_v2.js`; the action guard told it
+the file was already deployed and must be run with `game_run_script`. It
+repeated with `ls`, received the same guard, and the supervisor stopped the
+session after no visible progress. The script was **not executed**, so it has
+not been shown to work or earn money. No code or target was supplied by the
+operator.
+
+The rendered game observation after the run showed $72.244k and hacking level
+157. Its output pane showed only the pre-existing `hack_n00dles.js` messages;
+no fresh balance baseline or output attributable to `hack_n00dles_v2.js` was
+captured. Therefore no income or hacking progression is attributed to this
+run. The `game_progress()` tool was not called.
+
+Seven Ollama responses were recorded: 46,233 prompt tokens, 1,554 completion
+tokens, and 122.342 seconds summed request duration (17.477 seconds mean).
+The local inference service had no competing queued or in-flight requests at
+preflight. After the explicit stop, the test agent remained `operator_stopped`
+and inference requests returned to zero.
