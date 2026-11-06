@@ -711,7 +711,7 @@ The deployed image is
 `sha256:adbd1cf008a47ce09334927dab205e0a22392e27b85c8ff364e2c6fc679e3866`.
 The new signature has not yet been exercised in a live gameplay session.
 
-## Hidden Terminal and pending-run recovery — pending deployment
+## Hidden Terminal and pending-run recovery — commit `d8bb369` (2026-11-06)
 
 Run 38 exposed an ordering defect: `game_run_script(expected_host=...)` and the
 pending-deployment check looked for a visible Terminal prompt before invoking
@@ -721,9 +721,19 @@ local fix opens Terminal through the normal UI before host validation, clears
 visible blocking dialogs first, and preserves the pending-run instruction when
 continuing from a failed checkpoint. No hidden game state is used.
 
-The focused regression tests and the full pinned runtime suite pass (160 tests).
-The fix has not yet been deployed or live-validated. Every Bitburner profile
-referenced by this project is a test game; there is no separate production
-game. The shared test game remains stopped after Run 38, with the Remote API
-Online and the persistent browser/profile retained. No gameplay or inference
-was started for this code change.
+The focused regression tests and full pinned runtime suite passed (160 tests).
+Before rollout the game was terminally failed after Run 38, so no active agent
+session was interrupted. A full persistent-data archive passed gzip validation
+at `/opt/bitburner-agent/backups/data-before-d8bb369-20261106T091554Z.tar.gz`
+(SHA-256 `3448a27e568a8d850759e9da3a3635f59ec896b8dc2a38ca81879e0bacf5bfd8`),
+and the prior image was tagged for rollback. The image was built with network
+access disabled; only the agent and restricted Remote API bridge were
+recreated, preserving the same persistent data mount and private config.
+Post-deploy checks report the preserved terminal `failed` state at session 6,
+browser ready, `AUTO_RESUME=1`, Remote API Online, noVNC HTTP 200, and
+loopback-only management listeners. A read-only visible observation shows an
+offline-progress dialog, so it does not establish a current balance or income
+attributable to this change. No gameplay session or inference request was
+started. Every Bitburner profile referenced by this project is a test game;
+there is no separate production game. Live gameplay validation of the ordering
+fix remains pending.
