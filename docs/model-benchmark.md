@@ -690,3 +690,35 @@ model VRAM allocation and 16,384 context. CPU offload was not measured. Private
 artifacts remain under `local/benchmark-runs/qwen36-run29b/`. This failure
 shows that root-access recovery is possible, but the model did not carry the
 recovery through to executing its income script.
+
+## Run 30 — visible income, unaccepted completion (isolated)
+
+Run 30 tested the deployed no-dialog-repeat guard with Qwen3.6:35b Q4_K_M,
+16,384 context, `think=false`, temperature 0.2, seed 7, and the same 16-action /
+20-minute cap. The game began at $1.262k and Hacking 1. After visible scans,
+Qwen authored and ran `nuke.js`; Terminal output confirmed root access was
+granted on n00dles. It then authored `hack.js` with an infinite
+`await ns.hack('n00dles')` loop and ran it with visible PID 2. The HUD later
+showed $1.551k, an increase of $289 while that was the only newly running
+income script; the initial offline-progress dialog reported $0.000 in script
+earnings. Hacking remained level 1. This is observable income evidence from a
+model-authored and executed script, but Qwen itself treated the increase as
+possibly passive and did not verify or report attribution. It rewrote the
+script repeatedly instead; two pending-deployment rejections and a repeated
+`scan` consumed the remaining actions. The supervisor ended `failed` at step
+14, so the bounded task was not accepted as complete. The no-dialog-repeat
+path was not exercised by the model in this run; its behavior is covered by
+tool tests.
+
+The session lasted 6m08s and made 14 Ollama requests: 116,951 prompt and 3,231
+completion tokens, 357.2 seconds summed response latency (25.52s mean, 27.82s
+median, 31.57s maximum). There were four game/tool errors, no transport
+failures, and no inference timeouts. Across 73 hardware samples, each GPU
+reached 100% utilization; VRAM peaks were 7,329, 5,059, 6,211, and 5,207 MiB.
+Ollama reported 23.05 GB allocated and 16,384 context; CPU offload was not
+measured. Private evidence is under
+`local/benchmark-runs/qwen36-dialogguard-01/`. The replay surfaced a second
+harness defect: `game_progress` failed to parse the live HUD because Bitburner
+renders its money label and value on separate DOM lines. The parser and
+automatic session-baseline comparison have since been corrected and covered
+by regression tests.

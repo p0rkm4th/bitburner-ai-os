@@ -6,7 +6,7 @@ not run concurrently. Check each returned result before acting again.
 | Tool | Input | Intended use and result |
 |---|---|---|
 | `game_observe` | none | Read a compact rendered UI snapshot and detect a visible dialog. Read-only. |
-| `game_progress` | optional `baseline_money`, `baseline_hacking_level` | Read visible money, hacking level, and script income from rendered UI text; optionally compare with a previous observation. Use after running a script and after `game_observe` returns `NO_PROGRESS`. It neither changes the game nor clears the duplicate-observation guard. |
+| `game_progress` | optional `baseline_money`, `baseline_hacking_level` | Read visible money, hacking level, and script income from rendered UI text. It compares against the session's first visible balance when available, handles Bitburner's multiline HUD layout, and reports the balance delta. If a stat is not rendered in the current view, use the visible `Stats` or `Active Scripts` tab and observe again. Use after running a script and after `game_observe` returns `NO_PROGRESS`; it neither changes the game nor clears the duplicate-observation guard. |
 | `game_help` | `topic` | Retrieve one allowlisted section of this repository's concise gameplay/tool documentation. It cannot read arbitrary files. |
 | `game_troubleshoot` | `error` | Retrieve matching recovery notes for a visible game/tool error. |
 | `game_dismiss_dialog` | none | Dismiss one currently visible dialog using its semantic close control, a unique visible button within the modal, or Escape; then verify it is gone. If no dialog is visible, it returns `NO_PROGRESS` without sending input. Do not call it again unless a new dialog is visible. |

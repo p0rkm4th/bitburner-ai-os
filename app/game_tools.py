@@ -165,12 +165,26 @@ def find_visible_close_node(dom_state):
     return matches[0] if len(matches) == 1 else None
 
 
+def _currency_amount(value: str) -> Optional[float]:
+    match = re.search(r"\$?\s*([\d,.]+)\s*([kmbt]?)", value.strip(), re.IGNORECASE)
+    if not match:
+        return None
+    scale = {"": 1, "k": 1_000, "m": 1_000_000,
+             "b": 1_000_000_000, "t": 1_000_000_000_000}
+    try:
+        return float(match.group(1).replace(",", "")) * scale[match.group(2).casefold()]
+    except (ValueError, KeyError):
+        return None
+
+
 def visible_progress(visible: str, baseline_money: Optional[str] = None,
                      baseline_hacking_level: Optional[int] = None) -> str:
     """Extract only game stats rendered in the visible DOM; never inspect game objects."""
-    money = re.search(r"\bMoney\b[^$\n]{0,40}\$\s*([\d,.]+\s*[kmbt]?)", visible, re.IGNORECASE)
+    # Bitburner's accessible DOM puts table labels and values on separate
+    # lines, so allow bounded whitespace and element text between them.
+    money = re.search(r"\bMoney\b[^$]{0,100}\$\s*([\d,.]+\s*[kmbt]?)", visible, re.IGNORECASE)
     hacking = re.search(r"\b(?:Hack|Hacking(?:\s+Level)?)\b\s*:?\s*(\d+)\b", visible, re.IGNORECASE)
-    income = re.search(r"\b(?:script\s+)?(?:income|profit|production)\b[^$\n]{0,40}\$\s*([\d,.]+\s*[kmbt]?)\s*(?:/\s*s|per\s+second)",
+    income = re.search(r"\b(?:script\s+)?(?:income|profit|production)\b[^$]{0,80}\$\s*([\d,.]+\s*[kmbt]?)\s*(?:/\s*s|per\s+second)",
                        visible, re.IGNORECASE)
     lines = ["Visible gameplay stats (DOM text only):",
              f"Money: ${money.group(1).strip()}" if money else "Money: unavailable on the current visible screen",
@@ -179,11 +193,21 @@ def visible_progress(visible: str, baseline_money: Optional[str] = None,
     if money and baseline_money is not None:
         baseline = baseline_money.strip()
         baseline = baseline if baseline.startswith("$") else f"${baseline}"
-        lines.append(f"Money comparison: current ${money.group(1).strip()}, baseline {baseline}")
+        current_amount = _currency_amount(money.group(1))
+        baseline_amount = _currency_amount(baseline)
+        comparison = f"Money comparison: current ${money.group(1).strip()}, baseline {baseline}"
+        if current_amount is not None and baseline_amount is not None:
+            change = current_amount - baseline_amount
+            comparison += f" (change {change:+,.2f})"
+        lines.append(comparison)
     if hacking and baseline_hacking_level is not None:
         delta = int(hacking.group(1)) - baseline_hacking_level
         lines.append(f"Hacking-level change from baseline: {delta:+d}")
     lines.append("Use the returned rendered UI text to inspect Active Scripts and script output; no hidden game state was read.")
+    if not hacking:
+        lines.append("Hacking level is not visible in this view; open the visible Stats tab and observe it.")
+    if not income:
+        lines.append("Script income is not visible in this view; inspect the visible Active Scripts tab.")
     return "\n".join(lines)
 
 
@@ -318,6 +342,14 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         try:
             await _page(browser_session)
             visible = await _visible(browser_session)
+            if baseline_money is None:
+                stored_baseline = action_state.get("initial_visible_money")
+                if isinstance(stored_baseline, (int, float)):
+                    baseline_money = f"${stored_baseline:,.2f}"
+            if baseline_hacking_level is None:
+                stored_level = action_state.get("initial_visible_hacking_level")
+                if isinstance(stored_level, int):
+                    baseline_hacking_level = stored_level
             return visible_progress(visible, baseline_money, baseline_hacking_level) + "\n\n" + visible[-1800:]
         except Exception as exc:
             return f"ERROR: Could not verify visible gameplay progress: {type(exc).__name__}: {exc}"

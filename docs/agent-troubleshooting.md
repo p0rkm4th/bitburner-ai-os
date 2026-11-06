@@ -113,6 +113,10 @@ procedures, not a prescribed gameplay strategy.
   If the input still is not visible, inspect and report; do not guess an index.
 - **No visible change after command:** Read the tool's explicit error and
   inspect the new UI. Avoid repeating the same command without a new reason.
+- **`game_progress` says a stat is unavailable:** The current rendered view may
+  not expose it. Open the visible `Stats` tab for hacking level or `Active
+  Scripts` for running scripts, then observe the rendered result. Do not
+  estimate the value or infer it from a PID.
 - **`game_run_script` rejects `expected_host`:** No run command was sent. Read
   the host shown in the visible Terminal prompt, connect through the normal
   in-game interface if needed, and retry with the host you chose. The guard

@@ -631,6 +631,21 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         missing = visible_progress("Terminal is open")
         self.assertIn("unavailable on the current visible screen", missing)
 
+    async def test_progress_parses_multiline_game_hud_and_money_change(self):
+        text = "Overview\nMoney\n[274]<td />\n$1.551k\n[275]<td />\nHack\n[280]<td />"
+        result = visible_progress(text, "$1,262.00", 1)
+        self.assertIn("Money: $1.551k", result)
+        self.assertIn("Money comparison:", result)
+        self.assertIn("change +289.00", result)
+        self.assertIn("Hacking level is not visible in this view", result)
+
+    async def test_game_progress_uses_session_money_baseline(self):
+        self.action_state["initial_visible_money"] = 1262.0
+        self.page.visible = "Overview\nMoney\n[274]<td />\n$1.551k\nHack\n[280]<td />"
+        result = await self.actions["game_progress"](self.browser)
+        self.assertIn("Money: $1.551k", result)
+        self.assertIn("change +289.00", result)
+
 
 if __name__ == "__main__":
     unittest.main()
