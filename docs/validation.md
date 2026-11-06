@@ -541,3 +541,25 @@ returned HTTP 200, and visible game UI still reported Remote API Online. The
 service remained `operator_stopped` at session 0 / 0 steps. Prompt and game
 tool source hashes in the image matched the checked-out release. No inference
 request was made, and no Bitburner game is designated as production.
+
+## Bitburner Type Error detector deployment — commit `21ff969` (2026-11-06)
+
+Run 33 exposed a Bitburner v3.0.1 script-error panel rendered without dialog
+roles or a MUI dialog root. Source commit `21ff969` recognizes that visible
+error surface and permits dismissal only through a unique, currently visible
+Close control in a fresh Browser Use accessibility snapshot. The pinned test
+image passed all **142/142** offline tests before deployment. The exact error
+panel could not be reproduced after reloading the disposable profile, so live
+dismissal remains unverified.
+
+Before recreating the deployed service containers, the shared persistent test
+game reported `operator_stopped`, session 0 / 0 steps. A gzip-validated,
+SHA-256-checked archive of the complete persistent data directory was retained
+for rollback. Only the agent and restricted Remote API bridge containers were
+recreated; their existing `/state` mount and private configuration were kept.
+After startup, health reported `browser_ready`, the agent remained
+`operator_stopped` at session 0 / 0 steps, the in-game Remote API showed Online,
+noVNC returned HTTP 200, and both management listeners remained loopback-only.
+No gameplay action, inference request, or save import was performed. The
+private archive path and checksum are recorded only in the ignored local
+instance record.
