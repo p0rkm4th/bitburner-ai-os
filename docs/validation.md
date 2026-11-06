@@ -863,3 +863,9 @@ offline-progress modal. Its generated-since-offline amount is not treated as
 current balance or as earnings from the model-authored script. Management
 listeners remain loopback-bound. A short visible verification continuation is
 pending coordination for the shared inference slot.
+
+A read-only call to the documented Remote API `getFile` method after restart
+confirmed that `hack_n00dles.js` remains on `home`. The authored script formats
+its custom dollar output with `toFixed(0)`, which rounds sub-dollar hacks to
+`$0`; Bitburner's visible operation log separately showed the fractional
+successful hacks. No script write, gameplay action, or save access occurred.

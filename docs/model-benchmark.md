@@ -1102,3 +1102,9 @@ readiness, and Remote API Online. Restart reopened the saved script-log UI
 alongside an offline-progress modal; its amount is not treated as current
 balance or attributable income. A short visible verification continuation is
 pending coordination for the shared inference slot.
+
+A later read-only Remote API `getFile` call confirmed that the model-authored
+`hack_n00dles.js` still exists on `home` after the restart. Its custom `tprint`
+uses `toFixed(0)`, so its own `$0` line rounds away fractional-dollar results;
+Bitburner's visible operation log is the evidence for the `$0.005`–`$0.019`
+successes. The file was read only; no game state or script content was changed.
