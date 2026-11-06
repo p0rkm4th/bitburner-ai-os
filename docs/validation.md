@@ -886,6 +886,12 @@ home-server attempt; the HUD was covered, so no current balance or income was
 verified. The agent wrote, deployed, or launched no script. It was stopped and
 the persisted runtime state is `operator_stopped`.
 
+Ollama logged four responses across three tool calls: 20,430 prompt tokens,
+1,324 completion tokens, 86.829 seconds summed request time (21.707 seconds
+mean), and 15.851 seconds summed model-load time. Post-run `/api/ps` reported
+23.05 GB VRAM allocated at 16K context; this was not a peak sample. Per-GPU
+utilization during the run was not recorded.
+
 The source helper now fingerprints the visible dialog before and after one
 close attempt. If the original dialog is replaced by a different visible
 dialog, it reports the transition and returns the new dialog text for

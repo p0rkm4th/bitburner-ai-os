@@ -1119,7 +1119,11 @@ returned a dialog-remains error. The session was explicitly stopped at 11:11:58
 UTC; status persisted `operator_stopped` at session 12, two completed steps.
 The third tool result raced with the stop, so the action log has three calls
 while the step counter has two. All three calls failed; two were counted as
-game errors. No tokens-per-request or inference-latency metrics were persisted.
+game errors. Ollama recorded four responses: 20,430 prompt tokens, 1,324
+completion tokens, and 86.829 seconds summed request time (21.707 seconds
+mean). Model-load time summed to 15.851 seconds; mean prompt-evaluation and
+output-evaluation times were 10.280 and 7.351 seconds per response. The agent
+session occupied about 92 seconds wall clock.
 
 The fresh rendered UI revealed that the offline-progress popup had transitioned
 to a Bitburner runtime-error dialog for `hack_n00dles.js@home (PID -4)`. It
@@ -1128,6 +1132,8 @@ reported `weaken` dynamic RAM of 1.80 GB against 1.70 GB allocated, with
 This is evidence of a failed home-server attempt. The current balance was not
 visible, so this run establishes no income or balance change. The model did
 not modify, deploy, start, or stop a script. Qwen remained resident under
-Ollama keep-alive after the request; Tartarus was released with no active Herd
-request. The next gameplay trial should show the model this visible error and
-let it diagnose and correct its own script without supplied code.
+Ollama keep-alive after the request; a post-run `/api/ps` sample reported
+23.05 GB VRAM allocated at 16,384 context (not a peak measurement). Tartarus
+was released with no active Herd request. The next gameplay trial should show
+the model this visible error and let it diagnose and correct its own script
+without supplied code.
