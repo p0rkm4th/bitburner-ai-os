@@ -86,6 +86,22 @@ transport and syntax/RAM calculation; the agent must still run the program in
 the visible in-game terminal and verify actual behavior before calling a
 gameplay cycle successful.
 
+The hardened bridge image also passed a disposable no-network security smoke
+test: unauthenticated REST health and MCP requests returned 401; authenticated
+REST health returned 200 and reported no game connected; traversal and
+non-home script targets were rejected; save/delete methods were absent; and
+convenience file routes were disabled. Authenticated MCP initialization and
+tool discovery exposed only `health_check`, `pushFile`, `getFile`,
+`calculateRam`, and `getDefinitionFile`; a forbidden save-read tool call was
+rejected. A permitted write request correctly reported that no game was
+connected. This confirms the bridge boundary and MCP catalog, but does not
+replace an isolated live-game Remote API round trip.
+
+The REST-facing Browser Use adapter additionally enforces a one-deployment
+visible-run gate and exact read-back/RAM checks. The raw upstream MCP tools do
+not enforce that workflow sequence. Do not expose raw MCP tools directly to a
+gameplay model; an MCP consumer must use an equivalent constrained wrapper.
+
 Agent Zero comparison: its current docs describe native MCP server setup,
 project-scoped instructions/files/memory/secrets, and loadable skills. Those
 could organize a Bitburner guide and project instructions, but they do not
