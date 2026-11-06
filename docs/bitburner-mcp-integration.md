@@ -80,7 +80,8 @@ Security and compatibility findings:
 ## Test boundaries and current evidence
 
 Initial Remote API testing must use a separate Chromium profile and separate
-test save. Never point test writes at the persistent production profile. A
+test save. The shared persistent profile is also test-game state, but its
+progress must be preserved during isolated experiments. A
 successful `pushFile`/`getFile`/`calculateRam` result only validates file
 transport and syntax/RAM calculation; the agent must still run the program in
 the visible in-game terminal and verify actual behavior before calling a

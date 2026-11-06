@@ -4,8 +4,9 @@
 
 The current open-source Agent Zero image was launched in a disposable project
 with an internal-only Docker network and a sidecar built from the same
-restricted Bitburner bridge source used by the Browser Use harness. No game,
-production profile, Ollama endpoint, or inference request was connected.
+restricted Bitburner bridge source used by the Browser Use harness. No game or
+shared persistent test profile, Ollama endpoint, or inference request was
+connected.
 
 Agent Zero's own MCP client initialized the bridge and listed exactly five
 tools: `health_check`, `pushFile`, `getFile`, `calculateRam`, and

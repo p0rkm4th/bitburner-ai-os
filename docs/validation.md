@@ -38,9 +38,9 @@ Do not mark this project complete until each required acceptance item has reprod
 
 ## Earlier deployed-service update (historical)
 
-The latest deployed code fixes two harness defects found during the guided production attempt. First, the official Remote API can return a generic HTTP 500 when `getFile` checks for a script that does not exist; deployment now permits the write only for that exact missing-file response, then requires exact read-back and live RAM calculation. Second, Browser Use automatically generated a `navigate` action from the session URL even though navigation is intentionally excluded from the gameplay tool set; the agent now disables that implicit action because the application owns initial page setup. The rebuilt deployment image passed all 61 tests with network access disabled during the test run.
+The latest deployed code fixes two harness defects found during a guided attempt on the deployed test-game service. First, the official Remote API can return a generic HTTP 500 when `getFile` checks for a script that does not exist; deployment now permits the write only for that exact missing-file response, then requires exact read-back and live RAM calculation. Second, Browser Use automatically generated a `navigate` action from the session URL even though navigation is intentionally excluded from the gameplay tool set; the agent now disables that implicit action because the application owns initial page setup. The rebuilt deployment image passed all 61 tests with network access disabled during the test run.
 
-The persistent shared test profile and checkpoint were retained. A later bounded Qwen session was explicitly stopped after it timed out twice; the API confirmed `operator_stopped`, and the browser/game remained available with Remote API Online. No income or progression is attributed to that session. The production deployment remains at commit `6c77967`; the explicit Ollama client options and split-line modal fix described above are candidate source changes, not yet deployed. The isolated Run 24 profile was disposable and production was not modified.
+The persistent shared test profile and checkpoint were retained. A later bounded Qwen session was explicitly stopped after it timed out twice; the API confirmed `operator_stopped`, and the browser/game remained available with Remote API Online. No income or progression is attributed to that session. At that point the deployed service remained at commit `6c77967`; the explicit Ollama client options and split-line modal fix described above are candidate source changes, not yet deployed. The isolated Run 24 profile was disposable and the shared persistent test profile was not modified.
 
 The optional tiny UI-action-model review is documented in [ui-action-model-evaluation.md](ui-action-model-evaluation.md). It remains an isolated evaluation and has not been integrated into production; no end-to-end evidence currently shows that it improves gameplay task performance.
 
@@ -496,4 +496,6 @@ the shared test-game save and script progress survived the restart. The agent
 remained `operator_stopped` at session 0 / 0 steps. The effective service
 configuration is `AUTO_RESUME=1`, `MAX_SESSIONS=0`; startup preserved the
 explicit stop, so no gameplay or inference request was started. No save was
-imported and no model configuration was changed.
+imported and no model configuration was changed. A live bridge check returned
+401 without a bearer token and 200 with its configured token; the forbidden
+`getSaveFile` route returned 404. No write operation was sent.

@@ -3,12 +3,11 @@
 ## Scope and controls
 
 All inference used existing local Ollama servers. The x1 laptop hosted only the
-isolated browser and agent containers; no model was loaded there. Every game is
-a test game; the retained shared browser profile is persistent test state, not
-a production game. Benchmark trials did not modify that shared profile, save,
-or model settings. Each run got a new copy of the same disposable Bitburner
-profile with the Remote API visibly Online. No trial shared game progress with
-another trial.
+isolated browser and agent containers; no model was loaded there. Every game
+is a test game. The retained shared browser profile is persistent test state;
+benchmark trials did not modify that profile, save, or model settings. Each
+run got a new copy of the same disposable Bitburner profile with the Remote API
+visibly Online. No trial shared game progress with another trial.
 
 The scored runs used the same objective, browser and restricted Remote API
 tools, 16,384-token context, temperature 0.2, seed 7, one session, and the same
@@ -667,3 +666,27 @@ for the model. CPU offload was not measured. Detailed trial data, screenshots,
 and the isolated game remain private under
 `local/benchmark-runs/qwen36-pending-run-guard-02/`. The shared persistent
 test profile and Ollama service settings were not modified.
+
+## Run 29 — root-access recovery without income (isolated)
+
+Run 29b repeated the clean-seed objective with Qwen3.6:35b Q4_K_M, 16,384
+context, `think=false`, temperature 0.2, seed 7, and a 16-action / 20-minute
+bound. The isolated game began at $1.262k and Hacking 1. Qwen authored and
+deployed `hack.js`, but its first execution failed because n00dles had no root
+access. After four repeated dialog-dismissal calls and an invalid `nuke
+n00dles` Terminal command, it authored and ran `nuke.js`. Visible output
+confirmed `NUKE.exe executed on n00dles`; the final visible Terminal scan
+reported root access. The model then redeployed equivalent `hack.js` instead of
+running it, and exhausted its action budget. No money-making script execution
+or income was confirmed: the visible balance remained $1.262k and hacking
+remained level 1. The model's completion response was not accepted.
+
+The run took 7m36s and used 16 Ollama responses: 141,922 prompt tokens,
+3,318 completion tokens, and 442.4 seconds summed response time (27.65s mean,
+28.11s median). It had zero tool transport failures and four game/tool errors.
+Across 101 hardware samples, all four GPUs reached 100% utilization; VRAM
+peaked at 7,575, 5,059, 6,211, and 5,675 MiB. Ollama reported 23.05 GB of
+model VRAM allocation and 16,384 context. CPU offload was not measured. Private
+artifacts remain under `local/benchmark-runs/qwen36-run29b/`. This failure
+shows that root-access recovery is possible, but the model did not carry the
+recovery through to executing its income script.
