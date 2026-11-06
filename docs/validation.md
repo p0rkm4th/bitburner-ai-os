@@ -22,7 +22,7 @@ This document records measured results only. A running container alone does not 
 | Remote live viewer | Passed (tunnel path) | noVNC page and internal VNC connection respond. A workstation SSH tunnel successfully reached both the health API and noVNC page; verify live game display during an agent session remains pending. |
 | Core statistics update | Pending | The dashboard observation endpoint now returns a live rendered game UI summary and container RAM usage/limit. The model has not yet created and run a Netscript statistics display. |
 | Browser/container restart preserves progress | Passed (profile data) | After a container recreate, Chromium reopened the same persistent profile and the game showed the existing character HUD and offline-progress summary. |
-| Checkpoint durability and agent lifecycle | Test-game service source `e3a1a62` deployed; 154/154 tests passed | Coverage includes stop, overlap prevention, pause/resume, interruption and terminal-state recovery, atomic checkpoints, stagnation, bounded inference, restricted Remote API actions, guide loading, modal handling, terminal error reporting, stale editor guidance removal, repeat-run protection, constrained in-game `.js` copying, RAM rejection recovery, current API lookup, dialog detection, tutorial controls, verified money progress, malformed baseline rejection, and session-number continuity after stop. The pinned runtime image suite passed before deployment; the updated image was rebuilt on the VM with network disabled. |
+| Checkpoint durability and agent lifecycle | Test-game service source `c2379de` deployed; 156/156 tests passed | Coverage includes stop, overlap prevention, pause/resume, interruption and terminal-state recovery, atomic checkpoints, stagnation, bounded inference, restricted Remote API actions, guide loading, modal handling, terminal error reporting, stale editor guidance removal, repeat-run protection, constrained in-game `.js` copying, RAM rejection recovery, current API lookup, dialog detection, tutorial controls, verified money progress, malformed baseline rejection, session-number continuity after stop, and delayed Terminal observation/duplicate protection. The pinned runtime image suite passed before deployment; the updated image was rebuilt on the VM with network disabled. |
 | Auto-resume and session continuation | Deployed test-game service preserves operator stop; isolated benchmarks remain bounded | Every isolated trial used `AUTO_RESUME=0` and `MAX_SESSIONS=1`; step and time budgets varied by trial and are recorded in [model-benchmark.md](model-benchmark.md). Each trial was launched explicitly and its disposable containers were removed after a terminal result. The deployed test-game service retains `AUTO_RESUME=1` and `MAX_SESSIONS=0`; its persisted `operator_stopped` state was preserved across the update. |
 | Local model gameplay benchmark | Eight isolated Qwen trials demonstrated verified income; extended autonomy and BitNode progression remain unverified | Runs 17, 19, 20, 22, 23, 25, 28, and 34 demonstrated income; Runs 18, 21b, 24, 26, and 27 did not. Run 34 recovered from a visible Netscript runtime error and verified a corrected script's contribution to a $287 post-correction money increase. Run 27 exposed the prior-PID collision fixed in the current candidate. The exact `qwen3.8:27b-q4_K_M` tag is now present in the local model catalog but remains unscored; no gameplay generation has been run with it. See [model-benchmark.md](model-benchmark.md). |
 | Qwen client-options retest | Inference reliability improved; gameplay recovery failed | An isolated same-seed Qwen3.6:35b trial used explicit 16,384 context and `think=false`; all 11 requests completed without timeout (82,576 prompt and 3,025 completion tokens; 18.4–32.6 seconds/request). Qwen authored and deployed a script, but its first execution failed for lack of root access. After an authored revision, the next run returned the same old line-10 runtime error. The saved DOM shows the modal heading split into `RUNTIME` and `ERROR`; the detector required contiguous text at the time. A regression fix now normalizes visible whitespace before matching. No income or progress is claimed for this trial. Isolated artifacts remain private under ignored `local/benchmark-runs/`. |
@@ -635,3 +635,25 @@ listeners remained loopback-only. A read-only call to the deployed helper
 returned the checkpoint's saved session number, 1. No agent session, inference
 request, or game action was started during rollout. The next explicit start was
 not invoked, so no new inference session number is claimed.
+
+## Terminal observation reliability deployment — commit `c2379de` (2026-11-06)
+
+The Terminal helper now waits up to 2.5 seconds after Enter for a fresh rendered
+command echo or a recognized UI result. On timeout it reports that the command
+may have executed and blocks a blind duplicate. Delayed-render and timeout
+regression cases passed in the 156/156 pinned runtime suite. Before deployment,
+the shared test game was `operator_stopped` at session 2 / 16 steps. A full
+persistent-data archive passed gzip validation at
+`/opt/bitburner-agent/backups/data-before-c2379de-20261106T082512Z.tar.gz`
+(SHA-256 `2661d13b19bc0c5ba08051414392e5115d4886e9e5fea4afa76099d149cd6af3`),
+and rollback image `bitburner-agent:rollback-before-c2379de` retained the prior
+image (`sha256:2d7fc86d704743850343bf167bd3e62f0e04ed6aba63a092ebbc2306240d362e`).
+The source archive was built on the VM with network access disabled; only the
+agent and restricted Remote API bridge were recreated, with the same persistent
+data mount and private configuration. Post-deploy, health reports
+`operator_stopped`, session 2 / 0 steps, and browser ready. The rendered game
+still shows Remote API Online; `AUTO_RESUME=1`; noVNC returns HTTP 200; and
+dashboard/noVNC listeners remain loopback-only. The deployed image is
+`sha256:7c7a9745c4b20d777aa7c59d9f12d897b9d1de105a8defa8eed7e3e888ff9fac`.
+No agent session or inference request was started during rollout. Gameplay has
+not yet validated this helper change.
