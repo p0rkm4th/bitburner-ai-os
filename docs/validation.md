@@ -940,3 +940,24 @@ profile reopened behind its offline-progress modal; the modal total is not
 counted as balance or income. No inference or gameplay action ran during this
 deployment. Live modal-transition behavior and independent script repair remain
 unverified until the next bounded local-model trial.
+
+## Dynamic-RAM recovery guidance deployment — commit `21b9749` (2026-11-06)
+
+The on-demand troubleshooting lookup now routes dynamic/runtime RAM errors to
+the focused RAM recovery notes. They direct the agent to compare visible RAM
+allocation and usage, inspect the named API functions, consult the live API
+documentation, and verify a later run. A regression test checks this route.
+The network-disabled full suite passes 177/177.
+
+The release was deployed while the test agent was `operator_stopped`. Before
+recreating the agent and restricted Remote API bridge, the persistent data
+directory was archived and gzip-validated, and the previous image was tagged
+for rollback. Postflight verified the deployed source hashes, `AUTO_RESUME=1`,
+16 steps per session, unlimited configured session count, 16,384 context,
+browser readiness, Remote API health, and noVNC HTTP 200. Runtime remains
+`operator_stopped` at session 12 / 0 steps. The browser restored its existing
+profile. Its current offline-progress modal shows `$8.910` aggregate offline
+generation; this is not treated as the current balance or attributable income.
+No inference or gameplay action ran during deployment. A coordinated bounded
+recovery trial is still required to verify that the model can diagnose the
+runtime RAM failure and achieve attributable income.
