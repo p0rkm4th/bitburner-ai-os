@@ -1531,3 +1531,28 @@ verified matching runtime source, browser readiness, Remote API Online,
 loopback dashboard/noVNC HTTP 200, and preserved `operator_stopped` state with
 `AUTO_RESUME=1`. No inference was started during rollout; this guard still needs
 a bounded gameplay trial.
+
+### Bounded follow-up gameplay sessions 35–36 (2026-11-06)
+
+Session 35 resumed the existing test-game task on Qwen3.6:35b for 12 tool
+actions. Qwen read `hack_n00dles_v2.js`, deployed a model-authored revision,
+ran the prior revision visibly, received the rendered `ns.getSecurityLevel is
+not a function` error, consulted live Netscript reference material, and
+deployed another revision using the referenced security-level API. It then
+called `done` without running that latest revision. The action history contains
+no visible run after the final deployment, so the completion claim is rejected.
+
+Session 36 attempted to continue the pending run. After dismissing the error
+dialog, it repeated documentation and file-read calls; the pending-run guard
+returned `NO_PROGRESS` for both and the operator stopped the session after 3
+actions. The latest visible HUD was $79.975k / hacking 158, while the existing
+`hack_n00dles.js` continued printing successful thefts. These values cannot be
+attributed to the revised script. No income, progression, or successful run of
+the corrected revision was demonstrated.
+
+Across both sessions, Ollama recorded 16 responses, 122,708 prompt tokens,
+3,986 completion tokens, and 380.372 seconds summed request time. Session 35's
+13 responses took 318.841 seconds summed; session 36's 3 responses took 61.531
+seconds. The new passive-observation guard did not itself get a repeat case in
+this run; its behavior remains covered by the 195 passing tests but is not yet
+live-validated.

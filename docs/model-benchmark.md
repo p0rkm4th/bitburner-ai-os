@@ -1403,3 +1403,33 @@ HUD showed $72.160k and hacking 157; this change is not attributed to Qwen.
 The `serverinfo` guard was not exercised in this trial. The per-session limit
 shown to Qwen was 16, so the eight-action instruction depended on operator
 monitoring and was exceeded by one step before the emergency stop.
+
+### Sessions 35–36 — reference-guided repair without verified rerun (2026-11-06)
+
+Session 35 resumed from the retained test-game checkpoint with Qwen3.6:35b,
+16K context, temperature 0.2, and seed 7. It dismissed a visible dialog,
+inspected running processes, read `hack_n00dles_v2.js`, deployed its own
+revision, and ran it visibly. The rendered runtime error was
+`ns.getSecurityLevel is not a function`. Qwen submitted that exact error to
+`game_troubleshoot`, queried the live reference for `getServerSecurityLevel`,
+and deployed another model-authored revision. It then used the `done` tool
+without running that latest deployment; the completion claim was unsupported.
+The operator stopped the supervisor after 12 tool actions / 13 Browser Use
+steps.
+
+Session 36 resumed with a six-action cap and the pending-run instruction. After
+closing the visible error dialog, Qwen repeated the already answered API
+lookup and attempted to read the script. The pending-run guard rejected both
+with `NO_PROGRESS` because the latest verified deployment had not been run.
+The operator stopped after 3 actions. The latest rendered HUD showed $79.975k
+and hacking 158, but the pre-existing `hack_n00dles.js` continued producing
+visible theft output; no amount or progression is attributed to the revised
+script. The updated code has not yet demonstrated successful execution or
+income.
+
+Combined telemetry: 16 Ollama responses, 122,708 prompt tokens, 3,986
+completion tokens, and 380.372 seconds summed request time. Session 35 used 13
+responses / 318.841 seconds; session 36 used 3 / 61.531 seconds. Session 35
+recorded 12 tool calls, 0 thrown tool failures, and 2 game errors. Session 36
+recorded 3 tool calls, 0 thrown failures, and 2 game errors. No model winner
+or gameplay acceptance is claimed from this result.
