@@ -520,3 +520,23 @@ gameplay or inference request was started. The visible game presented its
 offline-progress dialog after restart. Source hashes in the running image
 matched the deployed release for the dialog tool, system prompt, and detailed
 agent guides. No save import or inference-server change was made.
+
+## Gameplay instruction and progress-parser update — commit `aef25b7`
+
+Run 31 showed Qwen attempting to hack before confirming visible root access,
+using an un-awaited Netscript action, and rewriting a deployed script instead
+of running it. The compact session instructions now state these workflow
+prerequisites without supplying a target strategy or script. This release also
+contains the corrected multiline visible-money parser from `43cef04`. The
+pinned offline test image passed **133/133** tests with networking disabled.
+
+Before update, the shared persistent test-game service was confirmed
+`operator_stopped` at session 0 / 0 steps, with the browser ready and Remote
+API Online. A gzip-validated archive of persistent data was retained, and the
+previous agent image was tagged for rollback. Both containers were recreated
+from `aef25b7` with the same data mount and private configuration. Afterward,
+the health API reported `browser_ready`, both containers were running, noVNC
+returned HTTP 200, and visible game UI still reported Remote API Online. The
+service remained `operator_stopped` at session 0 / 0 steps. Prompt and game
+tool source hashes in the image matched the checked-out release. No inference
+request was made, and no Bitburner game is designated as production.
