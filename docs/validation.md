@@ -1110,4 +1110,18 @@ tokens in 149.110 seconds summed request time (18.644 seconds mean). Qwen was
 resident; preflight showed 0% GPU utilization and 7.329/5.059/6.201/5.207 GiB
 allocated across four GPUs. No generation peak or CPU offload measurement was
 collected. The concurrent-error modal detector fix has a focused test passing
-locally but is not deployed. No income or gameplay progress is claimed.
+locally. No income or gameplay progress is claimed.
+
+### Detector deployment postflight
+
+Commit `3ad84ba` was deployed to the isolated test VM after creating and
+validating a persistent-data archive and tagging the prior image for rollback.
+Only the agent and restricted Remote API bridge containers were recreated.
+The runtime detector file hash matched the committed deployment source. The
+agent remained explicitly `operator_stopped` at session 18; the persistent
+browser profile and checkpoint were retained. Health reported the browser
+ready, the VNC page returned HTTP 200, and the rendered Bitburner UI still
+showed Remote API Online. Runtime configuration remained `AUTO_RESUME=1`,
+`MAX_STEPS=16`, `MAX_SESSIONS=0`, and `OLLAMA_NUM_CTX=16384`. This validates
+deployment and preservation only; gameplay recovery and income remain
+unverified.
