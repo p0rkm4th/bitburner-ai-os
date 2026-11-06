@@ -913,8 +913,24 @@ in the 176/176 network-disabled suite; live verification still needs a bounded
 model session to close the offline dialog and inspect any newly revealed game
 error.
 
-The task-specific system prompt and compact game guide now explicitly explain
+The task-specific system prompt and compact game guide explicitly explain
 that dismissing one dialog can reveal another. They direct the agent to inspect
 the new visible text before choosing an action. The 177/177 source suite passes;
-this prompt/documentation update is pending deployment with the next safe
-release.
+this prompt/documentation update is deployed in commit `26151ba` below.
+
+## Dialog-recovery prompt deployment — commit `26151ba` (2026-11-06)
+
+The compact game guide, troubleshooting notes, and gameplay instructions now
+tell the agent to inspect a newly revealed dialog instead of repeating the
+previous dismissal. The full 177-test suite passed with networking disabled.
+Before deployment, the persistent test-game data was archived and the previous
+image retained for rollback. The runtime source hashes match the release; only
+the agent and restricted Remote API bridge containers were recreated.
+
+Postflight: health is good, browser ready, `operator_stopped` at session 12 / 0
+steps, `AUTO_RESUME=1`, 16-step session bound, unlimited configured session
+count, 16,384 context, Remote API Online, and noVNC HTTP 200. The same game
+profile reopened behind its offline-progress modal; the modal total is not
+counted as balance or income. No inference or gameplay action ran during this
+deployment. Live modal-transition behavior and independent script repair remain
+unverified until the next bounded local-model trial.
