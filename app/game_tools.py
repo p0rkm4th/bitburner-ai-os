@@ -197,7 +197,7 @@ def find_visible_button_node(dom_state, label: str):
 
 
 def _currency_amount(value: str) -> Optional[float]:
-    match = re.search(r"\$?\s*([\d,.]+)\s*([kmbt]?)", value.strip(), re.IGNORECASE)
+    match = re.fullmatch(r"\s*\$?\s*([\d,]+(?:\.\d+)?)\s*([kmbt]?)\s*", value, re.IGNORECASE)
     if not match:
         return None
     scale = {"": 1, "k": 1_000, "m": 1_000_000,
@@ -226,11 +226,14 @@ def visible_progress(visible: str, baseline_money: Optional[str] = None,
         baseline = baseline if baseline.startswith("$") else f"${baseline}"
         current_amount = _currency_amount(money.group(1))
         baseline_amount = _currency_amount(baseline)
-        comparison = f"Money comparison: current ${money.group(1).strip()}, baseline {baseline}"
+        if baseline_amount is None:
+            lines.append("Money comparison unavailable: baseline_money must be a complete visible currency value such as '$1.262k'.")
+        else:
+            comparison = f"Money comparison: current ${money.group(1).strip()}, baseline {baseline}"
         if current_amount is not None and baseline_amount is not None:
             change = current_amount - baseline_amount
             comparison += f" (change {change:+,.2f})"
-        lines.append(comparison)
+            lines.append(comparison)
     if hacking and baseline_hacking_level is not None:
         delta = int(hacking.group(1)) - baseline_hacking_level
         lines.append(f"Hacking-level change from baseline: {delta:+d}")
@@ -366,13 +369,25 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
 
     @tools.action(description=(
         "Report money, hacking level, and visible script income from the rendered game UI only. "
-        "Optionally compare money text and hacking level with a previous observation; no hidden game state is read."
+        "Optionally compare with a previous observation by passing its complete displayed money value "
+        "(for example '$1.262k') and hacking level. Omit either baseline if uncertain; malformed values are rejected. "
+        "No hidden game state is read."
     ))
     async def game_progress(browser_session: BrowserSession, baseline_money: Optional[str] = None,
                             baseline_hacking_level: Optional[int] = None) -> str:
         try:
             await _page(browser_session)
             visible = await _visible(browser_session)
+            if baseline_money is not None and _currency_amount(baseline_money) is None:
+                return ("ERROR: baseline_money must be copied as one complete visible currency value "
+                        "(for example '$1.262k'), or omitted. No money comparison was made.\n" +
+                        visible_progress(visible, None, baseline_hacking_level) + "\n\n" + visible[-1800:])
+            if (baseline_hacking_level is not None
+                    and (isinstance(baseline_hacking_level, bool) or not isinstance(baseline_hacking_level, int)
+                         or baseline_hacking_level < 0)):
+                return ("ERROR: baseline_hacking_level must be a non-negative integer, or omitted. "
+                        "No hacking-level comparison was made.\n" +
+                        visible_progress(visible, baseline_money, None) + "\n\n" + visible[-1800:])
             if baseline_money is None:
                 stored_baseline = action_state.get("initial_visible_money")
                 if isinstance(stored_baseline, (int, float)):

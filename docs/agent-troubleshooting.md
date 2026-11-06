@@ -5,6 +5,11 @@ procedures, not a prescribed gameplay strategy.
 
 ## Deployment and Netscript errors
 
+- **`game_progress` rejects a baseline:** Copy the whole money value from a
+  recent visible observation (for example, `$1.262k`). If it is uncertain,
+  omit `baseline_money`; the tool will report current visible stats without a
+  comparison. Do not invent or abbreviate a baseline.
+
 - **Remote API offline / `getFile` HTTP 500:** Check `game_observe` for the
   visible Remote API status. Do not repeat reads or deploys while it is Offline.
   Treat a still-offline bridge as an environment blocker; retain the current

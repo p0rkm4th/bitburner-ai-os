@@ -782,12 +782,33 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("change +289.00", result)
         self.assertIn("Hacking level is not visible in this view", result)
 
+    async def test_progress_does_not_render_malformed_baseline_as_money_comparison(self):
+        result = visible_progress("Overview\nMoney $1.838k\nHack 2", ", ", 1)
+        self.assertIn("Money comparison unavailable", result)
+        self.assertNotIn("Money comparison: current", result)
+        self.assertIn("Hacking-level change from baseline: +1", result)
+
     async def test_game_progress_uses_session_money_baseline(self):
         self.action_state["initial_visible_money"] = 1262.0
         self.page.visible = "Overview\nMoney\n[274]<td />\n$1.551k\nHack\n[280]<td />"
         result = await self.actions["game_progress"](self.browser)
         self.assertIn("Money: $1.551k", result)
         self.assertIn("change +289.00", result)
+
+    async def test_game_progress_rejects_malformed_money_baseline_but_returns_visible_stats(self):
+        self.page.visible = "Overview\nMoney\n$1.838k\nHack\n1"
+        result = await self.actions["game_progress"](self.browser, baseline_money=", ")
+        self.assertTrue(result.startswith("ERROR: baseline_money must be copied as one complete visible currency value"))
+        self.assertIn("Money: $1.838k", result)
+        self.assertIn("No money comparison was made", result)
+        self.assertNotIn("baseline $", result)
+
+    async def test_game_progress_rejects_non_integer_hacking_baseline(self):
+        self.page.visible = "Overview\nMoney\n$1.838k\nHack 2"
+        result = await self.actions["game_progress"](self.browser, baseline_hacking_level="1")
+        self.assertTrue(result.startswith("ERROR: baseline_hacking_level must be a non-negative integer"))
+        self.assertIn("Hacking level: 2", result)
+        self.assertIn("No hacking-level comparison was made", result)
 
 
 if __name__ == "__main__":

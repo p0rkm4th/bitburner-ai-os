@@ -866,10 +866,14 @@ output tokens/sec. Ollama `/api/ps` recorded 23.05 GB of VRAM allocation at
 measured because SSH telemetry authentication was unavailable in the test
 workspace. One later `game_progress` call contained a malformed baseline
 argument; the model then verified progress in the rendered Active Scripts UI.
+The follow-up harness change now rejects incomplete currency strings and
+non-integer hacking baselines while preserving the current rendered stats in
+an actionable error response.
 
-The pinned container passed 149/149 offline tests. The separate disposable
+The Run 34 image passed 149/149 offline tests. The separate disposable
 browser-helper test verified one tutorial-page transition, deliberate tutorial
 exit, fresh semantic tab navigation, and visible Terminal `ls`; neither used
-model inference. All Run 34 artifacts, including its exact model digest,
+model inference. After the baseline-validation correction, the current
+candidate passes 152/152 tests. All Run 34 artifacts, including its exact model digest,
 visible observations, action log, and request metrics, remain in ignored local
 storage. The shared persistent test-game profile was not used or changed.
