@@ -867,6 +867,14 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         missing = visible_progress("Terminal is open")
         self.assertIn("unavailable on the current visible screen", missing)
 
+    async def test_offline_progress_amount_is_not_reported_as_player_money(self):
+        modal = ("Offline for 57 seconds. While you were offline: "
+                 "Your scripts generated $20.199. Hacknet nodes generated $0.000.")
+        result = visible_progress(modal, "$71.840k", 156)
+        self.assertIn("Money: unavailable on the current visible screen", result)
+        self.assertNotIn("Money: $20.199", result)
+        self.assertNotIn("Money comparison: current", result)
+
     async def test_progress_parses_multiline_game_hud_and_money_change(self):
         text = "Overview\nMoney\n[274]<td />\n$1.551k\n[275]<td />\nHack\n[280]<td />"
         result = visible_progress(text, "$1,262.00", 1)

@@ -869,3 +869,8 @@ confirmed that `hack_n00dles.js` remains on `home`. The authored script formats
 its custom dollar output with `toFixed(0)`, which rounds sub-dollar hacks to
 `$0`; Bitburner's visible operation log separately showed the fractional
 successful hacks. No script write, gameplay action, or save access occurred.
+
+A regression test now confirms that an offline-progress modal's aggregate
+`Your scripts generated` amount is not parsed as the player's current balance.
+The no-network suite passes 172/172 tests. This is test-only; deployed runtime
+behavior did not change.
