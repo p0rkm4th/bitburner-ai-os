@@ -894,3 +894,21 @@ and the full network-disabled suite pass (176/176). This source change is not
 deployed yet; the existing test-game browser/profile remains intact. Deployment
 and live validation are deferred to a safe boundary before the next gameplay
 session.
+
+## Modal-transition fix deployment — commit `8f996db` (2026-11-06)
+
+The modal-transition helper and regression test were deployed while the agent
+was `operator_stopped`. Before container recreation, the persistent data was
+archived and gzip-validated; the prior agent image was tagged for rollback.
+The updated runtime source hash matches the archived release. Only the agent
+and restricted Remote API bridge containers were recreated.
+
+Postflight: agent health is good, browser is ready, the state remains
+`operator_stopped` at session 12 / 0 steps, Remote API is Online, and noVNC
+returns HTTP 200. The browser reopened the same persistent game profile and
+shows the offline-progress dialog; its displayed aggregate remains excluded
+from balance/income claims. This deploy did not make a gameplay or inference
+request. The modal-transition behavior is covered by a mocked regression test
+in the 176/176 network-disabled suite; live verification still needs a bounded
+model session to close the offline dialog and inspect any newly revealed game
+error.
