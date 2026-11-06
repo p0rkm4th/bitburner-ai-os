@@ -401,6 +401,32 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.page.close_clicks, 1)
         self.assertFalse(self.page.modal)
 
+    async def test_dialog_dismissal_without_visible_modal_is_no_progress(self):
+        self.page.visible = "Bitburner Terminal\nRUNTIME ERROR hack: no root access"
+        result = await self.actions["game_dismiss_dialog"](self.browser)
+        self.assertIn("NO_PROGRESS", result)
+        self.assertIn("no input was sent", result)
+        self.assertIn("Use game_troubleshoot", result)
+        self.assertIn("no root access", result)
+        self.assertEqual(self.page.close_clicks, 0)
+
+    async def test_repeated_dialog_dismissal_after_success_is_rejected(self):
+        self.page.modal = True
+        first = await self.actions["game_dismiss_dialog"](self.browser)
+        self.assertIn("dismissed and verified absent", first)
+        second = await self.actions["game_dismiss_dialog"](self.browser)
+        self.assertIn("NO_PROGRESS", second)
+        self.assertIn("Do not call game_dismiss_dialog again", second)
+        self.assertEqual(self.page.close_clicks, 1)
+
+    async def test_new_visible_dialog_can_be_dismissed_after_prior_dialog(self):
+        self.page.modal = True
+        await self.actions["game_dismiss_dialog"](self.browser)
+        self.page.modal = True
+        second = await self.actions["game_dismiss_dialog"](self.browser)
+        self.assertIn("dismissed and verified absent", second)
+        self.assertEqual(self.page.close_clicks, 2)
+
     async def test_bitburner_mui_presentation_dialog_uses_its_unique_close_button(self):
         self.page.modal = True
         self.page.mui_modal = True

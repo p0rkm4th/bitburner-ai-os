@@ -354,7 +354,7 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
 
     @tools.action(description=(
         "Dismiss one visible in-game dialog using its accessible close control, a unique visible button inside the modal, or Escape, then verify it is gone. "
-        "If it remains, report the blocker; do not retry blindly."
+        "If no dialog is visible, return NO_PROGRESS without sending input. Do not repeat dismissal unless a new visible dialog appears."
     ))
     async def game_dismiss_dialog(browser_session: BrowserSession) -> str:
         signature = None
@@ -364,7 +364,12 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
             modal = await _modal(page, before)
             if not modal:
                 action_state.pop("failed_dialog_signature", None)
-                return "No visible dialog was detected; no input was sent."
+                runtime_error = visible_runtime_error(before)
+                detail = (f" The visible Terminal still contains this error: {runtime_error[:500]} "
+                          "Use game_troubleshoot to diagnose it; do not try to dismiss it again."
+                          if runtime_error else " Choose a different action based on the current visible UI.")
+                return ("NO_PROGRESS: No visible dialog is open, so no input was sent. "
+                        "Do not call game_dismiss_dialog again unless a new visible dialog appears." + detail)
             signature = _dialog_signature(modal, before)
             if action_state.get("failed_dialog_signature") == signature:
                 return ("NO_PROGRESS: The same visible dialog remains after one close attempt. "
@@ -372,6 +377,7 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
             result = await _dismiss_dialog_once(browser_session)
             if result.startswith("Dialog dismissed and verified absent") or "No visible dialog was detected" in result:
                 action_state.pop("failed_dialog_signature", None)
+                result += " Do not call this again unless a new visible dialog appears."
             else:
                 action_state["failed_dialog_signature"] = signature
             return result

@@ -97,10 +97,13 @@ procedures, not a prescribed gameplay strategy.
   named in-game file with `game_terminal` and `cat filename.msg`. If the same
   message reappears, verify whether it is a new message or an unchanged modal
   before dismissing again.
-- **A dialog is visible:** Call `game_dismiss_dialog` once, then `game_observe`.
-  If it reports an actionable failure or the same dialog remains, do not call
-  dismissal again; stop and report the blocker. Do not keep clicking old
-  indexes, reload the page, or run a terminal command through a covered dialog.
+- **A dialog is visible:** Read its visible contents, then call
+  `game_dismiss_dialog` once. If the tool returns `NO_PROGRESS` because there
+  is no dialog, do not call it again; use the visible error with
+  `game_troubleshoot` or choose another useful action. If a dialog remains or
+  the close attempt errors, report the blocker instead of retrying. Do not keep
+  clicking old indexes, reload the page, or run a terminal command through a
+  covered dialog.
 - **Fresh profile shows an offline-progress dialog:** Read its visible game
   earnings and milestones, then dismiss it once with `game_dismiss_dialog`.
   Remote API Online does not mean the dialog is absent. Do not repeat

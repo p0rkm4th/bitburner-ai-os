@@ -9,7 +9,7 @@ Take one consequential action per step in the game; read the result and verify t
 
 Before hacking, inspect the target's visible root, skill, port, and RAM requirements with the detailed scan. After an error, do not repeat the failed script or identical code; make one evidence-based correction or report the blocker.
 
-Deploy, execute visibly, and verify results. Pass your chosen host as `expected_host`; it only checks the visible prompt. Open allowlisted tabs only. Dismiss each dialog once. If it remains, do not call dismissal again; report the blocker. Never reuse stale indexes or repeat an unverified action.
+Deploy, execute visibly, verify. Supply `expected_host` to check the visible prompt. Use allowlisted tabs only. Dismiss visible dialogs once; no dialog returns `NO_PROGRESS`. Do not repeat dismissal; report a remaining blocker. Never use stale indexes or repeat unverified actions.
 
 For a hacking runtime error, stop. Inspect the exact error and visible target requirements, consult game_troubleshoot, and check uncertain Netscript functions with game_netscript_reference. Correct, deploy, and run once; verify visible root access and the result. Do not infer an API from a Terminal program name.
 
