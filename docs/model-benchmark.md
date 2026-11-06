@@ -629,5 +629,41 @@ The source now permits a new visible run of a file when that exact filename is
 the pending read-back-verified deployment, even if an earlier version already
 received a PID. It still rejects an immediate repeat after that deployment's
 visible run. The follow-up is covered by the network-disabled suite (128/128).
-It still needs a new isolated gameplay trial; Run 27 is a failed gameplay trial,
-not a success.
+Run 27 exposed this collision; Run 28 below tests the correction in a fresh
+isolated gameplay trial.
+
+## Run 28 — pending-run recovery and verified income (isolated)
+
+Run 28 used the candidate at commit `a6ae3c3`, Qwen3.6:35b Q4_K_M, a clean
+copy of the same seed and objective, 16,384 context, `think=false`, temperature
+0.2, seed 7, and the same 16-action / 20-minute bounds. The model had verified
+vision and tool capabilities. It completed the bounded objective in 14 actions
+and about 6m38s (03:40:55–03:47:33 UTC).
+
+Qwen authored and deployed `hack_n00dles.js` and visibly ran it. Bitburner
+returned an actual runtime error because n00dles lacked root access. Qwen
+dismissed the dialog, first tried `NUKE.exe` with an argument, and received the
+game's visible explanation that the Terminal program does not accept target
+arguments. It then authored and deployed a revised script, visibly ran it on
+home, and received `Gaining root access to n00dles...`, `Hacking n00dles...`,
+and `Hack complete. Check your money.` The HUD showed $1.262k before the first
+run and $1.551k after the successful run, a visible increase of $289. The
+hacking level remained 1. This is observable model-authored progress; the run
+does not establish a long-running income rate or sustained BitNode progression.
+
+The new pending-deployment guard rejected a premature `tail` attempt and the
+model immediately ran the exact deployed file. Later, the changed-file retry
+passed the prior-PID gate; this is the first isolated run exercising both
+guards end to end. Completion was accepted only after the model reported and
+the visible UI confirmed the balance increase. There were two game errors,
+zero tool failures, zero inference timeouts, and zero Ollama connection
+failures.
+
+The run made 15 Ollama responses (137,229 prompt and 2,963 completion tokens),
+381.45 seconds summed inference time (25.43 seconds mean, 27.26 median, 34.61
+maximum). Across 79 GPU samples, every card reached 100% utilization. Per-card
+VRAM peaks were 7,329, 5,059, 6,201, and 5,207 MiB; Ollama reported 23.05 GB
+for the model. CPU offload was not measured. Detailed trial data, screenshots,
+and the isolated game remain private under
+`local/benchmark-runs/qwen36-pending-run-guard-02/`. The shared persistent
+test profile and Ollama service settings were not modified.
