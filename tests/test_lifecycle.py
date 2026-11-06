@@ -52,6 +52,10 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
             (checkpoints / "runtime.json").write_text(json.dumps({"state": "operator_stopped"}))
             (checkpoints / "latest.json").write_text(json.dumps({"session": 7}))
             self.assertEqual(server.highest_recorded_session(Path(temp), current=3), 7)
+            (checkpoints / "runtime.json").write_text(json.dumps({"state": "failed"}))
+            (checkpoints / "latest.json").write_text(json.dumps({"session": 14}))
+            self.assertEqual(server.highest_recorded_session(Path(temp), current=None), 14)
+            (checkpoints / "latest.json").write_text(json.dumps({"session": 7}))
             (checkpoints / "runtime.json").write_text(json.dumps({"session": "9"}))
             self.assertEqual(server.highest_recorded_session(Path(temp), current=3), 9)
 
@@ -83,6 +87,35 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
                 server.stop_requested = old_stop
                 server.status.clear()
                 server.status.update(old_status)
+
+    async def test_terminal_failure_persists_session_number_and_stays_terminal(self):
+        old_state, old_status = server.STATE, dict(server.status)
+        old_stop = server.stop_requested
+
+        async def failed_agent_run(_objective):
+            server.status.update(state="active", error="two consecutive failed sessions")
+
+        with tempfile.TemporaryDirectory(prefix="bitburner-failed-session-") as temp:
+            server.STATE = Path(temp)
+            (server.STATE / "checkpoints").mkdir()
+            (server.STATE / "logs").mkdir()
+            server.status.update(state="active", objective="recover", session=14, steps=0,
+                                 error="", outcome=None)
+            server.stop_requested = False
+            try:
+                with patch.object(server, "run_agent", side_effect=failed_agent_run), \
+                     patch.dict(os.environ, {"MAX_SESSIONS": "0", "MAX_RETRIES": "1"}):
+                    await server.supervise("recover")
+                runtime = json.loads((server.STATE / "checkpoints" / "runtime.json").read_text())
+                self.assertEqual(runtime["state"], "failed")
+                self.assertEqual(runtime["session"], 15)
+                self.assertEqual(server.status["session"], 15)
+                self.assertFalse(server.startup_resume_allowed("1", runtime["state"], True))
+            finally:
+                server.STATE = old_state
+                server.status.clear()
+                server.status.update(old_status)
+                server.stop_requested = old_stop
 
     def test_verified_money_progress_outcome_is_objective_scoped(self):
         evidence = {"confirmed_script_run": "hack.js", "money_at_script_run": 1262}

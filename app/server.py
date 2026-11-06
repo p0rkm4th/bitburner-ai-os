@@ -1157,7 +1157,7 @@ async def supervise(objective: str) -> None:
                 record("supervisor", f"Stopped after {failures} consecutive failed sessions")
                 status.update(state="failed")
                 save_runtime("failed", error=status["error"], objective=objective,
-                             outcome=status.get("outcome"))
+                             session=number, outcome=status.get("outcome"))
                 break
             delay = min(300, max(10, int(os.getenv("SESSION_DELAY", "60"))) * (2 ** (failures - 1)))
             await asyncio.sleep(delay)
@@ -1356,7 +1356,8 @@ async def auto_resume():
     persisted_state = runtime.get("state")
     if persisted_state in ("operator_stopped", "failed", "exhausted", "completed", "paused"):
         status.update(state=persisted_state, objective=runtime.get("objective", ""), error=runtime.get("error", ""),
-                      session=runtime_session_number(runtime.get("session")), outcome=runtime.get("outcome"))
+                      session=highest_recorded_session(STATE, current=runtime.get("session")),
+                      outcome=runtime.get("outcome"))
         record("supervisor", f"Startup preserved terminal state {persisted_state}")
         return
     objective_file = STATE / "checkpoints" / "objective.json"
