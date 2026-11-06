@@ -1357,3 +1357,24 @@ Ten Ollama responses processed 93,136 prompt and 2,177 completion tokens in
 showed $72.051k and hacking 157. Visible `$4` output belonged to the separate
 `hack_n00dles.js`; aggregate Active Scripts production was not attributed to
 the authored file. No hacking progression or attributable income is claimed.
+
+### Run 49 — unsupported-command loop after guided recovery (2026-11-06)
+
+Qwen3.6:35b resumed the persistent test profile at 14:55:07 UTC with 16K
+context. It dismissed the offline report, opened Active Scripts, listed files,
+checked `mem hack_n00dles_fast.js`, and read that model-authored file through
+the restricted Remote API. It then issued `serverinfo n00dles`, which Bitburner
+rejected as an unknown command. The next two attempts were blocked by the
+no-progress guard, but the model did not consult `game_troubleshoot` or change
+diagnostic method. It did not write, deploy, or run a script, and did not call
+`game_progress()`. The supervisor was emergency-stopped at 14:59:31 UTC after
+8 actions / 8 tool calls. The tool recorded 3 game errors and 0 thrown tool
+failures.
+
+Eight Ollama responses processed 74,884 prompt and 1,663 completion tokens in
+220.594 seconds summed request duration (27.574 seconds mean). The final
+rendered HUD showed $72.105k and hacking 157. The visible `$5` messages were
+from the existing `hack_n00dles.js`; no new balance baseline was available,
+and none of this output is attributed to the file Qwen inspected. No income or
+hacking progress was verified. A small tool-side guard is being added for the
+known unsupported `serverinfo` command so it can no longer reach the game UI.

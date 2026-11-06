@@ -24,6 +24,10 @@ host and arguments, then use `game_read_script` to inspect the source and
 diagnose why the process exited. Do not attribute another script's output to
 the file being tested.
 
+`game_terminal` blocks the known unsupported `serverinfo` command without
+sending browser input. For other `Command … not found` errors, send the exact
+visible text to `game_troubleshoot` before choosing a supported interface.
+
 After a confirmed run, first call `game_progress()` without arguments. It uses
 the balance captured before the latest confirmed run, or the first visible
 session balance. Only pass a manual money or hacking baseline if its complete

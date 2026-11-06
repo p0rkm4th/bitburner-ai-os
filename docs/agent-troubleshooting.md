@@ -57,6 +57,8 @@ procedures, not a prescribed gameplay strategy.
   `game_troubleshoot` with the exact error, then use documented Terminal help,
   the official Documentation page, or a relevant allowlisted page via
   `game_open_tab`.
+  `serverinfo <host>` is not a Bitburner Terminal command; the tool blocks it
+  before sending input.
 - **Target has no root access:** Stop script execution attempts against that
   host. Read the exact runtime error, inspect that host's visible root, hacking
   level, and port requirements, then query this guide and the live API reference

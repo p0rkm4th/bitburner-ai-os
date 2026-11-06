@@ -494,6 +494,13 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("repeat was not sent", second)
         self.assertEqual(self.page.executed_commands, ["help"])
 
+    async def test_terminal_blocks_known_unsupported_serverinfo_command(self):
+        result = await self.actions["game_terminal"]("serverinfo n00dles", self.browser)
+        self.assertTrue(result.startswith("BLOCKED:"))
+        self.assertIn("no Terminal `serverinfo` command", result)
+        self.assertIn("game_troubleshoot", result)
+        self.assertEqual(self.page.executed_commands, [])
+
     async def test_terminal_rejects_connect_to_current_host(self):
         self.page.visible = "Bitburner Terminal\n[n00dles /]> run hack.js"
         result = await self.actions["game_terminal"]("connect n00dles", self.browser)

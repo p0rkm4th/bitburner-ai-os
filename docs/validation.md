@@ -1235,3 +1235,23 @@ pre-run balance. The core and tool guides now direct the agent to call
 `game_progress()` without arguments first and to supply manual values only
 when copied exactly from visible UI. This instructional change is in the
 worktree and will be tested/deployed before the next comparable run.
+
+## Run 49 — guide change did not prevent an unsupported command (2026-11-06)
+
+The updated core guide and default no-argument progress instruction were live
+for this bounded Qwen3.6:35b session. Qwen inspected the Active Scripts page,
+listed files, checked the model-authored script's RAM, and read its source.
+It then sent `serverinfo n00dles`; Bitburner visibly returned `Command
+serverinfo not found.` Qwen repeated the same command twice. The tool blocked
+both repeats, but the model did not consult the troubleshooting tool or choose
+a different action. It never wrote, deployed, or ran a script, and never
+called `game_progress()`. The session ended at 8 actions; the operator stop was
+confirmed at 14:59:31 UTC, and the VM remains `operator_stopped` at session 22.
+
+Ollama recorded 8 responses: 74,884 prompt / 1,663 completion tokens and
+220.594 seconds summed request duration (27.574 seconds mean). The final
+rendered HUD showed $72.105k and hacking 157. Visible `$5` output belonged to
+the separate existing `hack_n00dles.js`. No attributable income or hacking
+progress is verified. The tool now has a local regression change to block the
+known unsupported `serverinfo` Terminal command before browser input; this
+candidate fix still requires full tests and deployment.

@@ -571,6 +571,10 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
             raise ValueError("Enter one permitted, non-empty game Terminal command on a single line (no chaining, downloads, or deletion)")
         if normalized_command.casefold().startswith("scp ") and not IN_GAME_SCP.fullmatch(normalized_command):
             raise ValueError("Use the documented in-game copy syntax `scp filename.js server` with a simple .js filename and server name")
+        if re.fullmatch(r"serverinfo(?:\s+\S+)?", normalized_command, re.IGNORECASE):
+            return ("BLOCKED: Bitburner has no Terminal `serverinfo` command; no browser input was sent. "
+                    "Do not retry it. Send the exact error to `game_troubleshoot`, then choose a supported "
+                    "visible game or documented Terminal interface.")
         run_match = RUN_COMMAND.fullmatch(command)
         run_filename = run_match.group(1).casefold() if run_match else None
         connect_match = CONNECT_COMMAND.fullmatch(normalized_command)
@@ -728,6 +732,7 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         "Recognized offline-progress, message, and script runtime-error dialogs are dismissed once before acting; in that case the command is not sent and their visible text is returned. "
         "If the tutorial blocks a command, return BLOCKED and say it was not executed; use game_tutorial only by explicit choice. "
         "An identical consecutive Terminal command and a connection request to the already visible current server are rejected as NO_PROGRESS. "
+        "The known unsupported `serverinfo` Terminal command is blocked before sending input. "
         "Use `scp filename.js server` only for the documented in-game copy operation; it cannot access the host filesystem. "
         "Use `cat filename.txt` to inspect a simple in-game text report that the script-only Remote API cannot read."
     ))
