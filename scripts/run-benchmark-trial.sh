@@ -27,10 +27,22 @@ if ! [[ "$MAX_STEPS" =~ ^[1-9][0-9]*$ && "$MAX_SESSION_SECONDS" =~ ^[1-9][0-9]*$
   exit 2
 fi
 if ! [[ "$BENCH_AGENT_PORT" =~ ^[1-9][0-9]{0,4}$ && "$BENCH_VNC_PORT" =~ ^[1-9][0-9]{0,4}$ ]] || \
-   ((BENCH_AGENT_PORT > 65535 || BENCH_VNC_PORT > 65535)); then
+   ((BENCH_AGENT_PORT > 65535 || BENCH_VNC_PORT > 65535 || BENCH_AGENT_PORT == BENCH_VNC_PORT)); then
   echo "BENCH_AGENT_PORT and BENCH_VNC_PORT must be valid nonzero TCP ports" >&2
   exit 2
 fi
+python3 - "$BENCH_AGENT_PORT" "$BENCH_VNC_PORT" <<'PY'
+import socket, sys
+for port in map(int, sys.argv[1:]):
+    sock = socket.socket()
+    try:
+        sock.bind(("127.0.0.1", port))
+    except OSError:
+        print(f"Loopback port {port} is already in use; choose unused BENCH_AGENT_PORT and BENCH_VNC_PORT before starting a trial.", file=sys.stderr)
+        raise SystemExit(2)
+    finally:
+        sock.close()
+PY
 if ! [[ "$BENCH_OLLAMA_TIMEOUT" =~ ^[1-9][0-9]{0,2}$ ]] || ((BENCH_OLLAMA_TIMEOUT < 60 || BENCH_OLLAMA_TIMEOUT > 240)); then
   echo "BENCH_OLLAMA_TIMEOUT must be between 60 and 240 seconds" >&2
   exit 2

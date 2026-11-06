@@ -501,6 +501,9 @@ state directory in ignored `local/` records. Run three trials per eligible
 model sequentially. Never reuse trial state, modify the shared persistent test
 profile, or expose private endpoint mappings in committed records. See
 `scripts/run-benchmark-trial.sh`.
+The runner checks that its agent and VNC loopback ports are distinct and unused
+before contacting Ollama or starting containers; choose fresh port values when
+another isolated trial still owns the defaults.
 
 For a controlled Qwen thinking-mode comparison, leave `OLLAMA_THINK` unset for
 the model default or set it to `false` (or `true`) for an explicit Ollama chat
