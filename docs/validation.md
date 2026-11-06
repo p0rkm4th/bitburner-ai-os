@@ -1326,3 +1326,21 @@ tokens, and 122.342 seconds summed request duration (17.477 seconds mean).
 The local inference service had no competing queued or in-flight requests at
 preflight. After the explicit stop, the test agent remained `operator_stopped`
 and inference requests returned to zero.
+
+### Pending-run repeat detection fix — `e56062b`
+
+Run 51 showed that equivalent blocked Terminal commands were not normalized as
+the same pending-run failure because the recognizer only matched errors
+returned by the deployment tool. The recognizer now canonicalizes the
+deployed-but-not-run guard regardless of which tool returns it. A regression
+test covers two different Terminal listings and confirms they count as a
+repeated failure. The full suite passed **187/187** in a network-disabled
+container before rollout and again against the candidate image on the VM.
+
+The change was deployed while the agent was operator-stopped at session 24.
+A gzip-validated archive of the persistent data and a rollback image were
+retained. Postflight confirms the candidate source hash matches the runtime,
+`MAX_STEPS=8`, the agent remains operator-stopped, the browser is ready, the
+Remote API is Online, and dashboard/noVNC both return HTTP 200. Tartarus had no
+active requests. No game session or inference was started during rollout; the
+fix has not yet been exercised in a subsequent gameplay session.
