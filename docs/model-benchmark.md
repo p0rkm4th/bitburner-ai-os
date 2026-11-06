@@ -1241,3 +1241,10 @@ read-only observation the rendered HUD showed `$71.947k` and hacking level
 attributed to the new script. A prior script's `$1` log line was visible, but
 it cannot be attributed to this run. Explicit stop persisted
 `operator_stopped` at session 16; no continuation was started.
+
+A read-only observation at 12:55:31 UTC showed `$71.949k` versus `$71.947k`
+at 12:48:50. The terminal also displayed `$0`/`$1` result lines from
+`hack_n00dles.js` and positive PIDs for the new script. This $2 displayed
+change is not attributed: the observation interval had no clean baseline,
+multiple scripts may be involved, and the new script's second runtime error
+was not verified as resolved.
