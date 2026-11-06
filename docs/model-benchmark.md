@@ -1317,3 +1317,22 @@ the corrected run. At the end, the visible HUD showed about $71.983k and level
 attributed to `hack_n00dles_fast.js`. No hacking-level progression or verified
 income from the model-authored script is claimed. Runtime remains
 `operator_stopped`; in-game scripts may continue independently of the agent.
+
+### Run 47 — repeated tail command after script exit (2026-11-06)
+
+With the enum-constrained navigation schema deployed, Qwen3.6:35b resumed the
+test game from 14:10 to 14:13:32 UTC at 16,384 context. It dismissed the
+offline-progress dialog, used Terminal to inspect the file and list home, then
+launched `hack_n00dles_fast.js` (visible PID 3). A subsequent `tail` reported
+that no matching script was running on home. Qwen repeated the identical tail
+command; the no-progress guard rejected it, and the operator stopped the
+session at 7 actions / 7 tool calls. Metrics show 2 game errors, 0 failed
+infrastructure calls, and 8 Ollama responses.
+
+Those responses processed 75,112 prompt and 1,352 completion tokens in
+188.024 seconds summed request time (23.503 seconds mean). The visible HUD
+later showed $72.012k and hacking 157, without a session-start balance. The
+visible `$0` and `$3` hack messages were labeled `hack_n00dles.js`; no income
+from the model-authored file or hacking progression is verified. The model
+did not inspect Active Scripts or diagnose why its launched process exited.
+The schema change was deployed, but Run 47 did not exercise `game_open_tab`.
