@@ -1344,3 +1344,42 @@ retained. Postflight confirms the candidate source hash matches the runtime,
 Remote API is Online, and dashboard/noVNC both return HTTP 200. Tartarus had no
 active requests. No game session or inference was started during rollout; the
 fix has not yet been exercised in a subsequent gameplay session.
+
+## Run 52 — checkpoint continuation and runtime-error repair (2026-11-06)
+
+The checkpoint continuation used local Qwen3.6:35b at 16K context on the same
+test game. Across sessions 25–27, the model recovered its own missing Netscript
+entry-point error and deployed a corrected revision, but did not execute that
+revision. No income or hacking-level change is attributed to it.
+
+In session 25, Qwen resumed the pending deployment, corrected
+`hack_n00dles_v2.js` to export `main(ns)`, and redeployed it. Its first visible
+run attempt failed with Bitburner's `cannot be run because it does not have a
+main function` error. The model corrected the source, but used its eighth and
+final action to call `done`; the completion guard rejected the claim because
+the latest deployment was still pending execution. Runtime reported 8 tool
+calls, 1 failed call, and 2 game errors. Browser Use's saved conversation shows
+its maximum-step page offered only `done` as the final action.
+
+The supervisor then made its configured bounded retry. Session 26 inspected
+progress and repeated a blocked Terminal `tail`; session 27 repeated a blocked
+script read. The pending-run guard prevented those actions, and the
+no-progress/session-failure limits eventually set the runtime to terminal
+`failed` at session 27. It will not automatically resume after restart.
+
+Across the three sessions, 16 Ollama responses processed 105,988 prompt and
+3,238 completion tokens in 298.547 seconds summed request time. The latest
+rendered game observation showed $72.430k and hacking level 158, but the output
+belonged to pre-existing `hack_n00dles.js`; no post-correction launch, output,
+baseline comparison, or income attribution was verified. The visible PID
+confirmation was from the earlier version that Bitburner then rejected, not
+from the corrected revision. The `done` success report was not accepted.
+
+Tartarus inference was released after the terminal failure; no requests remain
+active. This run demonstrates model-authored code repair and deployment, plus
+bounded checkpoint recovery, but not successful execution or income. The
+8-action limit was insufficient for this recovery path: one action repeated a
+dialog dismissal after the dialog was already closed, followed by host
+correction, runtime-error handling, code repair, and deployment. Revisit the
+session action budget or reduce avoidable dialog actions before another
+comparable trial.
