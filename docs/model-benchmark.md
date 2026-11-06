@@ -505,3 +505,67 @@ the model default or set it to `false` (or `true`) for an explicit Ollama chat
 parameter. The runner validates and records this setting. This option is
 benchmark-only unless deliberately configured elsewhere; results must confirm
 that the selected model honors it before treating it as a distinct condition.
+
+## Run 24 — Qwen3.6 client-options recovery retest (isolated)
+
+Run 24 replayed the clean Run 23 profile and objective with `qwen3.6:35b`
+Q4_K_M (35.5B), explicit 16,384 context, thinking disabled, temperature 0.2,
+and seed 7. It ran 11 of 16 available actions over about 4m56s and made 11
+inference requests: 82,576 prompt tokens and 3,025 completion tokens. Request
+latency ranged 18.4–32.6s; there were no inference timeouts or malformed
+responses. The Ollama process endpoint reported the requested 16,384 context
+after model load (two early samples still showed the pre-existing 65,536
+runner); model VRAM allocation peaked at about 20.5 GiB. GPU utilization
+sampling was unavailable in this run, and CPU offload was not measured.
+
+The model inspected the visible server scan, independently authored and
+deployed `hack-n00dles.js`, and ran it. Bitburner visibly rejected the first
+run because `n00dles` lacked root access. The model then authored a revision
+using the live game's root-access API and deployed it. Its next `run` result
+was the same previous `hack-n00dles.js:L10` runtime error, despite the new
+contents. The final visible DOM confirmed a runtime-error modal whose heading
+was split across `RUNTIME` and `ERROR`. The modal matcher had checked for the
+contiguous phrase, failed to classify the stale modal, and allowed its contents
+to be read as the new command result. A whitespace-normalization fix and a
+regression test now cover this exact UI rendering. The model did not establish
+root, verified execution of the revision, income, or measurable progression;
+this run is a gameplay failure, not an income result.
+
+Trial logs, seed profile, and deployment configuration remain private and
+ignored under `local/benchmark-runs/qwen36-prod-options-02/`. The trial used a
+disposable browser/game profile and did not touch production or change any
+Ollama server settings.
+
+## Run 25 — Qwen split-line modal recovery (isolated)
+
+Run 25 repeated the clean Run 23 starting profile and bounded income objective
+with `qwen3.6:35b` Q4_K_M, context 16,384, thinking disabled, temperature 0.2,
+and seed 7. The trial used the modal whitespace-normalization fix validated by
+123 automated tests. It completed 16 actions in 6m51s, making 16 model requests
+with 132,239 prompt tokens, 3,091 completion tokens, and 399.5 seconds summed
+inference time (25.0s mean; 24.2s median). No request timed out or returned a
+malformed response. Ollama reported 16,384 context across the sampled run and
+peak model VRAM allocation of 21.46 GiB. All 81 remote GPU samples were
+available; utilization was 0% during the samples recorded, though other
+resident models occupied VRAM. CPU offload was not measured.
+
+Qwen inspected visible files, authored and deployed `hack.js`, and ran it. The
+visible runtime dialog reported that the first hack lacked root access. With
+the split-line detector fixed, it dismissed the dialog and received the old
+error as a diagnostic instead of mistaking it for a new run result. It first
+tried an invalid Terminal `nuke` command, then independently revised and
+redeployed the script to call `ns.nuke`. The visible Tail window confirmed
+`NUKE.exe` granted root and subsequently showed successful n00dles hacks for
+$288.750 and $287.553, each with 3.300 experience. The visible overview showed
+money increasing from $1.262k to $1.838k (+$576). PID 2 remained active at
+completion; no hacking-level increase was recorded (level 1 at start and end).
+The bounded objective completed successfully.
+
+The agent used five calls that were classified as game errors, including
+repeated dialog dismissal, the invalid Terminal command, and a repeated `tail`
+command that the no-progress guard correctly blocked. It recovered within the
+same session without operator guidance or supplied code. The first successful
+hack output was visible by 5m13s after session start. Trial configuration,
+conversation traces, screenshots/DOM observations, and hardware samples remain
+private and ignored under `local/benchmark-runs/qwen36-modal-fix-01/`. This
+trial did not use or modify the production profile or Ollama server settings.

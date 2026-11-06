@@ -96,7 +96,13 @@ class OllamaThinkOptionTests(unittest.TestCase):
         }
         with patch.dict(os.environ, env, clear=True):
             get_model()
-        self.assertEqual(measured.call_args.kwargs["ollama_options"]["think"], False)
+        self.assertEqual(measured.call_args.kwargs["ollama_options"], {
+            "num_ctx": 16384,
+            "temperature": 0.2,
+            "seed": 7,
+            "keep_alive": "30m",
+            "think": False,
+        })
 
     @patch("app.server.MeasuredChatOllama")
     def test_benchmark_model_preserves_default_options_when_think_is_unset(self, measured):
@@ -115,11 +121,31 @@ class OllamaThinkOptionTests(unittest.TestCase):
         })
 
     @patch("app.server.ChatOllama")
-    def test_default_model_keeps_constructor_defaults(self, chat_model):
+    def test_production_model_receives_explicit_bounded_context_and_parameters(self, chat_model):
         env = {"OLLAMA_BASE_URL": "http://ollama:11434", "OLLAMA_MODEL": "qwen3.6:35b"}
         with patch.dict(os.environ, env, clear=True):
             get_model()
-        self.assertNotIn("ollama_options", chat_model.call_args.kwargs)
+        self.assertEqual(chat_model.call_args.kwargs["ollama_options"], {
+            "num_ctx": 16384,
+            "temperature": 0.2,
+            "seed": 7,
+            "keep_alive": "30m",
+        })
+
+    @patch("app.server.ChatOllama")
+    def test_production_model_receives_think_override_with_other_options(self, chat_model):
+        env = {"OLLAMA_BASE_URL": "http://ollama:11434", "OLLAMA_MODEL": "qwen3.6:35b",
+               "OLLAMA_THINK": "false", "OLLAMA_NUM_CTX": "16384", "OLLAMA_TEMPERATURE": "0.0",
+               "OLLAMA_SEED": "42", "OLLAMA_KEEP_ALIVE": "5m"}
+        with patch.dict(os.environ, env, clear=True):
+            get_model()
+        self.assertEqual(chat_model.call_args.kwargs["ollama_options"], {
+            "num_ctx": 16384,
+            "temperature": 0.0,
+            "seed": 42,
+            "keep_alive": "5m",
+            "think": False,
+        })
 
 
 if __name__ == "__main__":

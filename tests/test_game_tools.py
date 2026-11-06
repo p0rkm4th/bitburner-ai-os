@@ -291,10 +291,11 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_terminal_dismisses_visible_runtime_error_once_before_next_command(self):
         self.page.modal = True
-        self.page.visible = "RUNTIME ERROR\nscript crashed\nScript: home.js\nPID: 1"
+        # The live game's accessible DOM presents the heading across two lines.
+        self.page.visible = "RUNTIME\nERROR\nscript crashed\nScript: home.js\nPID: 1"
         result = await self.actions["game_terminal"]("ps", self.browser)
         self.assertTrue(result.startswith("NO_PROGRESS:"))
-        self.assertIn("RUNTIME ERROR", result)
+        self.assertIn("RUNTIME\nERROR", result)
         self.assertIn("requested action was not performed", result)
         self.assertFalse(self.page.modal)
         self.assertEqual(self.page.executed_commands, [])

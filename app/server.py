@@ -543,17 +543,15 @@ def get_model() -> ChatOllama:
     base = os.environ["OLLAMA_BASE_URL"].rstrip("/")
     model = os.environ["OLLAMA_MODEL"]
     timeout = float(os.getenv("OLLAMA_TIMEOUT", "180"))
-    think_options = ollama_think_options()
+    options = {"num_ctx": int(os.getenv("OLLAMA_NUM_CTX", "16384")),
+               "temperature": float(os.getenv("OLLAMA_TEMPERATURE", "0.2")),
+               "seed": int(os.getenv("OLLAMA_SEED", "7")),
+               "keep_alive": os.getenv("OLLAMA_KEEP_ALIVE", "30m")}
+    options.update(ollama_think_options())
+    client_type = ChatOllama
     if os.getenv("OLLAMA_METRICS_PATH"):
-        options = {"num_ctx": int(os.getenv("OLLAMA_NUM_CTX", "16384")),
-                   "temperature": float(os.getenv("OLLAMA_TEMPERATURE", "0.2")),
-                   "seed": int(os.getenv("OLLAMA_SEED", "7")),
-                   "keep_alive": os.getenv("OLLAMA_KEEP_ALIVE", "30m")}
-        options.update(think_options)
-        return MeasuredChatOllama(model=model, host=base, timeout=timeout, ollama_options=options)
-    if think_options:
-        return ChatOllama(model=model, host=base, timeout=timeout, ollama_options=think_options)
-    return ChatOllama(model=model, host=base, timeout=timeout)
+        client_type = MeasuredChatOllama
+    return client_type(model=model, host=base, timeout=timeout, ollama_options=options)
 
 
 def ollama_think_options() -> dict:

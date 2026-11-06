@@ -37,7 +37,10 @@ async def _visible(browser_session: BrowserSession) -> str:
 
 
 def _known_game_modal(visible: str) -> bool:
-    text = visible.casefold()
+    # Bitburner renders its runtime-error heading as separate DOM text nodes
+    # (often `RUNTIME\nERROR`). Normalize whitespace before recognizing it so
+    # the presentation-shell modal is not mistaken for ordinary page content.
+    text = re.sub(r"\s+", " ", visible).casefold()
     return (("offline for" in text and "your scripts generated" in text)
             or ("message received from" in text and "message was saved" in text)
             or ("runtime error" in text and "script:" in text and "pid:" in text))

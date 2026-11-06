@@ -42,7 +42,7 @@ The optional agent actions are `game_read_script`, `game_deploy_script`, and `ga
 
 ## Inference
 
-Set `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, and `INFERENCE_NODE` in the private `.env` file. Use “Check inference” to inspect `/api/tags`; it does not generate text. The actual inference request must be tested before selecting a model for unattended play.
+Set `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, and `INFERENCE_NODE` in the private `.env` file. The harness passes `OLLAMA_NUM_CTX` (16,384 by default), temperature, seed, keep-alive, and optional `OLLAMA_THINK` to both normal and measured clients; when `OLLAMA_METRICS_PATH` is set it records token counts and timings without prompts or outputs. `deployment/env.example` contains the reproducible Qwen baseline values. Use “Check inference” to inspect `/api/tags`; it does not generate text. The actual inference request must be tested before selecting a model for unattended play.
 
 `MAX_STEPS` bounds each agent session (default 16); `MAX_SESSIONS=0` allows the supervisor to continue until a configured stop condition. `MAX_HISTORY_ITEMS` and `CHECKPOINT_PROMPT_LIMIT` keep continuation prompts compact. `LLM_TIMEOUT`, `STEP_TIMEOUT`, and `OLLAMA_TIMEOUT` bound slow local inference calls; defaults allow up to 150 seconds for a model response within a 180-second step. Tune these values in the private `.env` when the model needs more room or inference latency requires shorter sessions.
 
