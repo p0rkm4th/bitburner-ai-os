@@ -1191,3 +1191,18 @@ showed $72.012k and hacking 157, but no fresh starting balance was recorded.
 Visible `$0`/`$3` output belonged to `hack_n00dles.js`. No attributable income,
 hacking progression, or working autonomous script from this run is claimed.
 The new tab enum was deployed, but this trial did not call `game_open_tab`.
+
+### Post-Run 47 terminal-recovery deployment
+
+The `game_terminal` result now preserves the exact “no script named … is
+running” game text and adds a bounded next step: inspect Active Scripts/`ps` or
+read the listed source, without repeating `tail`. `game_troubleshoot` maps this
+error to active-process guidance. The focused regression tests and full
+185-test suite passed in the project container. Commit `82c83e4` was deployed
+after a validated profile archive and rollback image tag. Runtime hashes match
+for the tool implementation, docs retriever, and bundled guides. Postflight
+retained `operator_stopped` at session 20, browser ready, Remote API Online,
+VNC HTTP 200, AUTO_RESUME=1, MAX_STEPS=16, MAX_SESSIONS=0, and 16K context.
+The restored page showed an offline-progress dialog reporting `$6.428` from
+scripts during 19 seconds offline. Profile persistence is confirmed; that
+aggregate amount is not attributed to the model-authored file.
