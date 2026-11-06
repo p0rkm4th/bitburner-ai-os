@@ -1085,10 +1085,10 @@ zero framework failures and seven game/tool errors, including transient DOM
 fragments and the repeat guard. The agent is `operator_stopped`; the legitimate
 Netscript process remains active in the preserved test game. No token/latency
 telemetry was persisted for this deployed session. The run demonstrates
-independent authoring, deployment, visible execution, RAM-error recovery, and a
-successful hacks, but does not yet meet the visible balance-delta acceptance
-criterion. The next check should observe the existing script and HUD without
-starting another inference session or changing the game state.
+independent authoring, deployment, visible execution, RAM-error recovery, and
+successful hacks. It does not establish how much of the displayed `$2` HUD
+increase came from this script. The next check should observe the existing
+script and HUD without changing the game state.
 
 The run exposed a repetition-detection gap: identical rejected `NO_PROGRESS`
 actions kept receiving a new failure signature while the background script
@@ -1096,5 +1096,9 @@ changed visible log text. The harness now ignores changing DOM text for an
 explicit `NO_PROGRESS` result while still keying on the attempted tool action
 and rejection; a different action resets the streak. A regression test covers
 the live pattern. The 171-test suite passes in a no-network test container.
-This fix is not yet deployed because the model-authored game script remains
-active in the shared test profile; a later deployment must preserve that state.
+The fix was deployed in commit `6018a62` after archiving the test profile and
+retaining a rollback image. Postflight preserved `operator_stopped`, browser
+readiness, and Remote API Online. Restart reopened the saved script-log UI
+alongside an offline-progress modal; its amount is not treated as current
+balance or attributable income. A short visible verification continuation is
+pending coordination for the shared inference slot.

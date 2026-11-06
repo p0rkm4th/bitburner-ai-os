@@ -849,5 +849,17 @@ actions were assigned new failure signatures whenever background game output
 changed the DOM. The harness now ignores that DOM churn for explicit
 `NO_PROGRESS` failures while still keying on the action and rejection. A
 focused regression test was added; all 171 tests pass in a no-network
-container. The fix is not deployed yet because the model-authored game script
-is still active in the preserved test game.
+container.
+
+### Repeat-guard deployment — commit `6018a62`
+
+The tested `NO_PROGRESS` signature fix was deployed to the existing test-game
+VM. A complete persistent-data archive and rollback image were retained; only
+the agent and restricted Remote API bridge containers were recreated.
+Postflight confirmed the source matched the release, `operator_stopped`
+persisted, the browser was ready, Remote API was Online, and noVNC returned
+HTTP 200. The reopened browser showed the saved script-log UI and an
+offline-progress modal. Its generated-since-offline amount is not treated as
+current balance or as earnings from the model-authored script. Management
+listeners remain loopback-bound. A short visible verification continuation is
+pending coordination for the shared inference slot.
