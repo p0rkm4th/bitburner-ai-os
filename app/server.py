@@ -23,13 +23,13 @@ from pydantic import BaseModel, Field
 try:  # Package import for tests, flat import for the deployment image.
     from .agent_docs import load_core_guide, register_agent_doc_tools
     from .agent_prompt import BITBURNER_SYSTEM_PROMPT
-    from .game_tools import register_game_tools, visible_runtime_error
+    from .game_tools import _modal, find_visible_tab_node, register_game_tools, visible_runtime_error
     from .remote_api_tools import (deployment_guard_checkpoint, register_remote_api_tools,
                                    remote_api_from_env, restore_deployment_guard)
 except ImportError:
     from agent_docs import load_core_guide, register_agent_doc_tools
     from agent_prompt import BITBURNER_SYSTEM_PROMPT
-    from game_tools import register_game_tools, visible_runtime_error
+    from game_tools import _modal, find_visible_tab_node, register_game_tools, visible_runtime_error
     from remote_api_tools import (deployment_guard_checkpoint, register_remote_api_tools,
                                   remote_api_from_env, restore_deployment_guard)
 
@@ -639,9 +639,88 @@ def archive_native_save(source: Path) -> tuple[str, int]:
         raise
 
 
+def visible_control_by_text(dom_state, label: str):
+    matches = []
+    for node in getattr(dom_state, "selector_map", {}).values():
+        if not getattr(node, "is_visible", False):
+            continue
+        if " ".join(str(node.get_all_children_text()).split()) == label:
+            matches.append(node)
+    return matches[0] if len(matches) == 1 else None
+
+
+async def _request_periodic_game_export_locked() -> Optional[tuple[str, int]]:
+    """Export a native save through the visible game UI when the agent is idle."""
+    if (shared_browser is None or os.getenv("VNC_INTERACTIVE", "0") == "1" or
+            status.get("state") in ("running", "paused") or
+            (runner is not None and not runner.done()) or
+            (agent_run_task is not None and not agent_run_task.done())):
+        return None
+    page = await shared_browser.get_current_page()
+    if page is None or "bitburner-official.github.io" not in await page.get_url():
+        return None
+    state = await shared_browser.get_browser_state_summary(include_screenshot=False)
+    visible = state.dom_state.llm_representation()
+    if await _modal(page, visible):
+        if "offline for" not in visible.casefold() or "your scripts generated" not in visible.casefold():
+            return None
+        tools = Tools()
+        register_game_tools(tools, action_state={})
+        dismiss = tools.registry.registry.actions["game_dismiss_dialog"]
+        dismissed = await dismiss.function(params=dismiss.param_model(), browser_session=shared_browser)
+        if not str(dismissed).startswith("Dialog dismissed and verified absent"):
+            return None
+        record("backup", "Acknowledged visible offline-progress dialog before scheduled native export")
+        state = await shared_browser.get_browser_state_summary(include_screenshot=False)
+        visible = state.dom_state.llm_representation()
+        if await _modal(page, visible):
+            return None
+    already_on_export_page = "Export Game" in visible and "System" in visible
+    if not already_on_export_page:
+        options = find_visible_tab_node(state.dom_state, "Options")
+        if options is None:
+            return None
+        await (await page.get_element(options.backend_node_id)).click()
+        state = await shared_browser.get_browser_state_summary(include_screenshot=False)
+        visible = state.dom_state.llm_representation()
+        system = find_visible_tab_node(state.dom_state, "System")
+        if "Export Game" not in visible and system is not None:
+            await (await page.get_element(system.backend_node_id)).click()
+            state = await shared_browser.get_browser_state_summary(include_screenshot=False)
+            visible = state.dom_state.llm_representation()
+    if "Export Game" not in visible or "System" not in visible:
+        return None
+    export_button = visible_control_by_text(state.dom_state, "Export Game")
+    if export_button is None:
+        return None
+    before = {p.name: p.stat().st_size for p in SAVE_DOWNLOADS.iterdir() if p.is_file()}
+    await (await page.get_element(export_button.backend_node_id)).click()
+    await asyncio.sleep(2)
+    new_exports = [p for p in SAVE_DOWNLOADS.iterdir()
+                   if p.is_file() and NATIVE_SAVE_NAME.fullmatch(p.name) and
+                   (p.name not in before or p.stat().st_size != before[p.name]) and p.stat().st_size > 0]
+    if not new_exports:
+        raise RuntimeError("Visible Export Game click produced no nonempty native save download")
+    if not already_on_export_page:
+        after = await shared_browser.get_browser_state_summary(include_screenshot=False)
+        terminal = find_visible_tab_node(after.dom_state, "Terminal")
+        if terminal is not None:
+            await (await page.get_element(terminal.backend_node_id)).click()
+    return new_exports[0].name, new_exports[0].stat().st_size
+
+
+async def request_periodic_game_export() -> Optional[tuple[str, int]]:
+    """Serialize browser export with agent startup so both can't claim the UI."""
+    async with gate:
+        return await _request_periodic_game_export_locked()
+
+
 async def archive_game_saves() -> None:
     """Archive only stable, Bitburner-named native exports with bounded retention."""
     retention = max(1, min(100, int(os.getenv("SAVE_BACKUP_RETENTION", "30"))))
+    export_interval = max(60, min(7 * 24 * 3600,
+                                  int(os.getenv("SAVE_EXPORT_INTERVAL_SECONDS", "21600"))))
+    next_export = time.monotonic() + export_interval
     seen: dict[str, tuple[int, int]] = {}
     failed: dict[str, tuple[int, int]] = {}
     while True:
@@ -671,6 +750,17 @@ async def archive_game_saves() -> None:
                               key=lambda p: p.stat().st_mtime, reverse=True)
             for old in archives[retention:]:
                 old.unlink(missing_ok=True)
+            if time.monotonic() >= next_export:
+                try:
+                    result = await request_periodic_game_export()
+                    if result:
+                        record("backup", f"Triggered periodic visible game save export {result[0]} ({result[1]} bytes)")
+                        next_export = time.monotonic() + export_interval
+                    else:
+                        next_export = time.monotonic() + min(export_interval, 900)
+                except Exception as exc:
+                    record("warning", f"Periodic visible game save export failed: {type(exc).__name__}")
+                    next_export = time.monotonic() + min(export_interval, 900)
         except Exception as exc:
             record("warning", f"Game-save backup watcher error: {type(exc).__name__}")
             log.exception("Game-save backup watcher failed")

@@ -125,6 +125,39 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(server.scoped_goal_completion_confirmed(
             "Create and verify a money-making script", {}))
 
+    def test_periodic_export_control_requires_one_fresh_visible_exact_match(self):
+        class Node:
+            def __init__(self, label, visible=True):
+                self.label = label
+                self.is_visible = visible
+
+            def get_all_children_text(self):
+                return self.label
+
+        visible = Node("Export Game")
+        state = type("DomState", (), {"selector_map": {1: visible, 2: Node("Export Game", False)}})()
+        self.assertIs(server.visible_control_by_text(state, "Export Game"), visible)
+        state.selector_map[3] = Node("Export Game")
+        self.assertIsNone(server.visible_control_by_text(state, "Export Game"))
+        self.assertIsNone(server.visible_control_by_text(state, "Import Game"))
+
+    async def test_periodic_export_defers_while_agent_or_interactive_viewer_is_active(self):
+        old_browser, old_runner, old_child = server.shared_browser, server.runner, server.agent_run_task
+        old_state = server.status["state"]
+        try:
+            server.shared_browser = object()
+            server.runner = None
+            server.agent_run_task = None
+            server.status["state"] = "running"
+            with patch.dict(os.environ, {"VNC_INTERACTIVE": "0"}):
+                self.assertIsNone(await server.request_periodic_game_export())
+            server.status["state"] = "active"
+            with patch.dict(os.environ, {"VNC_INTERACTIVE": "1"}):
+                self.assertIsNone(await server.request_periodic_game_export())
+        finally:
+            server.shared_browser, server.runner, server.agent_run_task = old_browser, old_runner, old_child
+            server.status["state"] = old_state
+
     async def test_supervisor_persists_bounded_done_as_completed(self):
         old_state, old_status, old_stop = server.STATE, dict(server.status), server.stop_requested
         with tempfile.TemporaryDirectory(prefix="bitburner-completion-test-") as temp:

@@ -24,7 +24,7 @@ This document records measured results only. A running container alone does not 
 | Guided Qwen Run 16 (historical) | Failed; no verified income | An isolated `qwen3.6:35b` trial authored and ran `hack-n00dles.js`, but Bitburner returned a visible no-root runtime error. The model authored a revision using `ns.nuke` but did not run it; it repeated dialog dismissal six times and hit two 180-second inference timeouts. Runs 17 and 19 later demonstrated income; Run 18 failed before execution. See [model-benchmark.md](model-benchmark.md) for the subsequent results. |
 | Deterministic visible UI helpers | Passed (disposable integration check) | A fresh semantic label opened Create Program, dismissed a known offline dialog once, and returned actual visible Terminal `ls` output in a copied test profile. Unit tests cover ambiguous targets, runtime-error dialogs, and visible transitions. |
 | Tiny local UI-action model | Not run; not integrated | Laya and Fast Browser Use were reviewed for license, capabilities, runtime, and fit. No weights or dependencies were installed. A model was already loaded on shared local inference during this work, so no competing request was started. Neither candidate has Bitburner live-page results; see [ui-action-model-evaluation.md](ui-action-model-evaluation.md). |
-| VM backup/snapshot and scheduled backup | Partial (native export, archive, and isolated restore verified; periodic export trigger remains open) | A Proxmox rollback snapshot exists and the VM is included in the existing scheduled backup. The native archive worker validated and retained a production export, and an isolated native export was restored into a separate test profile. The worker archives exports but does not yet trigger periodic exports from the game UI. |
+| VM backup/snapshot and scheduled backup | Partial (native export, archive, isolated restore, and disposable periodic trigger verified) | A Proxmox rollback snapshot exists and the VM is included in the existing scheduled backup. The native archive worker validated and retained a production export; isolated native export/restore passed. The candidate source now triggers a visible native export while idle and archives it in a disposable test, but is not deployed to production. |
 | Management exposure and isolation | Passed (configuration) | UFW defaults to deny inbound and allows SSH only from the management LAN. Dashboard and VNC bind to guest loopback, container drops all capabilities and sets `no-new-privileges`; tunnel access uses SSH. |
 
 The production service starts the existing persistent Chromium profile and opens the official game on container startup. After an agent-container recreation, the restricted bridge sidecar had to be recreated too because it shares the agent container's network namespace; the visible Remote API then reconnected and showed Online. A prior one-session Qwen gameplay attempt ran uninterrupted to its 15-step `done` result. It deployed and ran model-authored scripts but did not earn money; the first script targeted an invalid host, and diagnostic output was not retrieved. Production progress from earlier model-authored scripts remains documented above. A fresh read-only check on 2026-11-05 found the production agent terminally failed at session 0 / 0 steps while the game still showed Remote API Online; the persistent browser profile and save were left untouched. No production service or VM restart, agent restart, profile edit, or model-setting change was made. The new Run 19 income evidence came only from its disposable profile; its isolated image has not been deployed to production. Deployment-specific host, VM, model endpoint, and address details remain in ignored local records. Live emergency-stop acceptance remains pending.
@@ -370,4 +370,21 @@ reported one archived export. No save was imported into production, no agent
 inference was started, and the existing browser profile and active game scripts
 were left running. Production runtime remained terminally failed at session 0 / 0
 steps. The archive worker currently waits for exports; it does not yet generate
-them periodically, so scheduled native export generation remains open.
+them periodically. The later isolated periodic-trigger test below closes that
+source-validation gap; deployment to production remains pending.
+
+## Periodic native export trigger test (2026-11-06)
+
+The updated candidate image ran against a disposable copy of the Run 23 browser
+profile with `AUTO_RESUME=0`, no inference endpoint configured, a 60-second
+export interval, no host-published ports, and bounded container resources. The
+browser opened the official game and the worker acknowledged the visible
+offline-progress dialog once. It then used the visible Options → System → Export
+Game control and recorded the downloaded native save (`bitburnerSave_…_BN1x1.json.gz`,
+10,229 bytes). After the stability window, the worker archived it; the test
+instance's backup API reported one archive and `gzip -t` passed. The instance
+remained stopped with zero gameplay steps and was removed after the test. This
+validates the scheduled trigger and archive path in isolation. It has **not**
+been deployed to production; the existing production profile and running
+services were not touched. The rebuilt deployment image passed all 122 tests in
+a network-disabled run before this disposable browser test.
