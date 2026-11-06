@@ -2,7 +2,7 @@
 
 This document records measured results only. A running container alone does not mean the system has passed acceptance.
 
-**Game scope:** Every Bitburner instance used so far is a test game. The retained shared browser profile is a persistent test profile, not a production game. Historical references below to a “production game/profile” mean that persistent test profile; “production deployment” refers to the deployed service and VM only. No production game exists or is being played.
+**Game scope:** There is no production game. Every Bitburner instance, including the game on the deployed VM, is a test game. The retained shared browser profile is the persistent test profile. Older uses of “production” refer only to the deployed service or VM, never to a separate production game or save.
 
 | Acceptance item | Result | Evidence |
 |---|---|---|
@@ -22,29 +22,29 @@ This document records measured results only. A running container alone does not 
 | Remote live viewer | Passed (tunnel path) | noVNC page and internal VNC connection respond. A workstation SSH tunnel successfully reached both the health API and noVNC page; verify live game display during an agent session remains pending. |
 | Core statistics update | Pending | The dashboard observation endpoint now returns a live rendered game UI summary and container RAM usage/limit. The model has not yet created and run a Netscript statistics display. |
 | Browser/container restart preserves progress | Passed (profile data) | After a container recreate, Chromium reopened the same persistent profile and the game showed the existing character HUD and offline-progress summary. |
-| Checkpoint durability and agent lifecycle | Production commit `53d398e` deployed; 123 tests passed | Existing tests cover stop, overlap prevention, pause/resume, interruption recovery, terminal-state recovery, atomic checkpoints, stagnation, bounded inference, restricted Remote API actions, guide path resolution, modal handling, terminal error reporting, removal of stale editor guidance, cosmetic redeployment detection, repeat-run protection, constrained in-game `.js` copying, RAM rejection recovery, model reference lookup, persistence of the pending script-run guard across sessions, stable pending-run signatures across changing source/UI with reset after a successful diagnostic, visible progress verification after a duplicate observation, same-host `connect` rejection with different-host connection preserved, multiline runtime-error reporting, delayed runtime-error metrics, and reporting verified money progress when the agent omits its final report. Commit `53d398e` passed all 123 tests in a network-disabled container on the deployed VM using temporary state; it adds regression coverage for Bitburner runtime-error headings split across DOM lines. |
-| Auto-resume and session continuation | Production unchanged; benchmark runs isolated | Every isolated trial used `AUTO_RESUME=0` and `MAX_SESSIONS=1`; step and time budgets varied by trial and are recorded in [model-benchmark.md](model-benchmark.md). Each trial was launched explicitly and its disposable containers were removed after a terminal result. Production auto-resume and its persistent objective were not changed by these trials. |
+| Checkpoint durability and agent lifecycle | Test-game service source `ed08cb1` deployed; 128 tests passed | Existing tests cover stop, overlap prevention, pause/resume, interruption recovery, terminal-state recovery, atomic checkpoints, stagnation, bounded inference, restricted Remote API actions, guide path resolution, modal handling, terminal error reporting, removal of stale editor guidance, cosmetic redeployment detection, repeat-run protection, constrained in-game `.js` copying, RAM rejection recovery, model reference lookup, persistence of the pending script-run guard across sessions, stable pending-run signatures across changing source/UI with reset after a successful diagnostic, visible progress verification after a duplicate observation, same-host `connect` rejection with different-host connection preserved, multiline runtime-error reporting, delayed runtime-error metrics, and reporting verified money progress when the agent omits its final report. Commit `53d398e` passed all 123 tests in a network-disabled container on the deployed VM using temporary state; it adds regression coverage for Bitburner runtime-error headings split across DOM lines. |
+| Auto-resume and session continuation | Deployed test-game service preserves operator stop; isolated benchmarks remain bounded | Every isolated trial used `AUTO_RESUME=0` and `MAX_SESSIONS=1`; step and time budgets varied by trial and are recorded in [model-benchmark.md](model-benchmark.md). Each trial was launched explicitly and its disposable containers were removed after a terminal result. The deployed test-game service retains `AUTO_RESUME=1` and `MAX_SESSIONS=0`; its persisted `operator_stopped` state was preserved across the update. |
 | Local model gameplay benchmark | Seven isolated Qwen trials demonstrated verified income; extended autonomy and terminal-state reporting remain unreliable | Runs 17, 19, 20, 22, 23, 25, and 28 demonstrated income; Runs 18, 21b, 24, 26, and 27 did not. Run 28 exercised the pending-deployment gate, recovered from a root-access error, and verified a $289 increase. Run 27 exposed the prior-PID collision fixed in the current candidate. Qwen3.8 remains unscored because the exact tag is not installed on the local inference endpoint. See [model-benchmark.md](model-benchmark.md). |
 | Qwen client-options retest | Inference reliability improved; gameplay recovery failed | An isolated same-seed Qwen3.6:35b trial used explicit 16,384 context and `think=false`; all 11 requests completed without timeout (82,576 prompt and 3,025 completion tokens; 18.4–32.6 seconds/request). Qwen authored and deployed a script, but its first execution failed for lack of root access. After an authored revision, the next run returned the same old line-10 runtime error. The saved DOM shows the modal heading split into `RUNTIME` and `ERROR`; the detector required contiguous text at the time. A regression fix now normalizes visible whitespace before matching. No income or progress is claimed for this trial. Isolated artifacts remain private under ignored `local/benchmark-runs/`. |
 | Guided Qwen Run 16 (historical) | Failed; no verified income | An isolated `qwen3.6:35b` trial authored and ran `hack-n00dles.js`, but Bitburner returned a visible no-root runtime error. The model authored a revision using `ns.nuke` but did not run it; it repeated dialog dismissal six times and hit two 180-second inference timeouts. Runs 17 and 19 later demonstrated income; Run 18 failed before execution. See [model-benchmark.md](model-benchmark.md) for the subsequent results. |
 | Deterministic visible UI helpers | Passed (disposable integration check) | A fresh semantic label opened Create Program, dismissed a known offline dialog once, and returned actual visible Terminal `ls` output in a copied test profile. Unit tests cover ambiguous targets, runtime-error dialogs, and visible transitions. |
 | Tiny local UI-action model | Not run; not integrated | Laya and Fast Browser Use were reviewed for license, capabilities, runtime, and fit. No weights or dependencies were installed. A model was already loaded on shared local inference during this work, so no competing request was started. Neither candidate has Bitburner live-page results; see [ui-action-model-evaluation.md](ui-action-model-evaluation.md). |
-| VM backup/snapshot and scheduled backup | Partial (production periodic exporter deployed; first scheduled production trigger pending) | A Proxmox rollback snapshot exists and the VM is included in the existing scheduled backup. Native export/archive and isolated restore passed. The periodic visible UI export and archive path passed in a disposable profile and is now deployed; its first six-hour production trigger has not yet been observed. |
+| VM backup/snapshot and scheduled backup | Partial (shared test-game periodic exporter deployed; first scheduled exporter trigger pending) | A Proxmox rollback snapshot exists and the VM is included in the existing scheduled backup. Native export/archive and isolated restore passed. The periodic visible UI export and archive path passed in a disposable profile and is now deployed; its first six-hour scheduled trigger has not yet been observed. |
 | Management exposure and isolation | Passed (configuration) | UFW defaults to deny inbound and allows SSH only from the management LAN. Dashboard and VNC bind to guest loopback, container drops all capabilities and sets `no-new-privileges`; tunnel access uses SSH. |
 
-The production service starts the existing persistent Chromium profile and opens the official game on container startup. After an agent-container recreation, the restricted bridge sidecar had to be recreated too because it shares the agent container's network namespace; the visible Remote API then reconnected and showed Online. A prior one-session Qwen gameplay attempt ran uninterrupted to its 15-step `done` result. It deployed and ran model-authored scripts but did not earn money; the first script targeted an invalid host, and diagnostic output was not retrieved. Production progress from earlier model-authored scripts remains documented above. A fresh read-only check on 2026-11-05 found the production agent terminally failed at session 0 / 0 steps while the game still showed Remote API Online; the persistent browser profile and save were left untouched. No production service or VM restart, agent restart, profile edit, or model-setting change was made. The new Run 19 income evidence came only from its disposable profile; its isolated image has not been deployed to production. Deployment-specific host, VM, model endpoint, and address details remain in ignored local records. Live emergency-stop acceptance remains pending.
+The deployed test-game service starts the existing persistent Chromium profile and opens the official game on container startup. After an agent-container recreation, the restricted bridge sidecar had to be recreated too because it shares the agent container's network namespace; the visible Remote API then reconnected and showed Online. A prior one-session Qwen gameplay attempt ran uninterrupted to its 15-step `done` result. It deployed and ran model-authored scripts but did not earn money; the first script targeted an invalid host, and diagnostic output was not retrieved. Shared test-game progress from earlier model-authored scripts remains documented above. A fresh read-only check on 2026-11-05 found the deployed agent service was terminally failed at session 0 / 0 steps while the game still showed Remote API Online; the persistent browser profile and save were left untouched. No deployed service or VM restart, agent restart, profile edit, or model-setting change was made. The new Run 19 income evidence came only from its disposable profile; its isolated image has not been deployed to the shared test-game service. Deployment-specific host, VM, model endpoint, and address details remain in ignored local records. Live emergency-stop acceptance remains pending.
 
 Do not mark this project complete until each required acceptance item has reproducible evidence or a documented infrastructure blocker.
 
-## Latest production update
+## Earlier deployed-service update (historical)
 
 The latest deployed code fixes two harness defects found during the guided production attempt. First, the official Remote API can return a generic HTTP 500 when `getFile` checks for a script that does not exist; deployment now permits the write only for that exact missing-file response, then requires exact read-back and live RAM calculation. Second, Browser Use automatically generated a `navigate` action from the session URL even though navigation is intentionally excluded from the gameplay tool set; the agent now disables that implicit action because the application owns initial page setup. The rebuilt deployment image passed all 61 tests with network access disabled during the test run.
 
-The persistent production profile and checkpoint were retained. A later bounded Qwen session was explicitly stopped after it timed out twice; the API confirmed `operator_stopped`, and the browser/game remained available with Remote API Online. No income or progression is attributed to that session. The production deployment remains at commit `6c77967`; the explicit Ollama client options and split-line modal fix described above are candidate source changes, not yet deployed. The isolated Run 24 profile was disposable and production was not modified.
+The persistent shared test profile and checkpoint were retained. A later bounded Qwen session was explicitly stopped after it timed out twice; the API confirmed `operator_stopped`, and the browser/game remained available with Remote API Online. No income or progression is attributed to that session. The production deployment remains at commit `6c77967`; the explicit Ollama client options and split-line modal fix described above are candidate source changes, not yet deployed. The isolated Run 24 profile was disposable and production was not modified.
 
 The optional tiny UI-action-model review is documented in [ui-action-model-evaluation.md](ui-action-model-evaluation.md). It remains an isolated evaluation and has not been integrated into production; no end-to-end evidence currently shows that it improves gameplay task performance.
 
-The repeated deployment loop led to commits `f66d656` (detect formatting/JSDoc-only script rewrites), `dca9b9b` (reject an immediate repeat of a visibly successful `run` until a diagnostic Terminal command occurs), `9049640` (route RAM errors to concise process guidance), and `d43b229` (allow only the documented in-game `scp filename.js server` form). These are deployed. The official Bitburner getting-started guide documents `scp` for copying scripts to other servers. After the latest update, the game itself confirmed $3.764 of script-generated offline earnings and later reported `$30.463` of script generation in an offline-progress dialog; the live HUD subsequently showed $25.516k / Hacking 17. The agent's later retry failed because 1.70 GB was unavailable on home, then it connected to `n00dles` and tried to run the home-only file there. The `scp` allowance passed tool tests, but a production round trip is still pending. The supervisor continues from a checkpoint; the production profile and services remain intact. The agent is again spending steps dismissing a visible message dialog and timing out; active-script cleanup remains open. This is evidence of real income generation, but reliable recovery is not yet established. The Tiny UI model would not address the repeated Terminal/dialog reasoning observed so far; no end-to-end A/B result justifies adding it.
+The repeated deployment loop led to commits `f66d656` (detect formatting/JSDoc-only script rewrites), `dca9b9b` (reject an immediate repeat of a visibly successful `run` until a diagnostic Terminal command occurs), `9049640` (route RAM errors to concise process guidance), and `d43b229` (allow only the documented in-game `scp filename.js server` form). These are deployed. The official Bitburner getting-started guide documents `scp` for copying scripts to other servers. After the latest update, the game itself confirmed $3.764 of script-generated offline earnings and later reported `$30.463` of script generation in an offline-progress dialog; the live HUD subsequently showed $25.516k / Hacking 17. The agent's later retry failed because 1.70 GB was unavailable on home, then it connected to `n00dles` and tried to run the home-only file there. The `scp` allowance passed tool tests, but a shared-test-profile round trip was still pending at that point. The supervisor continues from a checkpoint; the shared test profile and services remain intact. The agent is again spending steps dismissing a visible message dialog and timing out; active-script cleanup remains open. This is evidence of real income generation, but reliable recovery is not yet established. The Tiny UI model would not address the repeated Terminal/dialog reasoning observed so far; no end-to-end A/B result justifies adding it.
 
 Session 7 ended in terminal failure after repeated inference timeouts while attempting to dismiss a message modal. The visible dialog had announced that `fl1ght.exe` was added to home and that the message is stored as `j0.msg`. The rendered UI exposed the content and one visible button, but the old modal detector ignored MUI presentation shells except for the offline earnings dialog. The helper now recognizes this exact visible message pattern and requires a unique visible button before it clicks. Commit `079b3d9` is deployed. Before rebuilding, the current browser profile, checkpoints, and logs were backed up and the gzip archive was verified. Both services are healthy after recreation; the persistent profile remains present, and the visible game reports Remote API Online.
 
@@ -77,7 +77,7 @@ evaluation and recommendation are in [ui-action-model-evaluation.md](ui-action-m
 
 At the latest read-only production check, the agent service had a terminal
 `failed` state with no active session, the browser was ready, and the in-game
-Remote API showed Online. The production profile and model configuration were
+Remote API showed Online. The shared test profile and model configuration were
 left intact. The isolated trials do not meet the income acceptance criterion;
 autonomous gameplay remains unverified.
 
@@ -130,7 +130,7 @@ persistent browser profile and prior pre-deploy archives remain intact, but a
 game-native export/isolated restore test is still outstanding. No new production
 session was started. The configured node was subsequently restarted and used
 for an isolated Qwen trial; this does not establish that the production VM's
-inference route was rechecked or that production gameplay resumed.
+inference route was rechecked or that test gameplay resumed.
 
 ## Isolated seed and completion-gate correction (2026-11-05)
 
@@ -140,7 +140,7 @@ directory as the Chromium user-data root, so the game opened as a fresh tutorial
 with Remote API disconnected. The runner correctly refused to spend inference.
 I reconfigured a separate disposable profile through the visible Bitburner
 Options UI, saved using the game, recreated its browser session, and verified
-Remote API Online in both sessions. The production profile was not used.
+Remote API Online in both sessions. The shared test profile was not used.
 
 An isolated local `gemma4:e4b` (8B, Q4_K_M) trial then wrote and deployed
 scripts but did not achieve income. The first run ended after 6 steps: it made
@@ -176,7 +176,7 @@ Ollama endpoint responding. The model catalog listed `qwen3.6:35b`; `/api/show`
 reported completion, vision, tools, and thinking capabilities. Before the run,
 `/api/ps` showed no loaded model and the available accelerator devices were
 idle. A disposable copy of the saved seed showed Remote API Online before
-inference. No production profile or service was used.
+inference. No shared test profile or service was used.
 
 Run 12 ended exhausted after 10 Browser Use history steps (10-step cap; 15-
 minute session cap). On Bitburner v3.0.1, Qwen queried `ns.hack`, authored and
@@ -366,17 +366,17 @@ import it showed $3.461k / Hack 1 and an offline-progress message reporting
 $220.624 in script earnings. The screenshot and source profile are retained
 only in ignored local test artifacts.
 
-The same visible Export Game action was then performed once in production,
+The same visible Export Game action was then performed once in the shared test game,
 while the browser was already on Options → System. It generated a 15,971-byte
 native save; the production service remained up and the browser stayed on the
 same game page. The archive worker validated the gzip and moved it from
 `/state/saves` into its bounded backup store. The read-only backup API then
-reported one archived export. No save was imported into production, no agent
+reported one archived export. No save was imported into the shared test game, no agent
 inference was started, and the existing browser profile and active game scripts
 were left running. Production runtime remained terminally failed at session 0 / 0
 steps. The archive worker currently waits for exports; it does not yet generate
 them periodically. The later isolated periodic-trigger test below closes that
-source-validation gap; deployment to production remains pending.
+source-validation gap; deployment to the shared test-game service remains pending.
 
 ## Periodic native export trigger test (2026-11-06)
 
@@ -390,8 +390,8 @@ Game control and recorded the downloaded native save (`bitburnerSave_…_BN1x1.j
 instance's backup API reported one archive and `gzip -t` passed. The instance
 remained stopped with zero gameplay steps and was removed after the test. This
 validates the scheduled trigger and archive path in isolation. It has **not**
-been deployed to production; the existing production profile and running
-services were not touched. The rebuilt deployment image passed all 122 tests in
+not yet been deployed to the shared test-game service at that point; the
+shared test profile and running services were not touched. The rebuilt deployment image passed all 122 tests in
 a network-disabled run before this disposable browser test.
 
 ## Production deployment of periodic export and lifecycle fix (2026-11-06)
@@ -419,7 +419,7 @@ deployed with a six-hour default; its first scheduled production trigger is
 still pending. No save was imported and no model or inference-server setting
 was changed.
 
-## Latest deployed service update — commit `53d398e`
+## Historical deployed service update — commit `53d398e`
 
 The production agent was already `operator_stopped` before deployment. The game
 had a visible active script, so the existing browser profile was backed up
@@ -477,3 +477,23 @@ $1.262k to $1.551k (+$289). The full task ended `completed` after 14 actions,
 with two game errors, zero tool failures, and no inference timeout. Hacking
 level remained 1. This demonstrates one successful bounded income objective;
 it does not establish dependable long-term autonomy or BitNode completion.
+
+
+## Latest deployed test-game service update — commit `ed08cb1` (2026-11-06)
+
+The `ed08cb1` source was built and validated in a network-disabled container;
+all 128 tests passed. The previous deployed release remains available as a
+rollback image and source release. Before recreation, the service was
+`operator_stopped`, with no active session, and the browser was ready. The
+agent and restricted Remote API sidecar were recreated from the new release;
+the existing persistent data mount was retained.
+
+After startup, both services were healthy, the dashboard health API reported
+the browser ready, noVNC returned HTTP 200, and the visible game still showed
+Remote API Online. The game displayed its normal offline-progress dialog with
+`Your scripts generated $3.057` during seven seconds offline, confirming that
+the shared test-game save and script progress survived the restart. The agent
+remained `operator_stopped` at session 0 / 0 steps. The effective service
+configuration is `AUTO_RESUME=1`, `MAX_SESSIONS=0`; startup preserved the
+explicit stop, so no gameplay or inference request was started. No save was
+imported and no model configuration was changed.
