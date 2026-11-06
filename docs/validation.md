@@ -1252,6 +1252,12 @@ Ollama recorded 8 responses: 74,884 prompt / 1,663 completion tokens and
 220.594 seconds summed request duration (27.574 seconds mean). The final
 rendered HUD showed $72.105k and hacking 157. Visible `$5` output belonged to
 the separate existing `hack_n00dles.js`. No attributable income or hacking
-progress is verified. The tool now has a local regression change to block the
-known unsupported `serverinfo` Terminal command before browser input; this
-candidate fix still requires full tests and deployment.
+progress is verified. The tool-side regression now blocks the known
+unsupported `serverinfo` Terminal command before browser input. The focused
+regression passed and the full deployment-image suite passed 186/186. Commit
+`a3e4f12` was deployed at the stopped session boundary after archiving the
+persistent test data and retaining a rollback image. Postflight confirms both
+containers healthy, the agent remains operator-stopped at session 22, the
+browser and dashboard are available, the Remote API is Online, and noVNC
+returns HTTP 200. The restored browser shows the game offline-progress dialog;
+no gameplay session was started during deployment.
