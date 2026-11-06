@@ -45,6 +45,45 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("has not increased", server.money_completion_block(objective, True, state, "Money $1.5k"))
         self.assertIsNone(server.money_completion_block(objective, True, state, "Money $1.6k"))
 
+    def test_highest_recorded_session_uses_runtime_checkpoint_and_current_counter(self):
+        with tempfile.TemporaryDirectory(prefix="bitburner-session-number-") as temp:
+            checkpoints = Path(temp) / "checkpoints"
+            checkpoints.mkdir()
+            (checkpoints / "runtime.json").write_text(json.dumps({"state": "operator_stopped"}))
+            (checkpoints / "latest.json").write_text(json.dumps({"session": 7}))
+            self.assertEqual(server.highest_recorded_session(Path(temp), current=3), 7)
+            (checkpoints / "runtime.json").write_text(json.dumps({"session": "9"}))
+            self.assertEqual(server.highest_recorded_session(Path(temp), current=3), 9)
+
+    async def test_start_continues_session_number_from_saved_checkpoint(self):
+        old_state, old_runner, old_child = server.STATE, server.runner, server.agent_run_task
+        old_stop, old_status = server.stop_requested, dict(server.status)
+        async def idle_supervisor(_objective):
+            await asyncio.Event().wait()
+        with tempfile.TemporaryDirectory(prefix="bitburner-start-session-") as temp:
+            server.STATE = Path(temp)
+            checkpoints = server.STATE / "checkpoints"
+            checkpoints.mkdir()
+            (checkpoints / "latest.json").write_text(json.dumps({"session": 8, "state": "active"}))
+            server.runner = None
+            server.agent_run_task = None
+            server.stop_requested = False
+            server.status.update(state="operator_stopped", session=0, steps=0, error="")
+            try:
+                with patch.object(server, "supervise", side_effect=idle_supervisor):
+                    await server.start(server.StartRequest(objective="continue progress"))
+                self.assertEqual(server.status["session"], 8)
+                runtime = json.loads((checkpoints / "runtime.json").read_text())
+                self.assertEqual(runtime["session"], 8)
+            finally:
+                if server.runner and not server.runner.done():
+                    server.runner.cancel()
+                    await asyncio.gather(server.runner, return_exceptions=True)
+                server.STATE, server.runner, server.agent_run_task = old_state, old_runner, old_child
+                server.stop_requested = old_stop
+                server.status.clear()
+                server.status.update(old_status)
+
     def test_verified_money_progress_outcome_is_objective_scoped(self):
         evidence = {"confirmed_script_run": "hack.js", "money_at_script_run": 1262}
         self.assertTrue(server.money_progress_verified(
@@ -238,6 +277,7 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         old_agent, old_child, old_runner = server.agent, server.agent_run_task, server.runner
         fake = FakeAgent()
         server.agent = fake
+        server.status["session"] = 6
         async def run():
             await fake.stopped.wait()
         server.agent_run_task = asyncio.create_task(run())
@@ -248,6 +288,8 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(server.agent_run_task is None or server.agent_run_task.done())
         self.assertTrue(server.runner is None or server.runner.done())
         self.assertEqual(server.status["state"], "operator_stopped")
+        runtime = json.loads((server.STATE / "checkpoints" / "runtime.json").read_text())
+        self.assertEqual(runtime["session"], 6)
         server.agent, server.agent_run_task, server.runner = old_agent, old_child, old_runner
 
     async def test_new_start_waits_for_previous_agent_run_to_terminate(self):

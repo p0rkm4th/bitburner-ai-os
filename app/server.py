@@ -10,7 +10,7 @@ import re
 import shutil
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import httpx
 from browser_use import Agent, BrowserProfile, BrowserSession, ChatOllama, Tools
@@ -220,6 +220,20 @@ def runtime_session_number(value) -> int:
         return max(0, int(value or 0))
     except (TypeError, ValueError):
         return 0
+
+
+def highest_recorded_session(state_dir: Optional[Path] = None, current: Any = 0) -> int:
+    """Return the highest session number in runtime/checkpoint data without trusting either alone."""
+    root = state_dir or STATE
+    highest = runtime_session_number(current)
+    for path in (root / "checkpoints" / "runtime.json", root / "checkpoints" / "latest.json"):
+        try:
+            data = json.loads(path.read_text())
+        except (OSError, ValueError, TypeError):
+            continue
+        if isinstance(data, dict):
+            highest = max(highest, runtime_session_number(data.get("session")))
+    return highest
 
 
 def browser_task(objective: str, progress: str, current_url: str, game_url: str) -> str:
@@ -1174,8 +1188,9 @@ async def start(req: StartRequest):
         if agent_run_task and not agent_run_task.done():
             raise HTTPException(409, "The previous Agent.run() task is still terminating")
         stop_requested = False
-        status.update(state="active", error="", objective=req.objective, session=0, steps=0, outcome=None)
-        save_runtime("active", objective=req.objective)
+        last_session = highest_recorded_session(current=status.get("session", 0))
+        status.update(state="active", error="", objective=req.objective, session=last_session, steps=0, outcome=None)
+        save_runtime("active", objective=req.objective, session=last_session)
         runner = asyncio.create_task(supervise(req.objective))
     return {"started": True}
 
@@ -1217,7 +1232,7 @@ async def stop():
     global stop_requested
     stop_requested = True
     status["state"] = "operator_stopped"
-    save_runtime("operator_stopped")
+    save_runtime("operator_stopped", session=status.get("session", 0))
     if agent:
         agent.stop()
     child = agent_run_task
