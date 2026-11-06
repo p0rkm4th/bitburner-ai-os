@@ -31,7 +31,7 @@ reasoning tokens. “Session time” is from objective start to supervisor exit;
 | Role | Exact Ollama tag | Weights | Capabilities and license | Placement and availability |
 |---|---|---|---|---|
 | Baseline | `qwen3.6:35b` | 35.5B, Q4_K_M; 23.3 GB model, 23.3 GB reported GPU allocation | Vision and tool support; Apache-2.0 | Deep inference pool; installed and benchmarked |
-| Primary challenger | `qwen3.8:27b-q4_K_M` | 27B Q4_K_M; 16.5 GiB catalog size | Vision and tool support; Apache-2.0 | Read-only Herd catalog check on 2026-11-06 found the exact tag locally available and unloaded. Not scored; no generation or gameplay trial has been performed. |
+| Primary challenger | `qwen3.8:27b-q4_K_M` | 27B Q4_K_M; 16.5 GiB catalog size | Vision and tool support; Apache-2.0 | Read-only local model catalog check on 2026-11-06 found the exact tag available and unloaded. Not scored; no generation or gameplay trial has been performed. |
 | Coding challenger | `devstral-small-2:24b-instruct-2512-q4_K_M` | 24B, Q4_K_M; 15.2 GB model, 18.2 GB reported GPU allocation | Vision and tool support; Apache-2.0 | Deep inference pool; installed and benchmarked |
 | VRAM-sized candidate | `gemma4:12b` | 11.9B, Q4_K_M; 8.7 GB model, 8.7 GB reported GPU allocation | Vision and tool support; Apache-2.0 | Compact inference pool; installed and benchmarked |
 
@@ -939,8 +939,8 @@ The change passed 157 offline tests and was deployed as `667e4ab`; Run 37
 showed that this instruction alone did not stop the model's repeated writes.
 Run 36 did exercise one successful live Terminal action through the updated
 fresh-observation helper (`scan-analyze 2`); it did not reproduce the delayed
-snapshot condition. Tartarus was released after the run; private request traces
-remain under ignored local artifacts.
+snapshot condition. The exclusive inference slot was released after the run;
+private request traces remain under ignored local artifacts.
 
 ## Run 37 — host prompt did not change RAM-retry behavior
 
@@ -1111,9 +1111,9 @@ successes. The file was read only; no game state or script content was changed.
 
 ### Run 40 — bounded visible-state check; RAM error revealed
 
-On 2026-11-06 at 11:10 UTC, after Herd showed zero queued/in-flight requests,
-Tartarus `/api/ps` was empty, all four GPUs were idle, and the VM was
-`operator_stopped`, Qwen3.6:35b received a three-action, five-minute
+On 2026-11-06 at 11:10 UTC, the local inference queue showed no active
+requests, `/api/ps` was empty, all four GPUs were idle, and the VM was
+`operator_stopped`. Qwen3.6:35b then received a three-action, five-minute
 observation-only objective. It made three `game_dismiss_dialog` calls; each
 returned a dialog-remains error. The session was explicitly stopped at 11:11:58
 UTC; status persisted `operator_stopped` at session 12, two completed steps.
@@ -1133,8 +1133,8 @@ This is evidence of a failed home-server attempt. The current balance was not
 visible, so this run establishes no income or balance change. The model did
 not modify, deploy, start, or stop a script. Qwen remained resident under
 Ollama keep-alive after the request; a post-run `/api/ps` sample reported
-23.05 GB VRAM allocated at 16,384 context (not a peak measurement). Tartarus
-was released with no active Herd request. The next gameplay trial should show
+23.05 GB VRAM allocated at 16,384 context (not a peak measurement). The
+inference slot was released with no active request. The next gameplay trial should show
 the model this visible error and let it diagnose and correct its own script
 without supplied code.
 
@@ -1181,8 +1181,9 @@ agent session. This run remains a failure and proves no attributable income.
 
 On 2026-11-06 from 12:25:31 to 12:30:14 UTC, the isolated test game was
 continued with local `qwen3.6:35b` at 16,384 context, capped at eight action
-steps. Preflight showed no queued or in-flight Herd requests, no model loaded
-on Tartarus, and all four GPUs idle. The run used eight model responses,
+steps. Preflight showed no queued/in-flight inference requests, no model loaded
+on the inference host, and all four GPUs idle. The run used eight model
+responses,
 processing 72,435 prompt and 2,066 completion tokens. Summed Ollama request
 duration was 238.785 seconds (29.854 seconds mean elapsed per response); mean
 model-load duration was 1.987 seconds. A post-run idle sample showed 0%
@@ -1224,7 +1225,7 @@ Ollama responses processed 76,863 prompt and 2,212 completion tokens; summed
 request duration was 218.516 seconds (21.857 seconds mean elapsed per
 response). The model was already resident; summed model-load time was 0.039
 seconds. Preflight sampled 0% GPU utilization and 7.329/5.059/6.201/5.207 GiB
-allocated across Tartarus's four GPUs; this was before generation, and no
+allocated across the inference host's four GPUs; this was before generation, and no
 generation-time peak or CPU offload measurement was collected.
 
 The model reran its own earlier file and the deployed modal helper detected

@@ -268,7 +268,7 @@ browser interaction or service restart was performed. Agent events record
 earlier Ollama connection failures. A separate read-only request to the
 configured Ollama `/api/tags` endpoint returned HTTP 200 and listed the
 configured model. This confirms catalog reachability only; no generation
-request was sent after the owner's Ollama/Herd rollout began, so inference
+request was sent after the owner's local inference rollout began, so inference
 success remains unverified. At 15:23 UTC, the latest gameplay guard was
 deployed after a gzip-verified backup of the active profile, checkpoints, logs,
 screenshots, and save archives. The agent and bridge containers were recreated
@@ -1005,8 +1005,8 @@ autonomous Netscript repair; no income has been verified.
 
 ## Run 42 — test-game script attempt and visible error recovery (2026-11-06)
 
-The test VM passed a fresh Tartarus preflight and local `qwen3.6:35b` ran from
-12:25:31 to 12:30:14 UTC with 16,384 context and an eight-action cap. It
+The test VM passed a fresh inference-capacity preflight. Local `qwen3.6:35b`
+ran from 12:25:31 to 12:30:14 UTC with 16,384 context and an eight-action cap. It
 independently inspected memory, stopped the prior script, authored and
 deployed `hack_n00dles_fast.js`, and attempted visible Terminal execution. The
 browser displayed a Bitburner `REFERENCE ERROR` (`ReferenceError: ns is not
@@ -1064,5 +1064,5 @@ attributable income. Ten Ollama responses processed 76,863 prompt and 2,212
 completion tokens in 218.516 seconds summed request duration (21.857 seconds
 mean). The model was resident; preflight sampled 0% GPU utilization and
 7.329/5.059/6.201/5.207 GiB allocated across four GPUs. No generation-time
-peak or CPU offload measurement was collected. Tartarus was released with no
-queued or in-flight requests.
+peak or CPU offload measurement was collected. The exclusive inference slot
+was released with no queued or in-flight requests.
