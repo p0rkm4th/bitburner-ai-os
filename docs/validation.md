@@ -1400,3 +1400,29 @@ its configured loopback port. Remote API reconnection is not yet verified, so
 the deployment is not ready for another script-authoring run. The next
 diagnostic will use the visible Bitburner Options UI only; no saved game data
 or internal game objects will be modified.
+
+### Run 53 — stale-dialog retry (2026-11-06)
+
+One bounded Qwen3.6:35b 16K continuation ran from 16:23:49 to 16:25:25 UTC
+against the preserved test profile. Its first action dismissed the visible
+offline-progress notice successfully. The next two actions repeated
+`game_dismiss_dialog` after the tool and updated UI indicated there was no
+dialog. The no-progress guard stopped the session after three actions; the
+supervisor was explicitly stopped before its retry. There was no script run,
+deployment, code change, or income attributable to this session.
+
+Three Ollama replies used 18,245 prompt and 510 completion tokens, with 56.315
+seconds summed request duration. The final visible HUD showed $72.573k and
+hacking level 158; the terminal output was still from the pre-existing
+`hack_n00dles.js`. The balance increase is therefore not attributed to the
+pending script. Remote API remained Offline. Runtime is persisted as
+`operator_stopped`, with `AUTO_RESUME=1`, `MAX_SESSIONS=0`, and `MAX_STEPS=12`;
+the terminal state prevents automatic revival.
+
+The failure exposed stale model memory: the task described a dialog as present,
+and Qwen continued to act on that description after the visible UI changed.
+The compact always-loaded prompt now explicitly gives the newest visible UI
+and tool result precedence over stale task wording or memory, including after
+dialog dismissal. The focused documentation/prompt tests pass 19/19 and the
+full offline suite passes 187/187. This prompt change is not yet deployed or
+validated in another inference session.

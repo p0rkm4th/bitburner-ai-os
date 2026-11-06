@@ -159,6 +159,8 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("never assume `home` has enough free RAM", BITBURNER_SYSTEM_PROMPT)
         self.assertNotIn("run that exact file visibly on `home`", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("Never repeat tool errors or NO_PROGRESS", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("trust the newest visible UI and tool result over stale task wording or memory", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("do not call `game_dismiss_dialog` again", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("Terminal UNCONFIRMED may have executed", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("read listed files with `game_read_script`", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("If dismissal reveals a different dialog, inspect its text", BITBURNER_SYSTEM_PROMPT)
