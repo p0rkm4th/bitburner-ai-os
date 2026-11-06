@@ -1114,8 +1114,9 @@ locally. No income or gameplay progress is claimed.
 
 ### Detector deployment postflight
 
-Commit `3ad84ba` was deployed to the isolated test VM after creating and
-validating a persistent-data archive and tagging the prior image for rollback.
+Commit `677b5ea` (including the `3ad84ba` modal fix and the earlier
+`cdc0061` guidance changes) was deployed to the isolated test VM after creating
+and validating a persistent-data archive and tagging the prior image for rollback.
 Only the agent and restricted Remote API bridge containers were recreated.
 The runtime detector file hash matched the committed deployment source. The
 agent remained explicitly `operator_stopped` at session 18; the persistent
