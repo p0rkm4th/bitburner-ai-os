@@ -1440,3 +1440,30 @@ The visible game reports Remote API **Online** after the restart. Its offline
 notice reports $16.391 generated while away; that is offline progress, not a
 current balance or income attributable to the pending script. No inference or
 gameplay session has been started since deployment.
+
+### Run 54 — visible execution, income attribution unresolved (2026-11-06)
+
+After deployment of the current-state prompt, one bounded continuation ran on the
+same test profile from 16:41:58 to 16:47:32 UTC. The agent dismissed the
+offline-progress dialog once, then used the visible `game_run_script` helper on
+its own pending `hack_n00dles_v2.js`. The rendered Terminal confirmed `Running
+script with 1 thread, pid 3`. The script was no longer running when the model
+later used `tail`; it was a one-shot program. Its source contains no explicit
+output, and no runtime-error dialog was observed.
+
+Qwen then used two `game_progress` actions and opened Active Scripts. It could
+not distinguish this program from the already-running `hack_n00dles.js`, whose
+visible output included `$39`, `$41`, and `$43` stolen during the trial. The
+checkpoint reported a balance change from $72.790k to $72.828k and aggregate
+Active Scripts production of $0.408/sec, but those values overlap with the old
+script's output. The final visible HUD was $72.907k / hacking 158. Therefore
+execution is confirmed, but money earned or progression attributable to the
+new script is **not**. The test does not meet the income acceptance criterion.
+
+The model made 11 tool actions; the operator stopped it after repeated
+Terminal inspection calls failed or returned no progress. Runtime is
+`operator_stopped`, session 29. Twelve Ollama responses recorded 119,275 prompt
+and 2,578 completion tokens, with 319.303 seconds summed request duration
+(about 5m34s wall time). Remote API remains Online; no save or browser profile
+was replaced. The dialog-loop prompt fix improved behavior, but the follow-up
+showed that Terminal diagnostics and repeated inspection still need correction.

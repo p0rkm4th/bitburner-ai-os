@@ -91,13 +91,13 @@ procedures, not a prescribed gameplay strategy.
 
 ## RAM and active process errors
 
-- **`tail` reports no matching script is running:** The process ended or is
-  running under a different host/argument list; a previous PID is not proof it
-  remains active. Do not repeat `tail`. Inspect the visible `Active Scripts`
-  page or Terminal `ps`, confirm the current host and arguments, then read the
-  listed source with `game_read_script` and diagnose the exit before another
-  run. Do not treat another script's output or aggregate income as evidence for
-  this file.
+- **`tail` reports no matching script is running:** A one-shot process may
+  have finished after a positive PID; its absence alone does not prove failure.
+  Do not repeat `tail` or relaunch solely for this status. Inspect visible
+  output/progress and runtime errors, then check the visible `Active Scripts`
+  page or Terminal `ps` and read the listed source with `game_read_script` if
+  needed. Do not attribute another script's output or aggregate income to this
+  file.
 - **Dynamic RAM runtime error:** A script can fail at runtime even after a
   static RAM calculation. Compare the visible dynamic usage with its allocation,
   inspect the functions named in the error, and consult their live API docs

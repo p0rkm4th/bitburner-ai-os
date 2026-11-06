@@ -742,10 +742,13 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
             if result.startswith("UNCONFIRMED:"):
                 return result
             if re.search(r"(?im)^\s*No script named .+? with args .* is running on (?:the )?server\.?\s*$", result):
-                return ("VISIBLE GAME ERROR (verbatim):\n" + result +
-                        "\nThe requested script process is not running on this host. Do not repeat `tail`; "
-                        "inspect the visible Active Scripts/`ps` state or read the listed `.js` file with "
-                        "`game_read_script`, then choose a different diagnostic.")
+                return ("SCRIPT STATUS (not an execution error):\n" + result +
+                        "\nBitburner reports no matching process running now. A one-shot script may have completed "
+                        "after a positive PID; absence now does not prove that launch failed. Do not rerun or "
+                        "redeploy solely for this status. Inspect visible output/progress and the Active Scripts page; "
+                        "if needed, read the "
+                        "listed `.js` source with `game_read_script`. Repair or retry only from concrete output "
+                        "or a visible runtime error. Do not repeat `tail`.")
             # Preserve the game's exact rendered error while making it
             # unambiguous to the model that this was a failed game action.
             error_patterns = (

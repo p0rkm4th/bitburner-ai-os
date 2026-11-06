@@ -530,8 +530,9 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
             "No script named hack_n00dles_fast.js with args [] is running on the server"
         )
         result = await self.actions["game_terminal"]("tail hack_n00dles_fast.js", self.browser)
-        self.assertIn("VISIBLE GAME ERROR (verbatim)", result)
+        self.assertIn("SCRIPT STATUS (not an execution error)", result)
         self.assertIn("No script named hack_n00dles_fast.js", result)
+        self.assertIn("absence now does not prove that launch failed", result)
         self.assertIn("Do not repeat `tail`", result)
         self.assertIn("Active Scripts", result)
         self.assertIn("game_read_script", result)
@@ -545,8 +546,9 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
             "No script named hack_n00dles_fast.js with args [] is running on the server"
         )
         result = await self.actions["game_terminal"]("tail hack_n00dles_fast.js", self.browser)
-        self.assertIn("VISIBLE GAME ERROR (verbatim)", result)
+        self.assertIn("SCRIPT STATUS (not an execution error)", result)
         self.assertIn("No script named hack_n00dles_fast.js", result)
+        self.assertIn("absence now does not prove that launch failed", result)
         self.assertIn("Do not repeat `tail`", result)
         self.assertIn("Active Scripts", result)
         self.assertIn("game_read_script", result)

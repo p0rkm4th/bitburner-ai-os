@@ -19,10 +19,11 @@ not run concurrently. Check each returned result before acting again.
 | `game_run_script` | `filename`, optional `args`, optional `expected_host` | Run the script via the visible Terminal on the currently connected server and return the game's confirmation or visible error. If supplied, `expected_host` must match the current host shown in the visible Terminal prompt; a mismatch or missing prompt blocks execution. The tool does not connect or copy the file. A PID does not prove income; inspect output and stats afterward. |
 
 If `tail` reports that no matching script process is running, do not repeat it.
-Inspect the visible `Active Scripts` tab or Terminal `ps`, confirm the current
-host and arguments, then use `game_read_script` to inspect the source and
-diagnose why the process exited. Do not attribute another script's output to
-the file being tested.
+A one-shot script can finish after receiving a PID, so absence from `tail` is
+not proof that execution failed. Inspect visible output and progress, and read
+the source with `game_read_script` if needed. Use a visible runtime error or
+other concrete result to decide whether to revise or rerun. Do not attribute
+another script's output to the file being tested.
 
 `game_terminal` blocks the known unsupported `serverinfo` command without
 sending browser input. For other `Command … not found` errors, send the exact
