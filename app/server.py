@@ -551,10 +551,10 @@ def failed_result_signature(actions: list[dict], visible: str, failures: list[di
         return ""
     state = re.sub(r"\[\d+\]", "[]", visible)
     pending_deployment = any(
-        item.get("tool") == "game_deploy_script" and
         item.get("state") == "game_error" and
         str(item.get("message", "")).startswith("NO_PROGRESS:") and
-        "without a visible execution" in str(item.get("message", ""))
+        ("without a visible execution" in str(item.get("message", "")) or
+         "has not been visibly run" in str(item.get("message", "")))
         for item in failures
     )
     if pending_deployment:
@@ -603,10 +603,10 @@ def failure_signature_for_tool_results(actions: list[dict], visible: str,
     if not failures:
         return ""
     pending_deployment = any(
-        item.get("tool") == "game_deploy_script" and
         item.get("state") == "game_error" and
         str(item.get("message", "")).startswith("NO_PROGRESS:") and
-        "without a visible execution" in str(item.get("message", ""))
+        ("without a visible execution" in str(item.get("message", "")) or
+         "has not been visibly run" in str(item.get("message", "")))
         for item in failures
     )
     # A successful model-chosen diagnostic earns a fresh recovery opportunity

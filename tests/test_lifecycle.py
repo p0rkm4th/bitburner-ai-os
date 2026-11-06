@@ -599,6 +599,21 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
             [{"tool": "game_terminal", "state": "game_error", "message": "Command failed"}],
         ))
 
+    def test_pending_run_terminal_refusals_ignore_irrelevant_terminal_commands(self):
+        message = ("NO_PROGRESS: hack_n00dles_v2.js was deployed, read-back verified, and RAM-checked, "
+                   "but has not been visibly run. Run the exact file with game_run_script.")
+        first = server.failure_signature_for_tool_results(
+            [{"game_terminal": {"command": "ls home hack_n00dles_v2.js"}}],
+            "Terminal on home", [{"tool": "game_terminal", "state": "game_error", "message": message}],
+        )
+        second = server.failure_signature_for_tool_results(
+            [{"game_terminal": {"command": "ls"}}],
+            "Terminal on home with changed background output",
+            [{"tool": "game_terminal", "state": "game_error", "message": message}],
+        )
+        self.assertEqual(first, second)
+        self.assertEqual(server.failed_action_repeat_count(first, 1, second), 2)
+
     async def test_successful_recovery_action_resets_pending_deploy_failure_streak(self):
         blocked = {"tool": "game_deploy_script", "state": "game_error",
                    "message": "NO_PROGRESS: 1 scripts already deployed without a visible execution"}
