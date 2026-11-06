@@ -2,12 +2,12 @@
 
 ## Decision
 
-Do not add a learned UI action model to the running agent. The production save
-has previously shown script earnings, but that run was uncontrolled and does
-not meet the reproducible isolated acceptance gate. The latest isolated runs
-still fail on repeated/malformed tool calls and broken Netscript. No evidence
-shows that a second model would fix those failures. Neither candidate has been
-run against the Bitburner DOM; the optional adapter remains unimplemented.
+Do not integrate Laya or Fast Browser Use. A bounded CPU replay of a recorded
+Bitburner DOM trace shows Laya can rank a visible Script Editor target, but the
+existing deterministic semantic helper already selects and validates that
+target in about 0.15 seconds including its settle delay. Laya adds cold-load
+and inference overhead, and there is only one replay row with no end-to-end
+gameplay comparison. Keep the existing helper.
 
 The current low-complexity path is the deterministic visible-UI helper set in
 `app/game_tools.py`. It resolves fresh visible labels, rejects ambiguous or
@@ -22,7 +22,7 @@ Terminal `ls` output. This is not a comparative model benchmark.
 
 | Candidate | License and scope | Runtime and compatibility | Assessment |
 |---|---|---|---|
-| Laya Browser Mind2Web, 421M | Apache-2.0 model; the training dataset is CC-BY-4.0. It predicts a typed action and target from DOM candidates; it does not use screenshots or generate text. A separate local LLM must fill text values. Its serving path expects Laya's typed-question format and matching formatter/lexical shortlister. | F16, 0.4B parameters. The checkpoint was trained on two T4 GPUs; that is training information, not a minimum inference requirement. It is not an Ollama model. It was not installed or run because the primary gameplay gate remains unmet; a candidate-specific A/B trial would add inference/adapter work without validating income. | Small enough to be plausible, but not a drop-in Browser Use action head. Its lexical shortlister excludes the correct element on about 21–27% of benchmark steps; its Mind2Web task success is 4.0% cross-task, 2.3% cross-website, and 2.6% cross-domain. The author explicitly says live-page behavior is untested and labels the checkpoint research/hobby. Do not deploy without a Bitburner replay benchmark. |
+| Laya Browser Mind2Web, 421M | Apache-2.0 model; the training dataset is CC-BY-4.0. It predicts a typed action and target from DOM candidates; it does not use screenshots or generate text. A separate local LLM must fill text values. Its serving path expects Laya's typed-question format and matching formatter/lexical shortlister. | Pinned fp16 safetensors checkpoint; 843 MiB. It is not an Ollama model. Offline CPU replay loaded successfully. | In one saved Bitburner trace, it selected the visible Script Editor from 20 reconstructed candidates with p=.9741 in 0.727s after a 20.241s cold load; peak RSS was 2,835.9 MiB. This is one candidate-selection result, not general accuracy or live-game evidence. The existing deterministic helper is far faster on the same target. Do not integrate. |
 | Fast Browser Use | MIT-licensed standalone local browser-use engine, not a tiny action model or adapter for the current shared Browser Use session. | Requires Python 3.12+, Playwright >=1.58, and uses Qwen3.5-9B or Qwen3.5-35B-A3B with PyTorch on Linux/NVIDIA. The current browser image pins Playwright 1.56. The repository recommends 24GB VRAM for 9B BF16; the available cards are 8GB each. Its own benchmarks use an RTX PRO 6000 96GB. | Not compatible with the current image and resource envelope as documented; introduces another browser runtime and a much larger model. Do not integrate for this task. |
 
 Sources: [Laya Browser model card](https://huggingface.co/Quantum08/laya-browser-mind2web),
@@ -34,38 +34,50 @@ These are upstream claims and requirements, not local performance measurements.
 
 | Workflow | Evidence | Outcome |
 |---|---|---|
-| Primary model only | Production trace: Qwen authored and visibly ran a Netscript loop. The game reported $3.764 of offline script earnings; HUD later showed $25.516k and Hacking 17. The trace was not isolated or controlled. | Real income and progress, but repeated run attempts exhausted home RAM; the agent has not reliably diagnosed or cleaned up active processes. Calls timed out at 150 seconds. |
-| Deterministic UI helpers | 86 automated tests pass. A disposable-profile integration check handled a dialog, opened a semantic tab, and returned actual `ls` output. | Functional and low-cost; no controlled A/B replay and no measured end-to-end latency reduction. |
-| Tiny model assisted | Neither Laya weights nor Fast Browser Use were installed or run. | No action-model task-success, latency, resource, or income measurements. No evidence supports integration. |
+| Primary model only | Isolated Run 25: Qwen diagnosed a root-access error, independently revised its Netscript, then visible Tail output showed two successful hacks and a $576 HUD increase. | Basic authored/deploy/run/debug/income cycle now demonstrated. One bounded success does not establish reliable extended autonomy. |
+| Deterministic UI helpers | The relevant UI helper tests pass 29/29 on the replay branch; the main candidate's complete suite passed 123/123. A disposable-profile integration check returned actual Terminal output. | Functional and low-cost; directly matched the target in 0.151s median including the settle delay. |
+| Tiny model assisted | One offline replay of the saved Devstral stale-index trace; no live game or gameplay inference. | Laya selected the semantic target correctly, but added no avoided primary-model call and was slower than the deterministic helper. Not enough evidence to integrate. |
 
-The production trace is not a model benchmark: its profile and starting state
-were not controlled against an identical baseline, and the tiny model was not
-run. The primary-model gameplay acceptance gate remains open.
+The uncontrolled production trace is not a model benchmark. Run 25 does pass
+the basic isolated income objective, but it does not establish repeatable
+long-term autonomy or BitNode progression. The tiny model was not run in a
+live gameplay task.
 
 ## Benchmark status
 
-No head-to-head trial was run. Laya weights were not downloaded, and neither
-candidate accessed an isolated game profile. A read-only availability check
-found the configured local Ollama endpoint unreachable; no inference request
-was issued. The production agent had stopped after Ollama connection failures,
-and its profile and service were left untouched. Fast Browser Use was excluded
-because its documented model and dependencies do not fit the current browser
-runtime without changing the architecture.
+The offline replay used Laya Browser 421M, weights revision
+`d590805f9972d021d8988a98a39f6395ac78f9e0`, Apache-2.0, fp16 safetensors.
+The recorded v3.0.1 DOM showed a unique `Script Editor` label; the prior
+Devstral workflow repeated stale index 20. Laya selected the correct
+`script_editor` from 20 reconstructed candidates (p=.9741) in 0.727 seconds.
+Cold load was 20.241 seconds and peak RSS 2,835.9 MiB. CUDA was disabled and
+GPU use was zero. This is one reconstructed snapshot, not a multi-trial action
+benchmark.
 
-The required replay comparison for repeated clicks, stale indexes, blocked
-dialogs, and failed navigation remains outstanding. Existing deterministic
-helper tests and the live disposable-profile check are positive functional
-checks, but do not establish that a model-assisted path reduces invalid
-actions, elapsed task time, or end-to-end gameplay time. No evidence currently
-supports the extra model complexity.
+The existing deterministic `find_visible_tab_node` helper matched the same
+target in 10,000 iterations at 0.003683 ms mean / 0.004028 ms p95. The mocked
+whole helper had 0.151 seconds median including its built-in 150 ms settle
+delay. The game-helper suite passed 29/29 tests offline in 6.75 seconds.
+The replay does not demonstrate live UI action or income, and Laya cannot
+reduce a primary-model call when the primary model already returns the stable
+semantic label. Its extra loading/memory cost is not justified by this result.
 
-Before reconsidering integration, first demonstrate a repeatable, isolated
-primary-model cycle that independently authors, deploys, runs, debugs, and
-verifies income. Then replay the same recorded UI cases against the existing
-semantic helpers and an optional Laya adapter, with inference workloads
-sequential and production excluded. Compare task success and actual money
-progress as well as latency and invalid/repeated actions. Keep the primary LLM
-as the sole owner of gameplay strategy and code authorship.
+Fast Browser Use remains excluded because its documented model and dependencies
+do not fit the current browser runtime without changing the architecture.
+
+Only the stale-index case was replayed. Repeated-click, blocked-dialog, and
+failed-navigation replay rows remain outstanding. Existing deterministic
+helper tests cover those behaviors, but the single Laya snapshot does not
+establish that a model-assisted path reduces invalid actions or elapsed
+end-to-end gameplay time. No evidence supports adding the extra model.
+
+Reconsider integration only if a broader replay set shows repeated stale-target
+or navigation failures that the current semantic helpers do not resolve.
+Compare the same recorded cases and, if justified, equivalent disposable live
+tasks against the helper baseline. Count successful actions, avoided primary
+calls, invalid/repeated actions, elapsed time, resource use, and verified game
+progress. Keep gameplay strategy and code authorship exclusively with the
+primary LLM.
 
 ## Follow-up verification (2026-11-04)
 
