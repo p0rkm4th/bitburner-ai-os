@@ -146,6 +146,10 @@ compose=(docker compose --project-name "$project" --env-file config/.env --env-f
 sampler_pid=""
 cleanup() {
   if [[ -n "$sampler_pid" ]]; then kill "$sampler_pid" 2>/dev/null || true; wait "$sampler_pid" 2>/dev/null || true; fi
+  if [[ -d "$BENCH_STATE_DIR/logs" ]]; then
+    "${compose[@]}" ps --all > "$BENCH_STATE_DIR/logs/compose-ps.txt" 2>&1 || true
+    "${compose[@]}" logs --no-color > "$BENCH_STATE_DIR/logs/compose.log" 2>&1 || true
+  fi
   "${compose[@]}" down --remove-orphans >/dev/null 2>&1 || true
 }
 trap cleanup EXIT INT TERM
@@ -188,8 +192,26 @@ payload="$(python3 -c 'import json,pathlib; print(json.dumps({"objective": pathl
 curl --max-time 10 -fsS -X POST "$AGENT_URL/api/start" \
   -H 'Content-Type: application/json' --data-binary "$payload"
 
+poll_failures=0
 while :; do
-  curl --max-time 8 -fsS "$AGENT_URL/api/status" > "$BENCH_STATE_DIR/logs/status-latest.json"
+  status_tmp="$BENCH_STATE_DIR/logs/status-latest.json.tmp"
+  if ! curl --retry 2 --retry-delay 1 --retry-connrefused --max-time 8 -fsS \
+      "$AGENT_URL/api/status" > "$status_tmp"; then
+    rm -f "$status_tmp"
+    poll_failures=$((poll_failures + 1))
+    if ((poll_failures >= 3)); then
+      state="api_unavailable"
+      printf '{"state":"api_unavailable","poll_failures":%d}\n' "$poll_failures" \
+        > "$status_tmp"
+      mv "$status_tmp" "$BENCH_STATE_DIR/logs/status-latest.json"
+      echo "Benchmark agent API was unavailable for three consecutive status polls; preserving checkpoint and container diagnostics." >&2
+      break
+    fi
+    sleep 5
+    continue
+  fi
+  mv "$status_tmp" "$BENCH_STATE_DIR/logs/status-latest.json"
+  poll_failures=0
   state="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("state","unknown"))' \
     "$BENCH_STATE_DIR/logs/status-latest.json")"
   case "$state" in
@@ -197,8 +219,16 @@ while :; do
   esac
   sleep 5
 done
-curl --max-time 8 -fsS "$AGENT_URL/api/game-observation" \
-  > "$BENCH_STATE_DIR/logs/final-game-observation.json" || true
 cp "$BENCH_STATE_DIR/logs/status-latest.json" "$BENCH_STATE_DIR/logs/final-status.json"
+if [[ "$state" == "api_unavailable" ]]; then
+  printf '{"available":false,"reason":"agent_api_unavailable"}\n' \
+    > "$BENCH_STATE_DIR/logs/final-game-observation.json"
+else
+  curl --max-time 8 -fsS "$AGENT_URL/api/game-observation" \
+    > "$BENCH_STATE_DIR/logs/final-game-observation.json" || \
+    printf '{"available":false,"reason":"final_observation_unavailable"}\n' \
+      > "$BENCH_STATE_DIR/logs/final-game-observation.json"
+fi
 printf '\nTrial %s ended in state %s. Private evidence: %s/logs\n' \
   "$TRIAL_ID" "$state" "$BENCH_STATE_DIR"
+if [[ "$state" == "api_unavailable" ]]; then exit 1; fi

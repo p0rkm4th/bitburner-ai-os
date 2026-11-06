@@ -748,3 +748,44 @@ running the verified deployment before editing it again. These are workflow
 constraints, not a supplied gameplay strategy or script. They still require a
 new isolated trial; Run 31 did not validate the progress parser because the
 model never executed a script.
+
+## Run 32 — partial income, unresolved runtime error (isolated)
+
+Run 32 tested the updated compact workflow instructions with Qwen3.6:35b
+Q4_K_M, 16,384 context, `think=false`, temperature 0.2, seed 7, and a 16-step /
+20-minute cap, using a fresh copy of the same seed and objective. The model
+observed $1.262k and hacking level 1. It scanned and saw n00dles had no root,
+but still deployed and ran an un-awaited hack call. The visible error confirmed
+the missing root. Qwen then tried two invalid Terminal invocations, before
+authoring a revised Netscript that called `ns.nuke`, awaited `ns.hack`, and
+attempted an unsupported `ns.getMoney` call. It visibly ran the revised file
+with PID 2; an isolated profile clone later showed the actual runtime error
+`TypeError: ns.getMoney is not a function`.
+
+The model did not resolve that final error or verify its balance itself. In a
+separate no-inference observation of a copy of the run profile, Bitburner
+reported `$0.197` in script earnings for 53 seconds offline, and the visible
+HUD showed $1.551k, $289 above the model-observed start. This is evidence of
+partial, model-authored gameplay progress, not an accepted autonomous cycle:
+the model did not diagnose the last error or report the money change, and no
+hacking-level increase was confirmed.
+
+The agent log said “Completed 10 steps,” while the last persisted callback
+checkpoint was at step 11 and remained `active` with no outcome. The benchmark
+controller lost its API while polling final status and exited before writing
+final-status or final-observation files. A copy of the profile enabled visual
+follow-up. The local runner has since been changed to retry status polling,
+record an explicit `api_unavailable` result, and save Compose logs and
+container status before cleanup. Bash syntax checks and a local API-loss fault
+injection passed, including assertions for status and observation sentinels,
+Compose logs, and container-state records. A second live inference run has not
+yet exercised this recovery path.
+
+The run made 11 Ollama responses with 95,625 prompt and 2,286 completion
+tokens. Summed response latency was 285.9 seconds (26.0 seconds mean, 35.0
+maximum); elapsed time was about five minutes. There were three recorded
+game/tool errors, no transport failures, and no inference timeouts. Across 57
+hardware samples, all four GPUs reached 100%; VRAM peaks were 7,329, 5,059,
+6,201, and 5,207 MiB. Ollama reported 23.05 GB model allocation; CPU offload
+was not measured. The isolated run and its visual follow-up remain private
+under `local/benchmark-runs/qwen36-root-prereq-01/`.
