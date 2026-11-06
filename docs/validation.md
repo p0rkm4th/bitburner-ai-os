@@ -1092,3 +1092,22 @@ was resident; preflight sampled 0% GPU utilization and 7.329/5.059/6.201/5.207
 GiB allocated across the inference GPUs. No generation peak or CPU offload
 measurement was collected. The exclusive inference slot was released with no
 active or queued request.
+
+## Run 45 — concurrency error dialog recognition (2026-11-06)
+
+The test-game agent resumed at 13:30:16 UTC with Qwen3.6:35b at 16,384
+context. It reread its script several times and repeated dialog dismissal after
+the tools reported no visible dialog. The final read-only UI observation still
+showed the `CONCURRENCY ERROR` modal and its visible Close button. This exposed
+that the deployed dialog detector recognized ReferenceError but not the
+concurrency-error heading. The agent did not use troubleshooting or live API
+lookup, change the script, or verify income. It was explicitly stopped after
+seven actions when the no-progress pattern repeated; a tool action raced the
+stop. Runtime is `operator_stopped` at session 18.
+
+Eight local-model responses processed 45,749 prompt and 2,163 completion
+tokens in 149.110 seconds summed request time (18.644 seconds mean). Qwen was
+resident; preflight showed 0% GPU utilization and 7.329/5.059/6.201/5.207 GiB
+allocated across four GPUs. No generation peak or CPU offload measurement was
+collected. The concurrent-error modal detector fix has a focused test passing
+locally but is not deployed. No income or gameplay progress is claimed.

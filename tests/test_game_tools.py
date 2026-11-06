@@ -519,6 +519,10 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         reference_error = visible_runtime_error(
             "REFERENCE ERROR\nReferenceError: ns is not defined\nScript:\nhack.js\nPID:\n4\nClose")
         self.assertIn("ReferenceError: ns is not defined", reference_error)
+        concurrency_error = visible_runtime_error(
+            "CONCURRENCY ERROR\nweaken: Concurrent calls to Netscript functions are not allowed!\n"
+            "Script:\nhack.js\nPID:\n4\nClose")
+        self.assertIn("Concurrent calls to Netscript functions are not allowed", concurrency_error)
         self.assertEqual(visible_runtime_error("ordinary visible game page"), "")
 
     async def test_terminal_records_ram_rejection_and_process_inspection_satisfies_diagnostic_gate(self):
@@ -642,6 +646,18 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.page.visible = (
             "REFERENCE ERROR\nReferenceError: ns is not defined\n"
             "Stack: home/hack_n00dles_fast.js:16\n"
+            "Script:\nhack_n00dles_fast.js\nPID:\n4\nClose\nView Script Logs\nErrors Page"
+        )
+        self.page.nav_nodes = [FakeNavNode("Close", 999)]
+        result = await self.actions["game_dismiss_dialog"](self.browser)
+        self.assertIn("dismissed and verified absent", result)
+        self.assertEqual(self.page.close_clicks, 1)
+        self.assertEqual(self.page.visible, "Bitburner Terminal\nDialog dismissed")
+
+    async def test_concurrency_error_modal_uses_fresh_visible_close_button(self):
+        self.page.visible = (
+            "CONCURRENCY ERROR\nweaken: Concurrent calls to Netscript functions are not allowed!\n"
+            "Stack: hack_n00dles_fast.js:L6@main\n"
             "Script:\nhack_n00dles_fast.js\nPID:\n4\nClose\nView Script Logs\nErrors Page"
         )
         self.page.nav_nodes = [FakeNavNode("Close", 999)]

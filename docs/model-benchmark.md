@@ -1268,3 +1268,23 @@ promise. This is a new diagnosed failure after the model corrected its prior
 eight actions or verify income. The session was explicitly stopped at eight
 actions; persisted state is `operator_stopped` at session 17. No balance was
 visible behind the error dialog, and no progress or income is claimed.
+
+### Run 45 — concurrency dialog detection blocked recovery
+
+On 2026-11-06 from 13:30:16 to 13:33:03 UTC, Qwen3.6:35b continued from the
+preserved test-game screen at 16,384 context. It reread
+`hack_n00dles_fast.js` several times and repeated `game_dismiss_dialog` after
+the tool said no dialog was visible. It did not request troubleshooting or
+the live API definition. A read-only final observation showed the visible
+`CONCURRENCY ERROR` modal and Close button still present. No code changed,
+execution succeeded, or income was verified. The agent was stopped after
+seven action steps because the same no-progress pattern recurred; one
+additional tool action raced the stop.
+
+Eight Ollama responses processed 45,749 prompt and 2,163 completion tokens;
+summed request duration was 149.110 seconds (18.644 seconds mean elapsed).
+The model was resident. Preflight showed 0% GPU utilization and
+7.329/5.059/6.201/5.207 GiB allocated across four GPUs; no generation-time
+peak or CPU offload was measured. The visible concurrency heading was not
+recognized by the deployed dialog detector. A focused detector regression
+now passes locally; the fix is not yet deployed.
