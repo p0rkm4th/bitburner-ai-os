@@ -722,3 +722,29 @@ harness defect: `game_progress` failed to parse the live HUD because Bitburner
 renders its money label and value on separate DOM lines. The parser and
 automatic session-baseline comparison have since been corrected and covered
 by regression tests.
+
+## Run 31 — prerequisite and execution-order failure (isolated)
+
+Run 31 used the corrected progress-parser source, the same disposable starting
+state and Qwen3.6:35b Q4_K_M configuration, 16,384 context, `think=false`,
+temperature 0.2, seed 7, and a 16-action / 20-minute cap. It ended `failed`
+after six actions and 2m22s. The visible scan showed n00dles had no root
+access, but Qwen authored `hack.js` with an un-awaited `ns.hack(target)`, then
+attempted two rewrites instead of running the already deployed file. The
+pending-run guard stopped those unrelated actions. No script execution, income,
+or hacking progression was confirmed.
+
+Six Ollama responses used 46,567 prompt and 963 completion tokens, with 137.0
+seconds summed inference latency (22.83 seconds mean, 24.20 median, 28.55
+maximum). There were two game/tool errors, no transport failures or timeouts.
+Across 29 hardware samples, GPU utilization peaked at 100%, 58%, 100%, and
+100%; VRAM peaked at 7,329 / 5,059 / 6,201 / 5,207 MiB. The resident model
+allocation was 23.05 GB; CPU offload was not measured. Private artifacts remain
+under `local/benchmark-runs/qwen36-progress-01/`.
+
+The compact system instructions now explicitly require visible root access
+before hacking, awaiting asynchronous hack/grow/weaken calls, and visibly
+running the verified deployment before editing it again. These are workflow
+constraints, not a supplied gameplay strategy or script. They still require a
+new isolated trial; Run 31 did not validate the progress parser because the
+model never executed a script.

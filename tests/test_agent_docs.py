@@ -125,6 +125,9 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("expected_host", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("check uncertain Netscript functions with game_netscript_reference", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("if none is listed, author independently", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("If visible root access is NO, do not run a hacking script", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("Await asynchronous Netscript actions such as hack, grow, and weaken", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("call `game_progress` before changing or redeploying the file", BITBURNER_SYSTEM_PROMPT)
 
     def test_checkpoint_carries_tool_failures_but_not_long_outputs(self):
         summary = checkpoint_prompt_summary({
