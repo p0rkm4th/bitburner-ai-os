@@ -1467,3 +1467,24 @@ and 2,578 completion tokens, with 319.303 seconds summed request duration
 (about 5m34s wall time). Remote API remains Online; no save or browser profile
 was replaced. The dialog-loop prompt fix improved behavior, but the follow-up
 showed that Terminal diagnostics and repeated inspection still need correction.
+
+### One-shot status handling deployment (2026-11-06)
+
+Commit `d6def74` changes the visible `tail` response for a process that is no
+longer running from a game error to an informational process-status result.
+The tool and compact prompt now explain that a one-shot program can finish
+after a positive PID; process absence by itself does not prove a failed launch.
+Troubleshooting notes also warn against attributing another script's output
+or aggregate income to the test file. Focused tests passed 96/96 and the full
+offline suite passed 187/187. The VM candidate image was built with networking
+disabled and passed 187/187 before rollout.
+
+Deployment occurred while the agent was explicitly `operator_stopped` at
+session 29. A gzip-validated persistent-data archive and previous-image
+rollback tag were retained. Postflight confirms the runtime source hashes
+match the release, the browser is ready, runtime remains `operator_stopped`,
+`MAX_STEPS=12`, `AUTO_RESUME=1`, `MAX_SESSIONS=0`, and `MAX_FAILURES=2`, and
+dashboard/noVNC return HTTP 200 on loopback-only ports. The visible game reports
+Remote API **Online** and retains the offline-progress dialog after restart.
+No gameplay or inference has been run since this deployment; its prompt/tool
+behavior still needs a bounded inference trial.
