@@ -2,6 +2,8 @@
 
 This document records measured results only. A running container alone does not mean the system has passed acceptance.
 
+**Game scope:** Every Bitburner instance used so far is a test game. The retained shared browser profile is a persistent test profile, not a production game. Historical references below to a “production game/profile” mean that persistent test profile; “production deployment” refers to the deployed service and VM only. No production game exists or is being played.
+
 | Acceptance item | Result | Evidence |
 |---|---|---|
 | VM boots and receives LAN networking | Passed | Dedicated Ubuntu Server 24.04.5 LTS VM boots, receives a private LAN lease, and responds to SSH and guest-agent queries. |
@@ -10,9 +12,9 @@ This document records measured results only. A running container alone does not 
 | Official game opens in Chromium | Passed (manual browser check) | Browser Use's Chromium session loaded the official game, displayed the tutorial, and later showed the in-game offline-progress dialog. This does not yet prove model control. |
 | Model-controlled browser action | Passed (isolated gameplay cycle) | In a disposable v3.0.1 profile, the model queried the official `getHackingLevel` type, authored `mcp-check.js`, deployed it, corrected the UI navigation after a first run attempt found Terminal hidden, ran it visibly, and observed `mcp-check.js: Hacking Level: 1`. |
 | Independently authored money-generating Netscript | Passed in six isolated runs; extended autonomy remains incomplete | Runs 17, 19, 20, 22, 23, and 25 demonstrated model-authored scripts earning money; Runs 18, 21b, and 24 did not. Run 25 independently diagnosed a root-access failure, corrected the script using the live game's `ns.nuke` reference, and visibly executed it. Tail showed successful `n00dles` hacks of $288.750 and $287.553; the HUD rose from $1.262k to $1.838k (+$576), with PID 2 active and hacking still level 1. It completed 16 actions in 6m51s with five tool/game errors and no inference timeouts. See Runs 17–25 in [model-benchmark.md](model-benchmark.md). |
-| Netscript creation and execution | Passed in isolated testing; production income also observed | The isolated `mcp-check.js` round trip and execution were verified by rendered output. Separately, the production game later showed positive earnings and progression from model-authored scripts; recovery reliability remains pending. |
-| Remote API connection and file round trip | Passed (isolated and production profiles) | Production Options > Remote API shows **Online** at `localhost:12525` with WSS disabled. An authenticated production `pushFile → getFile → calculateRam` round trip returned exact read-back and 1.6 GB for a harmless, unexecuted smoke-test script. The sidecar has no published ports. |
-| Production model-authored income attempt | Income demonstrated; recovery reliability pending | Qwen authored and deployed `nuke_n00dles.js` and `hack_n00dles.js`; Terminal showed `Running script with 1 thread, pid 1`. After the browser/container restart, the game's offline-progress dialog reported `Your scripts generated $3.764` during 19 seconds offline. The visible HUD subsequently showed $25.516k and Hacking 17, compared with the prior recorded $1.262k and Hacking 1. This confirms positive script earnings and game progress. Repeated launches later exhausted home RAM; Bitburner reported that `hack_n00dles.js` requires 1.70 GB and could not start it. Running that home-only file while connected to `n00dles` then failed because the script does not exist on that server. The agent has not yet completed a reliable diagnose-and-recover cycle or recorded current stats in its checkpoint. |
+| Netscript creation and execution | Passed in isolated testing; persistent test-profile income also observed | The isolated `mcp-check.js` round trip and execution were verified by rendered output. The retained test profile later showed positive earnings and progression from model-authored scripts; recovery reliability remains pending. |
+| Remote API connection and file round trip | Passed (isolated and persistent test profiles) | The retained test profile's Options > Remote API showed **Online** at `localhost:12525` with WSS disabled. An authenticated `pushFile → getFile → calculateRam` round trip returned exact read-back and 1.6 GB for a harmless, unexecuted smoke-test script. The sidecar has no published ports. |
+| Model-authored income in the persistent test profile | Income demonstrated; recovery reliability pending | Qwen authored and deployed `nuke_n00dles.js` and `hack_n00dles.js`; Terminal showed `Running script with 1 thread, pid 1`. After the browser/container restart, the game's offline-progress dialog reported `Your scripts generated $3.764` during 19 seconds offline. The visible HUD subsequently showed $25.516k and Hacking 17, compared with the prior recorded $1.262k and Hacking 1. This confirms positive script earnings and game progress. Repeated launches later exhausted home RAM; Bitburner reported that `hack_n00dles.js` requires 1.70 GB and could not start it. Running that home-only file while connected to `n00dles` then failed because the script does not exist on that server. The agent has not yet completed a reliable diagnose-and-recover cycle or recorded current stats in its checkpoint. |
 | Remote API security boundaries | Passed (isolated bridge) | Unauthenticated health returned 401; save read, server enumeration, and deletion methods were absent (404); convenience file routes and invalid file/server targets were rejected (403). Only home `.js` read/write/RAM and official type definitions remain allowlisted. |
 | MCP bridge discovery and auth | Passed (disposable no-network container) | Unauthenticated REST/MCP requests returned 401. Authenticated MCP discovery listed only health, script read/write, RAM calculation, and official definitions. Save-read calls were unknown; traversal and non-home targets were rejected. An allowed write reached the bridge but correctly failed with no game attached. A live-game round trip remains separately required. Raw MCP does not carry the Browser Use adapter's deploy/run sequence guard. |
 | Agent Zero isolated MCP setup | Passed (non-inference only) | Its own MCP client discovered the restricted tool list, observed the expected disconnected-game error, and received denials for forbidden calls. The app responded inside its container. Host UI publication was withheld because the isolated internal-only network did not expose it under the rootless daemon. No model or game was connected; gameplay comparison remains pending until tool and browser capabilities match. See [agent-zero-evaluation.md](agent-zero-evaluation.md). |
@@ -417,7 +419,7 @@ deployed with a six-hour default; its first scheduled production trigger is
 still pending. No save was imported and no model or inference-server setting
 was changed.
 
-## Latest production deployment — commit `53d398e`
+## Latest deployed service update — commit `53d398e`
 
 The production agent was already `operator_stopped` before deployment. The game
 had a visible active script, so the existing browser profile was backed up
@@ -434,3 +436,21 @@ request metrics. No production model request was started during deployment.
 The previous application image and private env backup remain available for
 rollback. Deployment-specific identifiers and backup checksums are kept in
 ignored local records.
+
+## Pending-deployment execution guard — source candidate (2026-11-06)
+
+Run 26 showed that Qwen could successfully deploy a script, then spend the
+remaining actions reading files and running diagnostics without executing it.
+The candidate harness now blocks Remote API reads, reference lookups, unrelated
+Terminal commands, and task completion until that exact deployed file receives
+a visible run attempt from the visible `home` prompt. If the browser is
+connected elsewhere, the agent may connect home once. This is a deterministic
+workflow guard; it does not write code or select gameplay strategy.
+
+The complete suite passes 127 tests in the pinned deployment image with
+networking disabled and temporary state. Tests cover blocking reads and
+references, preventing unrelated Terminal commands, requiring the home prompt,
+clearing the guard after a visible run attempt, and refusing task completion
+while a deployment is pending. This source candidate has not yet been deployed
+to the shared persistent test profile. A fresh isolated Qwen trial will test
+whether the guard improves completed gameplay.

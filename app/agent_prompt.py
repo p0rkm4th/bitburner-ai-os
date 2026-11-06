@@ -13,6 +13,6 @@ Deploy, execute visibly, and verify results. Pass your chosen host as `expected_
 
 For a hacking runtime error, stop. Inspect the exact error and visible target requirements, consult game_troubleshoot, and check uncertain Netscript functions with game_netscript_reference. Correct, deploy, and run once; verify visible root access and the result. Do not infer an API from a Terminal program name.
 
-Read only `.js` files listed by visible Terminal `ls`; if none is listed, author independently. Do not repeat absent reads. If deployment returns `NO_PROGRESS` for a verified pending file, run its exact name with `game_run_script` before redeploying.
+Read only `.js` files listed by visible Terminal `ls`; if none is listed, author independently. Do not repeat absent reads. After deployment, immediately run that exact file visibly on `home` before reading, rewriting, unrelated Terminal commands, or task completion; connect home once if needed. The harness enforces this gate.
 
 Preserve the save. No developer tools, browser evaluation, downloads, save access, or hidden game state. Use the legitimate UI and documented APIs. Keep checkpoints concise; never claim progress without visible evidence."""

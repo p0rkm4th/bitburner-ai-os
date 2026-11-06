@@ -24,13 +24,15 @@ try:  # Package import for tests, flat import for the deployment image.
     from .agent_docs import load_core_guide, register_agent_doc_tools
     from .agent_prompt import BITBURNER_SYSTEM_PROMPT
     from .game_tools import _modal, find_visible_tab_node, register_game_tools, visible_runtime_error
-    from .remote_api_tools import (deployment_guard_checkpoint, register_remote_api_tools,
+    from .remote_api_tools import (deployment_guard_checkpoint, pending_script_run_message,
+                                   register_remote_api_tools,
                                    remote_api_from_env, restore_deployment_guard)
 except ImportError:
     from agent_docs import load_core_guide, register_agent_doc_tools
     from agent_prompt import BITBURNER_SYSTEM_PROMPT
     from game_tools import _modal, find_visible_tab_node, register_game_tools, visible_runtime_error
-    from remote_api_tools import (deployment_guard_checkpoint, register_remote_api_tools,
+    from remote_api_tools import (deployment_guard_checkpoint, pending_script_run_message,
+                                  register_remote_api_tools,
                                   remote_api_from_env, restore_deployment_guard)
 
 STATE = Path(os.getenv("STATE_DIR", "/state"))
@@ -188,11 +190,16 @@ def register_completion_guard(tools: Tools, objective: str, action_state: dict) 
 
     @tools.action(
         description=("Finish the task only after checking the user's objective. For money or income objectives, "
-                     "success requires a visibly confirmed script run and an increased visible game balance."),
+                     "success requires a visibly confirmed script run and an increased visible game balance. "
+                     "A read-back-verified deployment must be visibly run before ending, even when reporting failure."),
         param_model=DoneAction,
     )
     async def done(params: DoneAction, browser_session: BrowserSession,
                    file_system: FileSystem) -> ActionResult | str:
+        pending = pending_script_run_message(action_state)
+        if pending:
+            return ActionResult(is_done=False, success=False,
+                                extracted_content="Cannot finish before the deployed script is run: " + pending)
         visible_now = await visible_snapshot(browser_session)
         if action_state.get("initial_visible_money") is None:
             action_state["initial_visible_money"] = visible_money_amount(visible_now)

@@ -527,10 +527,33 @@ class GameToolIntegrationTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_visible_run_clears_verified_deployment_streak(self):
         self.action_state.update(deployments_without_run=2, last_deployed_filename="home.js")
+        self.page.visible = "Bitburner Terminal\n[home /]>"
         result = await self.actions["game_run_script"]("home.js", self.browser, [])
         self.assertIn("Running script home.js with PID 4", result)
         self.assertEqual(self.action_state["deployments_without_run"], 0)
         self.assertNotIn("last_deployed_filename", self.action_state)
+
+    async def test_pending_deployment_blocks_unrelated_terminal_commands_until_visible_run(self):
+        self.action_state.update(deployments_without_run=1, last_deployed_filename="home.js")
+        blocked = await self.actions["game_terminal"]("ps", self.browser)
+        self.assertTrue(blocked.startswith("NO_PROGRESS:"))
+        self.assertIn("game_run_script('home.js'", blocked)
+        self.assertEqual(self.page.executed_commands, [])
+
+        self.page.visible = "Bitburner Terminal\n[home /]>"
+        self.page.run_output = "Bitburner Terminal\n[home /]> run home.js\nRunning script home.js with PID 4"
+        result = await self.actions["game_run_script"]("home.js", self.browser, [])
+        self.assertIn("Running script home.js with PID 4", result)
+        self.assertEqual(self.page.executed_commands, ["run home.js"])
+        self.assertEqual(self.action_state["deployments_without_run"], 0)
+
+    async def test_pending_deployment_cannot_run_from_non_home_server(self):
+        self.action_state.update(deployments_without_run=1, last_deployed_filename="home.js")
+        self.page.visible = "Bitburner Terminal\n[n00dles /]>"
+        result = await self.actions["game_run_script"]("home.js", self.browser, [])
+        self.assertTrue(result.startswith("NO_PROGRESS:"))
+        self.assertIn("Connect home", result)
+        self.assertEqual(self.page.executed_commands, [])
 
     async def test_terminal_blocks_repeated_run_until_a_diagnostic_command(self):
         first = await self.actions["game_terminal"]("run home.js", self.browser)

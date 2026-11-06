@@ -76,6 +76,28 @@ def deployment_guard_checkpoint(action_state: dict) -> dict:
             "last_deployed_filename": filename}
 
 
+def pending_script_run(action_state: dict) -> str | None:
+    """Return the verified deployment that must be visibly run next, if any."""
+    try:
+        count = max(0, int(action_state.get("deployments_without_run", 0)))
+    except (TypeError, ValueError):
+        return None
+    filename = action_state.get("last_deployed_filename")
+    if count and isinstance(filename, str) and FILENAME.fullmatch(filename):
+        return filename
+    return None
+
+
+def pending_script_run_message(action_state: dict) -> str | None:
+    filename = pending_script_run(action_state)
+    if not filename:
+        return None
+    return (f"NO_PROGRESS: {filename} was deployed, read-back verified, and RAM-checked, but has not been visibly run. "
+            f"Run the exact file with game_run_script('{filename}', expected_host='home') before reading, rewriting, "
+            "or taking unrelated Terminal actions. If the visible prompt is not home, connect home first. "
+            "After the run, inspect the actual game result and diagnose any error.")
+
+
 def _same_script_ignoring_formatting_and_doc_comments(left: str, right: str) -> bool:
     """Catch cosmetic re-authoring loops without treating code changes as duplicates."""
     def normalize(source: str) -> str:
@@ -96,6 +118,9 @@ def register_remote_api_tools(tools: Tools, api: RemoteApi,
     ))
     async def game_read_script(filename: str) -> str:
         try:
+            pending = pending_script_run_message(action_state)
+            if pending:
+                return pending
             filename = _safe_filename(filename)
             try:
                 content = await api.call("getFile", {"filename": filename, "server": "home"})
@@ -184,6 +209,9 @@ def register_remote_api_tools(tools: Tools, api: RemoteApi,
     ))
     async def game_netscript_reference(symbol: str) -> str:
         try:
+            pending = pending_script_run_message(action_state)
+            if pending:
+                return pending
             requested = symbol.strip()
             match = IDENTIFIER.fullmatch(requested)
             if not match:

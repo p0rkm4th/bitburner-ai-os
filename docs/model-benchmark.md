@@ -3,10 +3,12 @@
 ## Scope and controls
 
 All inference used existing local Ollama servers. The x1 laptop hosted only the
-isolated browser and agent containers; no model was loaded there. Production
-gameplay, profile, save, and model settings were left untouched. Each run got a
-new copy of the same disposable Bitburner profile with the Remote API visibly
-Online. No trial shared game progress with another trial.
+isolated browser and agent containers; no model was loaded there. Every game is
+a test game; the retained shared browser profile is persistent test state, not
+a production game. Benchmark trials did not modify that shared profile, save,
+or model settings. Each run got a new copy of the same disposable Bitburner
+profile with the Remote API visibly Online. No trial shared game progress with
+another trial.
 
 The scored runs used the same objective, browser and restricted Remote API
 tools, 16,384-token context, temperature 0.2, seed 7, one session, and the same
@@ -487,8 +489,8 @@ reliable extended autonomy or BitNode progression.
 After Run 23, the harness was updated so a guarded successful `done` marks a
 bounded objective `completed`; long-term BitNode objectives still require the
 separate visible BitNode completion proof. The regression suite passes 120/120
-in a network-disabled candidate image. This fix is not deployed to the
-production browser while existing game scripts remain active.
+in a network-disabled candidate image. The fix was not deployed to the retained
+shared test profile while existing game scripts remained active.
 
 ## Reproducing a trial
 
@@ -497,8 +499,9 @@ hardware sampler are in `deployment/benchmark.compose.yaml`,
 `benchmarks/gameplay-objective.md`, and `scripts/`. Configure the private
 endpoints, exact installed tag, an unchanged clean seed profile, and a unique
 state directory in ignored `local/` records. Run three trials per eligible
-model sequentially. Never reuse trial state, use production profiles, or expose
-private endpoint mappings in committed records. See `scripts/run-benchmark-trial.sh`.
+model sequentially. Never reuse trial state, modify the shared persistent test
+profile, or expose private endpoint mappings in committed records. See
+`scripts/run-benchmark-trial.sh`.
 
 For a controlled Qwen thinking-mode comparison, leave `OLLAMA_THINK` unset for
 the model default or set it to `false` (or `true`) for an explicit Ollama chat
@@ -568,4 +571,30 @@ same session without operator guidance or supplied code. The first successful
 hack output was visible by 5m13s after session start. Trial configuration,
 conversation traces, screenshots/DOM observations, and hardware samples remain
 private and ignored under `local/benchmark-runs/qwen36-modal-fix-01/`. This
-trial did not use or modify the production profile or Ollama server settings.
+trial did not use or modify the shared persistent test profile or Ollama server settings.
+
+## Run 26 — same-seed repeat (isolated; no income)
+
+Run 26 repeated the Run 23 seed and objective with Qwen3.6:35b Q4_K_M, 16,384
+context, `think=false`, temperature 0.2, seed 7, a 16-step cap, and a 20-minute
+session limit. The initial and final visible balance remained $1.262k; no active
+script or income was visible. Qwen independently authored and ran
+`nuke_n00dles.js`; `scan-analyze 2` then visibly showed root access on n00dles.
+It authored and deployed a money script but spent the remaining actions on two
+repeat reads and `ps`, then ended without running that script. This is a
+workflow failure, not a deployment or inference failure.
+
+The run made 18 Ollama requests: 174,570 prompt and 4,556 completion tokens,
+502.28 seconds summed inference time, no timeouts, and five visible game
+errors. The longest request took 144.5 seconds. Across 127 GPU samples, each
+card reached 100% utilization and model VRAM peaked at about 23.05 GB; CPU
+offload was not measured. Trial artifacts and game progress remain in the
+ignored, isolated `local/benchmark-runs/qwen36-repeat-02/` directory. The
+retained shared test profile was not used.
+
+Run 26 exposed that the agent could abandon a successfully deployed script
+before execution. The follow-up source change now blocks script reads, API
+lookups, unrelated Terminal commands, and task completion until that exact
+deployment receives a visible run attempt from the visible `home` prompt.
+The guard is covered by the automated suite; Run 27 will test it in a fresh
+isolated profile. The guard does not author code or choose a gameplay strategy.

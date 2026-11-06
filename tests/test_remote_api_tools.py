@@ -69,6 +69,15 @@ class RemoteApiToolTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("game_deploy_script", result)
         self.assertEqual(self.api.calls, [("getFile", {"filename": "student.js", "server": "home"})])
 
+    async def test_pending_deployment_blocks_reads_and_reference_until_visible_run(self):
+        self.action_state.update(deployments_without_run=1, last_deployed_filename="hack.js")
+        read = await self.actions["game_read_script"]("hack.js")
+        reference = await self.actions["game_netscript_reference"]("ns.hack")
+        for result in (read, reference):
+            self.assertTrue(result.startswith("NO_PROGRESS:"))
+            self.assertIn("game_run_script('hack.js'", result)
+        self.assertEqual(self.api.calls, [])
+
     async def test_read_preserves_non_missing_remote_api_errors(self):
         self.api.failure = ("getFile", "Remote API is not connected")
         result = await self.actions["game_read_script"]("student.js")

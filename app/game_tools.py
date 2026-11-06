@@ -10,6 +10,10 @@ import shlex
 from typing import Optional
 
 from browser_use import BrowserSession, Tools
+try:  # Package import for tests, flat import for the deployment image.
+    from .remote_api_tools import pending_script_run_message
+except ImportError:
+    from remote_api_tools import pending_script_run_message
 
 
 GAME_HOST = "bitburner-official.github.io"
@@ -405,6 +409,28 @@ def register_game_tools(tools: Tools, *, include_editor: bool = True,
         blocked = await _clear_known_modal_before_action(browser_session, f"running terminal command {normalized_command!r}")
         if blocked:
             return blocked
+        pending = pending_script_run_message(action_state)
+        if pending and run_filename != str(action_state.get("last_deployed_filename", "")).casefold():
+            # A newly deployed script has already been read back and RAM checked.
+            # Allow only a necessary hop to home before its visible execution.
+            if connect_match and connect_match.group(1).casefold() == "home":
+                visible = await _visible(browser_session)
+                prompts = re.findall(r"\[([A-Za-z0-9_.-]+)\s+[^\]\r\n]*\]\s*>", visible)
+                current_host = prompts[-1] if prompts else ""
+                if current_host and current_host.casefold() != "home":
+                    pass
+                else:
+                    return pending
+            else:
+                return pending
+        elif pending:
+            visible = await _visible(browser_session)
+            prompts = re.findall(r"\[([A-Za-z0-9_.-]+)\s+[^\]\r\n]*\]\s*>", visible)
+            current_host = prompts[-1] if prompts else ""
+            if current_host.casefold() != "home":
+                where = f"the visible prompt shows {current_host}" if current_host else "no current server is visible"
+                return (f"NO_PROGRESS: {run_match.group(1)} was deployed to home, but {where}. "
+                        "Connect home and verify the prompt before running this deployment.")
         if connect_match:
             visible = await _visible(browser_session)
             prompts = re.findall(r"\[([A-Za-z0-9_.-]+)\s+[^\]\r\n]*\]\s*>", visible)

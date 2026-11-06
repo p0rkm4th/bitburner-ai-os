@@ -101,6 +101,20 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result.success)
         self.assertIn("No visible successful Netscript run", result.extracted_content)
 
+    async def test_registered_done_action_cannot_end_with_pending_deployment(self):
+        tools = server.create_game_tools({})
+        state = {"deployments_without_run": 1, "last_deployed_filename": "earn.js"}
+        server.register_completion_guard(tools, "Create and run a money-making script", state)
+        action = tools.registry.registry.actions["done"]
+        with patch.object(server, "visible_snapshot", side_effect=AssertionError("must not inspect or finish")):
+            result = await action.function(
+                params=server.DoneAction(text="The tool returned an error", success=False),
+                browser_session=object(), file_system=object(),
+            )
+        self.assertFalse(result.is_done)
+        self.assertFalse(result.success)
+        self.assertIn("game_run_script('earn.js'", result.extracted_content)
+
     async def test_registered_done_action_accepts_visible_money_gain_after_script_run(self):
         tools = server.create_game_tools({})
         state = {"initial_visible_money": 1262, "confirmed_script_run": "earn.js",
