@@ -1225,8 +1225,8 @@ Ollama responses processed 76,863 prompt and 2,212 completion tokens; summed
 request duration was 218.516 seconds (21.857 seconds mean elapsed per
 response). The model was already resident; summed model-load time was 0.039
 seconds. Preflight sampled 0% GPU utilization and 7.329/5.059/6.201/5.207 GiB
-allocated across the inference host's four GPUs; this was before generation, and no
-generation-time peak or CPU offload measurement was collected.
+allocated across the inference host's four GPUs; this was before generation,
+and no generation-time peak or CPU offload measurement was collected.
 
 The model reran its own earlier file and the deployed modal helper detected
 and dismissed the resulting `REFERENCE ERROR`. It then read the script,
@@ -1248,3 +1248,23 @@ at 12:48:50. The terminal also displayed `$0`/`$1` result lines from
 change is not attributed: the observation interval had no clean baseline,
 multiple scripts may be involved, and the new script's second runtime error
 was not verified as resolved.
+
+### Run 44 — second correction attempt; Netscript concurrency error
+
+On 2026-11-06 from 13:05:08 to 13:08:53 UTC, Qwen3.6:35b continued from its
+own saved error diagnosis in the isolated test game, at 16,384 context and an
+eight-action limit. Eight Ollama responses processed 55,710 prompt and 2,988
+completion tokens in 190.024 seconds summed request duration (23.759 seconds
+mean elapsed). The model was already resident. Preflight showed 0% GPU
+utilization with 7.329/5.059/6.201/5.207 GiB allocated across four GPUs; no
+generation-time peak or CPU offload was measured.
+
+Qwen read its script, attempted an equivalent deployment that the no-op guard
+rejected, reran it, dismissed the resulting visible `TYPE ERROR`, authored and
+deployed a changed version, then ran it again. The final rendered screen
+showed `CONCURRENCY ERROR`: the script called `weaken` without awaiting its
+promise. This is a new diagnosed failure after the model corrected its prior
+`spawn` argument error. It did not consult the live API reference during these
+eight actions or verify income. The session was explicitly stopped at eight
+actions; persisted state is `operator_stopped` at session 17. No balance was
+visible behind the error dialog, and no progress or income is claimed.

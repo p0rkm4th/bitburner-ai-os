@@ -78,6 +78,13 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("is not a function", result)
         self.assertIn("game_netscript_reference", result)
 
+    async def test_concurrency_error_selects_async_netscript_recovery(self):
+        result = await self.actions["game_troubleshoot"](
+            "CONCURRENCY ERROR: weaken was called before the prior promise resolved")
+        self.assertIn("Promise-returning Netscript actions", result)
+        self.assertIn("must be awaited", result)
+        self.assertIn("live API definition", result)
+
     async def test_ram_troubleshooting_mentions_process_inspection_and_home_file_scope(self):
         result = await self.actions["game_troubleshoot"](
             "Cannot run hack_n00dles.js on home: requires 1.70GB RAM")
@@ -129,9 +136,11 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
 
     def test_system_prompt_is_short_and_requires_verified_progress(self):
         self.assertLess(len(BITBURNER_SYSTEM_PROMPT), 2000)
-        self.assertIn("one consequential action per step", BITBURNER_SYSTEM_PROMPT)
-        self.assertIn("never claim progress without visible evidence", BITBURNER_SYSTEM_PROMPT.casefold())
-        self.assertIn("at most one corrected diagnostic attempt", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("one action per step", BITBURNER_SYSTEM_PROMPT.casefold())
+        self.assertIn("require visible evidence", BITBURNER_SYSTEM_PROMPT.casefold())
+        self.assertIn("allow one correction", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("send exact text to `game_troubleshoot`", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("check named APIs with `game_netscript_reference` before editing", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("no dialog returns `NO_PROGRESS`", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("never retry blindly", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("expected_host", BITBURNER_SYSTEM_PROMPT)
@@ -143,9 +152,9 @@ class AgentDocumentationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Terminal `run` executes on the currently connected server", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("never assume `home` has enough free RAM", BITBURNER_SYSTEM_PROMPT)
         self.assertNotIn("run that exact file visibly on `home`", BITBURNER_SYSTEM_PROMPT)
-        self.assertIn("Never repeat a tool error or NO_PROGRESS", BITBURNER_SYSTEM_PROMPT)
-        self.assertIn("Terminal UNCONFIRMED means Enter may have executed", BITBURNER_SYSTEM_PROMPT)
-        self.assertIn("use `game_read_script` for listed .js files", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("Never repeat tool errors or NO_PROGRESS", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("Terminal UNCONFIRMED may have executed", BITBURNER_SYSTEM_PROMPT)
+        self.assertIn("read listed files with `game_read_script`", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("If dismissal reveals a different dialog, inspect its text", BITBURNER_SYSTEM_PROMPT)
         self.assertIn("call `game_progress` before changing or redeploying the file", BITBURNER_SYSTEM_PROMPT)
 

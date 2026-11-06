@@ -77,6 +77,16 @@ procedures, not a prescribed gameplay strategy.
   program is used through the visible in-game Terminal; do not search for it as
   an `ns` function.
 
+## Netscript concurrency errors
+
+- **`CONCURRENCY ERROR` / "Concurrent calls to Netscript functions are not
+  allowed":** Use the visible stack line to find the call that overlaps an
+  earlier action. Promise-returning Netscript actions such as `hack`, `grow`,
+  and `weaken` must be awaited before another Netscript action runs. Check the
+  live API definition when the return type or arguments are unclear, update
+  only the model-authored file, then deploy and run it again. A positive PID
+  does not establish that the script completed an action successfully.
+
 ## RAM and active process errors
 
 - **Dynamic RAM runtime error:** A script can fail at runtime even after a

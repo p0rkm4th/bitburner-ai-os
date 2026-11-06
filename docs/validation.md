@@ -1073,3 +1073,22 @@ A read-only visible observation at 12:55:31 UTC showed `$71.949k`, up from
 may be involved and the new script's second runtime error was not verified as
 resolved. The displayed $2 increase is recorded as un-attributed and is not
 claimed as the new script's income.
+
+## Run 44 — Netscript concurrency error (2026-11-06)
+
+Qwen3.6:35b continued the preserved test game from 13:05:08 to 13:08:53 UTC
+at 16,384 context. It read the current script, attempted an equivalent
+deployment that the no-op guard rejected, reran the script, dismissed the
+visible `TYPE ERROR`, authored and deployed a changed script, and launched it.
+The final read-only observation showed a Bitburner `CONCURRENCY ERROR`:
+`weaken` was called without awaiting its asynchronous result. The agent did
+not verify income and was explicitly stopped at eight actions. Runtime remains
+`operator_stopped` at session 17. No balance was visible behind the error
+dialog, so no gameplay progress or income is claimed.
+
+Eight local-model responses processed 55,710 prompt and 2,988 completion
+tokens in 190.024 seconds summed request time (23.759 seconds mean). The model
+was resident; preflight sampled 0% GPU utilization and 7.329/5.059/6.201/5.207
+GiB allocated across the inference GPUs. No generation peak or CPU offload
+measurement was collected. The exclusive inference slot was released with no
+active or queued request.
