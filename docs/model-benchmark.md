@@ -1057,4 +1057,32 @@ hacking 156. No immediate pre-run money value was persisted, so this trial does
 not establish attributable income. The agent was operator-stopped at the
 16-action cap. A follow-up harness change records the visible balance before a
 run, ignores old PIDs when confirming a new command, and uses the pre-run value
-for progress comparison. All 170 pinned tests pass; live validation is pending.
+for progress comparison. All 170 pinned tests pass. This change was deployed
+and live-validated in the continuation below.
+
+### Run 39 session 11 — model-authored loop executed; income remains too small to verify on HUD
+
+The `d3c3691` build was confirmed running on the shared persistent test game
+before this bounded Qwen3.6:35b continuation (16,384 context, temperature 0.2,
+seed 7). The agent cleared the offline dialog, read `simple_hack.js`, authored
+`hack_n00dles.js`, and deployed it through the restricted Remote API. Bitburner
+rejected its first run on `home` because it required 2.05 GB RAM; the agent
+copied its own file to rooted `n00dles`, connected visibly, and started it with
+PID 5. Terminal output showed the script's weaken/grow/hack cycle. A later
+visible log confirmed one successful hack of `$0.005` and 3.300 hacking
+experience; other attempts failed or stole `$0`. This is attributable script
+output and confirms a successful game hack, but the rendered player balance
+remained `$71.840k` before and after (display rounding hides any sub-dollar
+change), and hacking remained level 156. The Active Scripts summary showed
+`$0.467/s` aggregate production, which is not attributed to this script.
+
+The agent stopped after 14 tool calls (about eight minutes) when it repeated
+`tail hack_n00dles.js` despite the `NO_PROGRESS` rejection. Tool metrics were
+zero framework failures and seven game/tool errors, including transient DOM
+fragments and the repeat guard. The agent is `operator_stopped`; the legitimate
+Netscript process remains active in the preserved test game. No token/latency
+telemetry was persisted for this deployed session. The run demonstrates
+independent authoring, deployment, visible execution, RAM-error recovery, and a
+successful five-mill hack, but does not yet meet the visible balance-delta
+acceptance criterion. The next check should observe the existing script and
+HUD without starting another inference session or changing the game state.

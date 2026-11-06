@@ -815,4 +815,25 @@ command, only counts a PID confirmation found after the fresh command echo,
 and passes that pre-run balance to `game_progress` and the completion gate.
 The tool guide warns against attributing aggregate Active Scripts production
 to a particular file without its row or output. All 170 pinned tests pass.
-This correction awaits deployment and another bounded local-model trial.
+Commit `d3c3691` was deployed and exercised in Run 39 session 11 below.
+
+### Run 39 session 11 — model-authored Netscript cycle
+
+The deployed model independently read `simple_hack.js`, wrote
+`hack_n00dles.js`, deployed it through the restricted Remote API, recovered
+from a visible 2.05 GB `home` RAM rejection by copying the file to rooted
+`n00dles`, and started it visibly (PID 5). The script log showed weaken/grow
+operations and a successful hack for `$0.005` with 3.300 hacking experience.
+The game HUD remained `$71.840k` / hacking 156 before and after; therefore no
+visible balance delta or hacking-level increase is claimed. Active Scripts'
+`$0.467/s` figure was aggregate and is not attributed to this program.
+
+The bounded agent session was stopped after 14 tool calls when it repeated
+`tail hack_n00dles.js` after the tool returned `NO_PROGRESS`. It had zero
+framework failures and seven game/tool errors. The agent is explicitly
+`operator_stopped`; the authored Netscript remains active in the shared test
+game, whose profile was preserved. This verifies independent authorship,
+deployment, visible execution, RAM recovery, and one positive hack result, but
+does not satisfy the visible-balance-delta acceptance criterion. Per-request
+token and latency metrics were not persisted. Next validation should observe
+the existing game state without starting another model request.
