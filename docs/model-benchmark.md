@@ -1035,3 +1035,12 @@ game progress. The operator stopped at three steps. A dynamic session-priority
 instruction now makes pending execution override the generic objective's file
 listing request, and gives unresolved RAM errors a visible process-inspection
 priority. All 166 pinned tests pass; this prompt change is not yet deployed.
+
+### Pending-run priority prompt deployed
+
+Commit `5552257` was deployed after the session-9 listing loop. The state-aware
+session task now explicitly makes execution of a verified pending file the
+first game action, ahead of generic file-listing directions; when no file is
+pending, it prioritizes visible process diagnostics after a RAM rejection. The
+rollout preserved the same test profile and terminal `operator_stopped` state.
+No gameplay or inference has yet validated this instruction change.

@@ -779,3 +779,22 @@ action and overriding generic file-listing guidance. When no deployment is
 pending but a RAM rejection remains unresolved, it prioritizes visible process
 inspection before any new script authoring. Two focused prompt-priority tests
 and the full 166-test suite pass. Deployment and live validation remain pending.
+
+### Pending-run priority recovery deployment — commit `5552257` (2026-11-06)
+
+A generic file-listing request repeatedly overrode the pending deployment
+checkpoint in Qwen's action selection. The task builder now injects a compact,
+state-specific first-action instruction when a verified deployment is pending,
+and tells the model to inspect visible processes before new authoring after an
+unresolved RAM rejection. The 166-test pinned suite passed. Before deployment,
+the shared test game was `operator_stopped` at session 9; a full persistent
+data archive passed gzip validation at
+`/opt/bitburner-agent/backups/data-before-5552257-20261106T094141Z.tar.gz`
+(SHA-256 `c12eae5f07c65ffbde2bf91a20ce72d9d5747bc66414793c57f22b4b657b14f6`),
+and the previous image was tagged for rollback. The image build used no network
+access; only the agent and restricted Remote API bridge were recreated,
+preserving the shared test profile. Postflight: `operator_stopped`, session 9,
+browser ready, `AUTO_RESUME=1`, Remote API Online, noVNC HTTP 200, and
+loopback-only management listeners. A read-only in-container check confirmed
+the pending-script instruction is loaded. Live gameplay validation remains
+pending.
