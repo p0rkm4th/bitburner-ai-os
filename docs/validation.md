@@ -1426,3 +1426,17 @@ and tool result precedence over stale task wording or memory, including after
 dialog dismissal. The focused documentation/prompt tests pass 19/19 and the
 full offline suite passes 187/187. This prompt change is not yet deployed or
 validated in another inference session.
+
+### Prompt deployment postflight (2026-11-06)
+
+Commit `7b70aca` was built with networking disabled and passed all 187 tests in
+the candidate image before rollout. Deployment occurred with the agent
+operator-stopped at session 28. A gzip-validated persistent-data archive and
+the previous image rollback tag were retained. The running prompt hash matches
+the release source. Postflight reports the browser ready, session 28 still
+`operator_stopped`, `MAX_STEPS=12`, `AUTO_RESUME=1`, `MAX_SESSIONS=0`, and
+`MAX_FAILURES=2`; dashboard and noVNC return HTTP 200 on loopback-only ports.
+The visible game reports Remote API **Online** after the restart. Its offline
+notice reports $16.391 generated while away; that is offline progress, not a
+current balance or income attributable to the pending script. No inference or
+gameplay session has been started since deployment.
