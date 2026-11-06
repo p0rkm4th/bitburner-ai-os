@@ -33,5 +33,7 @@ Reproduce in the pinned no-network test container:
 python -m unittest tests.test_ui_replay_fixtures tests.test_game_tools -v
 ```
 
-Result: 32 tests passed. No game, browser profile, inference endpoint, model
-weights, or network was used.
+Focused result: 32 tests passed in the isolated replay worktree; after
+integration, the focused replay + game-tool suite passed 73/73 tests. The full
+network-disabled suite passed **175/175** tests. No game, browser profile,
+inference endpoint, model weights, or network was used.
