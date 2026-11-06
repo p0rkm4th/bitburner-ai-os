@@ -31,15 +31,17 @@ reasoning tokens. “Session time” is from objective start to supervisor exit;
 | Role | Exact Ollama tag | Weights | Capabilities and license | Placement and availability |
 |---|---|---|---|---|
 | Baseline | `qwen3.6:35b` | 35.5B, Q4_K_M; 23.3 GB model, 23.3 GB reported GPU allocation | Vision and tool support; Apache-2.0 | Deep inference pool; installed and benchmarked |
-| Primary challenger | `qwen3.8:27b` | Official 27B tag; 18 GB Q4_K_M catalog build | Vision and tool support; Apache-2.0 | Not scored. The original Ollama 0.31.1 pull returned HTTP 412. A later read-only check found Ollama 0.40.14 on the current local endpoint, but the exact tag is still absent from its catalog. No download or generation has been performed; local resource and scheduling checks remain pending. |
+| Primary challenger | `qwen3.8:27b-q4_K_M` | 27B Q4_K_M; 16.5 GiB catalog size | Vision and tool support; Apache-2.0 | Read-only Herd catalog check on 2026-11-06 found the exact tag locally available and unloaded. Not scored; no generation or gameplay trial has been performed. |
 | Coding challenger | `devstral-small-2:24b-instruct-2512-q4_K_M` | 24B, Q4_K_M; 15.2 GB model, 18.2 GB reported GPU allocation | Vision and tool support; Apache-2.0 | Deep inference pool; installed and benchmarked |
 | VRAM-sized candidate | `gemma4:12b` | 11.9B, Q4_K_M; 8.7 GB model, 8.7 GB reported GPU allocation | Vision and tool support; Apache-2.0 | Compact inference pool; installed and benchmarked |
 
 Catalog tags and requirements were checked before pulling Devstral. Its exact
 tag requires Ollama 0.13.3 or later; the serving endpoint was 0.31.1 during
-that benchmark. The official Ollama catalog lists Qwen3.8's 27B, 18 GB tag.
-Later read-only checks found Ollama 0.40.14 on the current local endpoint, but
-did not find the tag installed; no pull or generation has been performed.
+that benchmark. The official Ollama catalog lists Qwen3.8's 27B model. A
+read-only local catalog check on 2026-11-06 confirms the quantized
+`qwen3.8:27b-q4_K_M` tag is present and unloaded. No generation or gameplay
+trial has been performed, so compatibility with this agent harness and
+gameplay quality remain unverified.
 All three tested models reported the entire
 weight allocation in GPU memory via `/api/ps`; no weight CPU offload was
 reported. GPU sampling observed four 8 GiB cards for the deep pool and two
@@ -122,11 +124,11 @@ be selected for this harness given repeated long timeouts and zero script
 authoring.
 
 Do not switch the deployed test-game service to a challenger based on these
-runs. At the time of this initial benchmark, Qwen3.8 could not be pulled because the serving Ollama
-version was too old. The owner later reported that the Ollama servers had been
-updated; exact installed tags, current compatibility, and gameplay quality have
-not yet been reverified. Revisit model selection through a controlled isolated
-comparison. No deployed test-game model setting was changed.
+runs. At the time of this initial benchmark, Qwen3.8 could not be pulled because
+the serving Ollama version was too old. The exact quantized tag is now present
+in the local catalog, but compatibility with this agent harness and gameplay
+quality have not yet been measured. Revisit model selection through a controlled
+isolated comparison. No deployed test-game model setting was changed.
 
 ## Guided trial after documentation and harness changes
 
@@ -829,7 +831,8 @@ control from a fresh Browser Use accessibility snapshot. The copied profile
 did not reproduce the error panel immediately after reload. Run 34 later
 reproduced the error by running the saved failing script and verified the
 model recovered. Focused and full offline tests cover this behavior; the
-current candidate passes 149 tests. Private evidence is under
+Run 33 candidate passed 149 tests at that point, while deployed candidate
+`60480e5` passes 152/152. Private evidence is under
 `local/benchmark-runs/qwen36-runtime-recovery-01/`.
 
 ## Run 34 — independent runtime-error recovery and income (isolated)
