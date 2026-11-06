@@ -1118,11 +1118,38 @@ Commit `677b5ea` (including the `3ad84ba` modal fix and the earlier
 `cdc0061` guidance changes) was deployed to the isolated test VM after creating
 and validating a persistent-data archive and tagging the prior image for rollback.
 Only the agent and restricted Remote API bridge containers were recreated.
-The runtime detector file hash matched the committed deployment source. The
-agent remained explicitly `operator_stopped` at session 18; the persistent
-browser profile and checkpoint were retained. Health reported the browser
+Runtime hashes matched for the game tools, docs retriever, prompt, and bundled
+troubleshooting guide. The agent remained explicitly `operator_stopped` at
+session 18; the persistent browser profile and checkpoint were retained.
+Health reported the browser
 ready, the VNC page returned HTTP 200, and the rendered Bitburner UI still
 showed Remote API Online. Runtime configuration remained `AUTO_RESUME=1`,
 `MAX_STEPS=16`, `MAX_SESSIONS=0`, and `OLLAMA_NUM_CTX=16384`. This validates
 deployment and preservation only; gameplay recovery and income remain
 unverified.
+
+## Run 46 — concurrency recovery, deployment, and unverified income (2026-11-06)
+
+The isolated agent resumed at 13:45:24 UTC with Qwen3.6:35b at 16,384 context.
+The deployed dialog detector closed the visible concurrency error. Qwen read
+its script, attempted an equivalent write that the no-op guard rejected, ran
+the old revision and observed the error again, then authored and deployed a
+changed version with `await` on `hack`, `grow`, and `weaken`. The visible
+Terminal confirmed it launched as PID 4. The agent recorded a $71,979 baseline
+and hacking level 157; its subsequent progress check showed no output from the
+new script. The rendered UI later showed about $71.983k and hacking 157, plus
+`$2`/`$0` messages labeled `hack_n00dles.js`. Because those messages identify a
+separate script and the balance is rounded, the change cannot be attributed to
+the model-authored `hack_n00dles_fast.js`. No verified income or level
+progression is claimed.
+
+The run ended at 13:50:55 UTC after 12 actions and 12 tool calls (2 failed, 2
+game errors). After the progress check, Qwen twice sent a malformed
+`game_open_tab` argument; the no-progress guard stopped the loop and the
+operator stop persisted `operator_stopped` at session 19. Thirteen Ollama
+responses processed 103,939 prompt and 3,418 completion tokens in 316.947
+seconds summed request time (24.381 seconds mean). Wall-clock duration was
+331 seconds. Preflight showed zero GPU utilization and the model already
+resident at 16K; no generation-time peak or CPU offload sample was collected.
+The post-run Herd queue is empty. The persistent game remains open and
+in-game scripts may continue after the agent stops.

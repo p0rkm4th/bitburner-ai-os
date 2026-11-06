@@ -1286,5 +1286,34 @@ summed request duration was 149.110 seconds (18.644 seconds mean elapsed).
 The model was resident. Preflight showed 0% GPU utilization and
 7.329/5.059/6.201/5.207 GiB allocated across four GPUs; no generation-time
 peak or CPU offload was measured. The visible concurrency heading was not
-recognized by the deployed dialog detector. A focused detector regression
-now passes locally; the fix is not yet deployed.
+recognized by the deployed dialog detector. The regression was fixed in
+`3ad84ba` and deployed with the complete runtime changes through `677b5ea`.
+
+### Run 46 — concurrency recovery and script launch (2026-11-06)
+
+The isolated test agent resumed at 13:45:24 UTC with Qwen3.6:35b, Q4_K_M,
+16,384 context. The updated detector dismissed the visible concurrency dialog.
+After reading its existing file, Qwen attempted an equivalent deployment; the
+no-op guard rejected it. It ran that file and observed the runtime error again,
+then authored a changed revision that awaited its `hack`, `grow`, and `weaken`
+calls. The restricted deployment tool accepted the revision, and the visible
+Terminal confirmed a launch (PID 4). The model then queried progress, but did
+not observe output from the new script and subsequently emitted the same
+malformed `game_open_tab` target twice. The loop guard stopped the session;
+operator stop completed at 13:50:55 UTC, session 19, 12 actions, 12 tool calls,
+2 failed calls, and 2 game errors. This verifies model-authored repair,
+deployment, and a visible launch, but not successful gameplay.
+
+Thirteen Ollama responses processed 103,939 prompt and 3,418 completion tokens
+in 316.947 seconds summed request time (24.381 seconds mean). The bounded
+session lasted 331 seconds wall-clock. Preflight measured 0% GPU utilization;
+Qwen was already resident at 16K with 7.329/5.059/6.201/5.207 GiB allocated
+across four GPUs. No generation-time peak or CPU offload sample was collected.
+
+The progress tool recorded a baseline of $71,979 and hacking level 157 before
+the corrected run. At the end, the visible HUD showed about $71.983k and level
+157. The visible Terminal attributed `$2` and `$0` results to a separate
+`hack_n00dles.js` script; therefore the roughly $4 HUD difference cannot be
+attributed to `hack_n00dles_fast.js`. No hacking-level progression or verified
+income from the model-authored script is claimed. Runtime remains
+`operator_stopped`; in-game scripts may continue independently of the agent.
