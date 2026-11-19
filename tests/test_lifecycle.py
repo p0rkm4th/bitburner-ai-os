@@ -111,6 +111,26 @@ class LifecycleTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.gather(server.runner, return_exceptions=True)
         server.agent, server.runner = old_agent, old_runner
 
+    async def test_resume_without_saved_objective_leaves_state_untouched(self):
+        old_agent, old_runner = server.agent, server.runner
+        fake = FakeAgent()
+        server.agent = fake
+        server.runner = None
+        await server.pause()
+        self.assertTrue(fake.paused)
+        objective = server.STATE / "checkpoints" / "objective.json"
+        objective.unlink(missing_ok=True)
+        with self.assertRaises(server.HTTPException) as raised:
+            await server.resume()
+        self.assertEqual(raised.exception.status_code, 409)
+        # The failed resume must not have resumed anything: agent still
+        # paused, pause event still unset, status still "paused" — the
+        # in-memory state must not diverge from the persisted runtime.
+        self.assertTrue(fake.paused)
+        self.assertFalse(server.pause_event.is_set())
+        self.assertEqual(server.status["state"], "paused")
+        server.agent, server.runner = old_agent, old_runner
+
     async def test_resume_after_interruption_but_not_terminal_states(self):
         self.assertTrue(server.startup_resume_allowed("1", "active", True))
         for state in ("operator_stopped", "failed", "exhausted", "completed", "paused"):
