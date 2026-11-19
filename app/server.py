@@ -879,15 +879,23 @@ async def resume():
     global runner
     if status["state"] != "paused":
         raise HTTPException(409, "No paused session")
-    if agent:
-        agent.resume()
-    pause_event.set()
-    status["state"] = "active"
+    # Validate before mutating anything: when a fresh supervisor task is
+    # needed, it can only start from a saved objective. Checking after
+    # agent.resume() would leave the agent resumed and the status
+    # "active" even when this call then fails with 409, diverging the
+    # in-memory state from the persisted runtime state.
+    objective = None
     if runner is None or runner.done():
         objective_path = STATE / "checkpoints" / "objective.json"
         if not objective_path.exists():
             raise HTTPException(409, "No saved objective to resume")
-        runner = asyncio.create_task(supervise(json.loads(objective_path.read_text())["objective"]))
+        objective = json.loads(objective_path.read_text())["objective"]
+    if agent:
+        agent.resume()
+    pause_event.set()
+    status["state"] = "active"
+    if objective is not None:
+        runner = asyncio.create_task(supervise(objective))
     save_runtime("active", objective=status.get("objective", ""), session=status.get("session", 0))
     record("control", "Resumed")
     return {"resumed": True}
